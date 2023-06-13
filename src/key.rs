@@ -77,7 +77,7 @@ impl DatabaseKey {
     }
 
     pub fn new() -> Self {
-        Default::default()
+        DatabaseKey::default()
     }
 
     pub(crate) fn get_key_elements(self) -> Result<Vec<Vec<u8>>, DatabaseKeyError> {

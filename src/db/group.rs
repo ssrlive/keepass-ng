@@ -105,7 +105,7 @@ impl Group {
             name: name.to_string(),
             times: Times::new(),
             uuid: Uuid::new_v4(),
-            ..Default::default()
+            ..Group::default()
         }
     }
 
@@ -430,7 +430,7 @@ impl Group {
         let mut new_group = Group {
             name: next_location.name.clone(),
             uuid: next_location.uuid,
-            ..Default::default()
+            ..Group::default()
         };
         new_group.add_entry(entry, &remaining_location);
         self.children.push(Node::Group(new_group));

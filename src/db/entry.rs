@@ -40,7 +40,7 @@ impl Entry {
         Entry {
             uuid: Uuid::new_v4(),
             times: Times::new(),
-            ..Default::default()
+            ..Entry::default()
         }
     }
 

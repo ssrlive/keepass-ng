@@ -1,7 +1,7 @@
 use crate::{
     config::{CompressionConfig, DatabaseConfig, InnerCipherConfig, KdfConfig, OuterCipherConfig},
     crypt::calculate_sha256,
-    db::{Database, Entry, Group, Node, NodeRefMut, Value},
+    db::{Database, DeletedObjects, Entry, Group, Meta, Node, NodeRefMut, Value},
     error::{DatabaseIntegrityError, DatabaseKeyError, DatabaseOpenError},
     format::DatabaseVersion,
 };
@@ -103,7 +103,7 @@ fn parse_groups(
     // Loop over group TLVs
     let mut gid_map: HashMap<u32, Vec<String>> = HashMap::new(); // the gid to group path map
     let mut branch: Vec<Group> = Vec::new(); // the current branch in the group tree
-    let mut group: Group = Default::default(); // the current group (will be added as a leaf of the branch)
+    let mut group: Group = Group::default(); // the current group (will be added as a leaf of the branch)
     let mut level: Option<u16> = None; // the current group's level
     let mut gid: Option<u32> = None; // the current group's id
     let mut group_path: Vec<String> = Vec::new(); // the current group path
@@ -165,7 +165,7 @@ fn parse_groups(
                 // Update the GroupId map and reset state for the next group
                 let group_id = gid.ok_or_else(|| DatabaseIntegrityError::MissingKDBGroupId)?;
                 gid_map.insert(group_id, group_path.clone());
-                group = Default::default();
+                group = Group::default();
                 gid = None;
                 num_groups += 1;
             }
@@ -192,7 +192,7 @@ fn parse_entries(
     data: &mut &[u8],
 ) -> Result<(), DatabaseIntegrityError> {
     // Loop over entry TLVs
-    let mut entry: Entry = Default::default(); // the current entry
+    let mut entry = Entry::default(); // the current entry
     let mut gid: Option<u32> = None; // the current entry's group id
     let mut num_entries = 0;
     while num_entries < header_num_entries {
@@ -260,7 +260,7 @@ fn parse_entries(
                 };
 
                 group.children.push(Node::Entry(entry));
-                entry = Default::default();
+                entry = Entry::default();
                 gid = None;
                 num_entries += 1;
             }
@@ -281,7 +281,7 @@ fn parse_entries(
 fn parse_db(header: &KDBHeader, data: &[u8]) -> Result<Group, DatabaseIntegrityError> {
     let mut root = Group {
         name: "Root".to_owned(),
-        ..Default::default()
+        ..Group::default()
     };
 
     let mut pos = data;
@@ -356,9 +356,9 @@ pub(crate) fn parse_kdb(
 
     Ok(Database {
         config,
-        header_attachments: Default::default(),
+        header_attachments: Vec::default(),
         root: root_group,
-        deleted_objects: Default::default(),
-        meta: Default::default(),
+        deleted_objects: DeletedObjects::default(),
+        meta: Meta::default(),
     })
 }

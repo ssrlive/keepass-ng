@@ -134,8 +134,8 @@ impl Database {
             config,
             header_attachments: Vec::new(),
             root: Group::new("Root"),
-            deleted_objects: Default::default(),
-            meta: Default::default(),
+            deleted_objects: DeletedObjects::default(),
+            meta: Meta::default(),
         }
     }
 }

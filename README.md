@@ -65,12 +65,12 @@ You can enable the experimental support for saving KDBX4 databases using the `sa
 ```rust
 use keepass::{
     db::{Database, Entry, Group, Node, NodeRef, Value},
-    DatabaseKey,
+    DatabaseConfig, DatabaseKey,
 };
 use std::fs::File;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let mut db = Database::new(Default::default());
+    let mut db = Database::new(DatabaseConfig::default());
 
     db.meta.database_name = Some("Demo database".to_string());
 

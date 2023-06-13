@@ -14,6 +14,7 @@ pub(crate) mod variant_dictionary;
 pub(crate) mod xml_db;
 
 pub use self::{
+    config::DatabaseConfig,
     db::Database,
     error::{Error, Result},
     key::DatabaseKey,
