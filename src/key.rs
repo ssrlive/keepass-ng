@@ -44,13 +44,13 @@ fn parse_xml_keyfile(xml: &[u8]) -> Result<Vec<u8>, DatabaseKeyError> {
 
 fn parse_keyfile(buffer: &[u8]) -> Result<Vec<u8>, DatabaseKeyError> {
     // try to parse the buffer as XML, if successful, use that data instead of full file
-    if let Ok(v) = parse_xml_keyfile(&buffer) {
+    if let Ok(v) = parse_xml_keyfile(buffer) {
         Ok(v)
     } else if buffer.len() == 32 {
         // legacy binary key format
         Ok(buffer.to_vec())
     } else {
-        Ok(calculate_sha256(&[&buffer])?.as_slice().to_vec())
+        Ok(calculate_sha256(&[buffer])?.as_slice().to_vec())
     }
 }
 

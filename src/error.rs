@@ -1,12 +1,78 @@
 //! Error types that this crate can return
 
-use thiserror::Error;
-
 #[cfg(feature = "totp")]
 pub use crate::db::otp::TOTPError;
 
+#[derive(thiserror::Error, Debug)]
+pub enum Error {
+    #[error("std::io::Error {0}")]
+    Io(#[from] std::io::Error),
+
+    #[error("DatabaseOpenError {0}")]
+    DatabaseOpenError(#[from] DatabaseOpenError),
+
+    #[error("DatabaseSaveError {0}")]
+    DatabaseSaveError(#[from] DatabaseSaveError),
+
+    #[error("OuterCipherConfigError {0}")]
+    OuterCipherConfigError(#[from] OuterCipherConfigError),
+
+    #[error("InnerCipherConfigError {0}")]
+    InnerCipherConfigError(#[from] InnerCipherConfigError),
+
+    #[error("CompressionConfigError {0}")]
+    CompressionConfigError(#[from] CompressionConfigError),
+
+    #[error("KdfConfigError {0}")]
+    KdfConfigError(#[from] KdfConfigError),
+
+    #[error("CryptographyError {0}")]
+    CryptographyError(#[from] CryptographyError),
+
+    #[error("BlockStreamError {0}")]
+    BlockStreamError(#[from] BlockStreamError),
+
+    #[error("VariantDictionaryError {0}")]
+    VariantDictionaryError(#[from] VariantDictionaryError),
+
+    #[error("XmlParseError {0}")]
+    XmlParseError(#[from] XmlParseError),
+
+    #[error("ParseColorError {0}")]
+    ParseColorError(#[from] ParseColorError),
+
+    #[error("&str error: {0}")]
+    Str(String),
+
+    #[error("String error: {0}")]
+    String(String),
+
+    #[error("&String error: {0}")]
+    RefString(String),
+}
+
+impl From<&str> for Error {
+    fn from(s: &str) -> Self {
+        Error::Str(s.to_string())
+    }
+}
+
+impl From<String> for Error {
+    fn from(s: String) -> Self {
+        Error::String(s)
+    }
+}
+
+impl From<&String> for Error {
+    fn from(s: &String) -> Self {
+        Error::RefString(s.to_string())
+    }
+}
+
+pub type Result<T> = std::result::Result<T, Error>;
+
 /// Errors upon reading a Database
-#[derive(Debug, Error)]
+#[derive(Debug, thiserror::Error)]
 pub enum DatabaseOpenError {
     /// An I/O error has occurred while reading the database
     #[error(transparent)]
@@ -26,7 +92,7 @@ pub enum DatabaseOpenError {
 }
 
 /// Errors stemming from corrupted databases
-#[derive(Debug, Error)]
+#[derive(Debug, thiserror::Error)]
 pub enum DatabaseIntegrityError {
     /// The database does not have a valid KDBX identifier
     #[error("Invalid KDBX identifier")]
@@ -63,6 +129,9 @@ pub enum DatabaseIntegrityError {
 
     #[error("Missing group level")]
     MissingKDBGroupLevel,
+
+    #[error("Invalid KDBX header field ID: {}", field_id)]
+    InvalidKDBXHeaderFieldID { field_id: u8 },
 
     #[error(
         "Invalid group level {} (current level {})",
@@ -139,7 +208,7 @@ pub enum DatabaseIntegrityError {
 }
 
 /// Errors occurring when saving a Database
-#[derive(Debug, Error)]
+#[derive(Debug, thiserror::Error)]
 pub enum DatabaseSaveError {
     /// The current database version cannot be saved by this library
     #[error("Saving this database version is not supported")]
@@ -167,7 +236,7 @@ pub enum DatabaseSaveError {
 }
 
 /// Errors related to the database key
-#[derive(Debug, Error)]
+#[derive(Debug, thiserror::Error)]
 pub enum DatabaseKeyError {
     /// The key specified was incorrect, e.g. because of a wrong password
     #[error("Incorrect key")]
@@ -191,7 +260,7 @@ pub enum DatabaseKeyError {
 }
 
 /// Errors with the configuration of the outer encryption
-#[derive(Debug, Error)]
+#[derive(Debug, thiserror::Error)]
 pub enum OuterCipherConfigError {
     #[error(transparent)]
     Cryptography(#[from] CryptographyError),
@@ -201,7 +270,7 @@ pub enum OuterCipherConfigError {
 }
 
 /// Errors with the configuration of the inner encryption
-#[derive(Debug, Error)]
+#[derive(Debug, thiserror::Error)]
 pub enum InnerCipherConfigError {
     #[error(transparent)]
     Cryptography(#[from] CryptographyError),
@@ -211,7 +280,7 @@ pub enum InnerCipherConfigError {
 }
 
 /// Errors with the configuration of the compression algorithm
-#[derive(Debug, Error)]
+#[derive(Debug, thiserror::Error)]
 pub enum CompressionConfigError {
     /// The identifier for the compression algorithm specified in the database is invalid
     #[error("Invalid compression algorithm: {}", cid)]
@@ -219,7 +288,7 @@ pub enum CompressionConfigError {
 }
 
 /// Errors with the configuration of the Key Derivation Function
-#[derive(Debug, Error)]
+#[derive(Debug, thiserror::Error)]
 pub enum KdfConfigError {
     #[error("Invalid KDF version: {}", version)]
     InvalidKDFVersion { version: u32 },
@@ -232,7 +301,7 @@ pub enum KdfConfigError {
 }
 
 /// Errors while performing cryptographic operations
-#[derive(Debug, Error)]
+#[derive(Debug, thiserror::Error)]
 pub enum CryptographyError {
     #[error(transparent)]
     InvalidLength(#[from] cipher::InvalidLength),
@@ -248,7 +317,7 @@ pub enum CryptographyError {
 }
 
 /// Errors reading from the HMAC block stream
-#[derive(Debug, Error)]
+#[derive(Debug, thiserror::Error)]
 pub enum BlockStreamError {
     #[error(transparent)]
     Cryptography(#[from] CryptographyError),
@@ -258,7 +327,7 @@ pub enum BlockStreamError {
 }
 
 /// Errors while parsing a VariantDictionary
-#[derive(Debug, Error)]
+#[derive(Debug, thiserror::Error)]
 pub enum VariantDictionaryError {
     #[error("Invalid variant dictionary version: {}", version)]
     InvalidVersion { version: u16 },
@@ -277,7 +346,7 @@ pub enum VariantDictionaryError {
 }
 
 /// Errors while parsing the XML document inside of a KeePass database
-#[derive(Debug, Error)]
+#[derive(Debug, thiserror::Error)]
 pub enum XmlParseError {
     #[error(transparent)]
     Xml(#[from] xml::reader::Error),
@@ -320,7 +389,7 @@ pub enum XmlParseError {
 }
 
 /// Error parsing a color code
-#[derive(Debug, Error)]
+#[derive(Debug, thiserror::Error)]
 #[error("Cannot parse color: '{}'", _0)]
 pub struct ParseColorError(pub String);
 

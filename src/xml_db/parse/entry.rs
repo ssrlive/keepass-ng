@@ -200,7 +200,7 @@ impl FromXml for BinaryField {
             }
             _ => None,
         }
-        .ok_or_else(|| XmlParseError::BadEvent {
+        .ok_or(XmlParseError::BadEvent {
             expected: "Open Value tag with \"Ref\" attribute",
             event: value_event,
         })?;

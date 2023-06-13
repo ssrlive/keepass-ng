@@ -87,7 +87,7 @@ impl DumpXml for Value {
                     .encrypt(p.unsecure())
                     .expect("Encrypt with inner cipher");
 
-                let protected_value = base64_engine::STANDARD.encode(&encrypted_value);
+                let protected_value = base64_engine::STANDARD.encode(encrypted_value);
 
                 writer.write(WriterEvent::characters(&protected_value))?;
 

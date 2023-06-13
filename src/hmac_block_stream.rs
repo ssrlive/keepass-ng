@@ -29,16 +29,16 @@ pub(crate) fn read_hmac_block_stream(
         // verify block hmac
         let hmac_block_key = get_hmac_block_key(block_index, key)?;
         let mut block_index_buf = [0u8; 8];
-        LittleEndian::write_u64(&mut block_index_buf, block_index as u64);
+        LittleEndian::write_u64(&mut block_index_buf, block_index);
 
         if hmac
             != crate::crypt::calculate_hmac(
-                &[&block_index_buf, size_bytes, &block],
+                &[&block_index_buf, size_bytes, block],
                 &hmac_block_key,
             )?
             .as_slice()
         {
-            return Err(BlockStreamError::BlockHashMismatch { block_index }.into());
+            return Err(BlockStreamError::BlockHashMismatch { block_index });
         }
 
         pos += 36 + size;
@@ -55,6 +55,7 @@ pub(crate) fn read_hmac_block_stream(
 }
 
 /// Write a raw buffer as a HMAC block stream
+#[allow(dead_code)]
 pub(crate) fn write_hmac_block_stream(
     data: &[u8],
     key: &GenericArray<u8, U64>,
@@ -76,25 +77,23 @@ pub(crate) fn write_hmac_block_stream(
         // Generate block hmac
         let hmac_block_key = get_hmac_block_key(block_index, key)?;
         let mut block_index_buf = [0u8; 8];
-        LittleEndian::write_u64(&mut block_index_buf, block_index as u64);
+        LittleEndian::write_u64(&mut block_index_buf, block_index);
 
-        let hmac = crate::crypt::calculate_hmac(
-            &[&block_index_buf, &size_bytes, &block],
-            &hmac_block_key,
-        )?;
+        let hmac =
+            crate::crypt::calculate_hmac(&[&block_index_buf, &size_bytes, block], &hmac_block_key)?;
 
         pos += 36 + size;
         block_index += 1;
 
         out.extend_from_slice(&hmac);
         out.extend_from_slice(&size_bytes);
-        out.extend_from_slice(&block);
+        out.extend_from_slice(block);
     }
 
     // the end of the HMAC block stream should be an empty block, but with a valid HMAC
     let hmac_block_key = get_hmac_block_key(block_index, key)?;
     let mut block_index_buf = [0u8; 8];
-    LittleEndian::write_u64(&mut block_index_buf, block_index as u64);
+    LittleEndian::write_u64(&mut block_index_buf, block_index);
 
     let size_bytes = vec![0; 4];
     let hmac =
@@ -111,6 +110,6 @@ pub(crate) fn get_hmac_block_key(
     key: &GenericArray<u8, U64>,
 ) -> Result<GenericArray<u8, U64>, CryptographyError> {
     let mut buf = [0u8; 8];
-    LittleEndian::write_u64(&mut buf, block_index as u64);
+    LittleEndian::write_u64(&mut buf, block_index);
     crate::crypt::calculate_sha512(&[&buf, key])
 }

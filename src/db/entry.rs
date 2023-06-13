@@ -45,12 +45,12 @@ impl Entry {
     }
 
     pub(crate) fn merge(&self, other: &Entry) -> Result<(Entry, MergeLog), String> {
-        let mut response: Entry = Entry::default();
+        let mut response: Entry;
         let mut log = MergeLog::default();
 
         let destination_modification_time = self.times.get_last_modification().unwrap();
         let source_modification_time = other.times.get_last_modification().unwrap();
-        if destination_modification_time == source_modification_time && !self.eq(&other) {
+        if destination_modification_time == source_modification_time && !self.eq(other) {
             // This should never happen.
             // This means that an entry was updated without updating the last modification
             // timestamp.
@@ -75,7 +75,7 @@ impl Entry {
                 History::default()
             }
         };
-        let mut history_merge_log: MergeLog = MergeLog::default();
+        let history_merge_log: MergeLog;
 
         if destination_modification_time > source_modification_time {
             response = self.clone();
@@ -97,6 +97,7 @@ impl Entry {
     // 2. We wait a second before commiting the changes so that the timestamp is not the same
     //    as it previously was. This is necessary since the timestamps in the KDBX format
     //    do not preserve the msecs.
+    #[allow(dead_code)]
     pub(crate) fn set_field_and_commit(&mut self, field_name: &str, field_value: &str) {
         self.fields.insert(
             field_name.to_string(),
@@ -112,8 +113,8 @@ impl<'a> Entry {
     pub fn get(&'a self, key: &str) -> Option<&'a str> {
         match self.fields.get(key) {
             Some(&Value::Bytes(_)) => None,
-            Some(&Value::Protected(ref pv)) => std::str::from_utf8(pv.unsecure()).ok(),
-            Some(&Value::Unprotected(ref uv)) => Some(&uv),
+            Some(Value::Protected(pv)) => std::str::from_utf8(pv.unsecure()).ok(),
+            Some(Value::Unprotected(uv)) => Some(uv),
             None => None,
         }
     }
@@ -121,7 +122,7 @@ impl<'a> Entry {
     /// Get a bytes field by name
     pub fn get_bytes(&'a self, key: &str) -> Option<&'a [u8]> {
         match self.fields.get(key) {
-            Some(&Value::Bytes(ref b)) => Some(&b),
+            Some(Value::Bytes(b)) => Some(b),
             _ => None,
         }
     }
@@ -207,7 +208,7 @@ impl<'a> Entry {
     /// history update.
     fn has_uncommited_changes(&self) -> bool {
         if let Some(history) = self.history.as_ref() {
-            if history.entries.len() == 0 {
+            if history.entries.is_empty() {
                 return true;
             }
 
@@ -325,7 +326,7 @@ impl History {
 
     // Merge both histories together.
     pub(crate) fn merge_with(&mut self, other: &History) -> Result<MergeLog, String> {
-        let mut log = MergeLog::default();
+        let log = MergeLog::default();
         let mut new_history_entries: HashMap<NaiveDateTime, Entry> = HashMap::new();
 
         for history_entry in &self.entries {
@@ -333,19 +334,19 @@ impl History {
             if new_history_entries.contains_key(modification_time) {
                 return Err("This should never happen.".to_string());
             }
-            new_history_entries.insert(modification_time.clone(), history_entry.clone());
+            new_history_entries.insert(*modification_time, history_entry.clone());
         }
 
         for history_entry in &other.entries {
             let modification_time = history_entry.times.get_last_modification().unwrap();
             let existing_history_entry = new_history_entries.get(modification_time);
             if let Some(existing_history_entry) = existing_history_entry {
-                if !existing_history_entry.eq(&history_entry) {
+                if !existing_history_entry.eq(history_entry) {
                     // FIXME this will make the unit tests fail.
                     // return Err("History entries have the same modification timestamp but were not the same.".to_string());
                 }
             } else {
-                new_history_entries.insert(modification_time.clone(), history_entry.clone());
+                new_history_entries.insert(*modification_time, history_entry.clone());
             }
         }
 
@@ -354,7 +355,7 @@ impl History {
         all_modification_times.reverse();
         let mut new_entries: Vec<Entry> = vec![];
         for modification_time in &all_modification_times {
-            new_entries.push(new_history_entries.get(&modification_time).unwrap().clone());
+            new_entries.push(new_history_entries.get(modification_time).unwrap().clone());
         }
 
         self.entries = new_entries;

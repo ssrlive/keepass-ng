@@ -118,7 +118,7 @@ impl TryFrom<&[u8]> for OuterCipherConfig {
         } else if v == CIPHERSUITE_CHACHA20 {
             Ok(OuterCipherConfig::ChaCha20)
         } else {
-            Err(OuterCipherConfigError::InvalidOuterCipherID { cid: v.to_vec() }.into())
+            Err(OuterCipherConfigError::InvalidOuterCipherID { cid: v.to_vec() })
         }
     }
 }
@@ -169,7 +169,7 @@ impl TryFrom<u32> for InnerCipherConfig {
             PLAIN => Ok(InnerCipherConfig::Plain),
             SALSA_20 => Ok(InnerCipherConfig::Salsa20),
             CHA_CHA_20 => Ok(InnerCipherConfig::ChaCha20),
-            _ => Err(InnerCipherConfigError::InvalidInnerCipherID { cid: v }.into()),
+            _ => Err(InnerCipherConfigError::InvalidInnerCipherID { cid: v }),
         }
     }
 }
@@ -422,7 +422,7 @@ impl TryFrom<u32> for CompressionConfig {
         match v {
             0 => Ok(CompressionConfig::None),
             1 => Ok(CompressionConfig::GZip),
-            _ => Err(CompressionConfigError::InvalidCompressionSuite { cid: v }.into()),
+            _ => Err(CompressionConfigError::InvalidCompressionSuite { cid: v }),
         }
     }
 }

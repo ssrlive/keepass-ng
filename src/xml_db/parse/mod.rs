@@ -93,7 +93,7 @@ pub(crate) fn parse_from_bytes<P: FromXml>(
                     name: OwnedName { local_name, .. },
                 }) => Some(SimpleXmlEvent::End(local_name)),
                 Ok(XmlEvent::Characters(c)) => Some(SimpleXmlEvent::Characters(c)),
-                Err(e) => Some(SimpleXmlEvent::Err(e.into())),
+                Err(e) => Some(SimpleXmlEvent::Err(e)),
 
                 // ignore whitespace, comments, ...
                 _ => None,
@@ -124,10 +124,10 @@ impl<T: FromXmlCharacters> FromXml for T {
         if let SimpleXmlEvent::Characters(text) = event {
             T::from_xml_characters(&text)
         } else {
-            return Err(XmlParseError::BadEvent {
+            Err(XmlParseError::BadEvent {
                 expected: "text containing a value",
                 event,
-            });
+            })
         }
     }
 }
@@ -222,10 +222,10 @@ impl<V: FromXml> FromXml for SimpleTag<V> {
 
             Ok(SimpleTag { name, value })
         } else {
-            return Err(XmlParseError::BadEvent {
+            Err(XmlParseError::BadEvent {
                 expected: "Open tag",
                 event: open_tag,
-            });
+            })
         }
     }
 }
@@ -616,7 +616,7 @@ impl FromXml for IgnoreSubfield {
         if let SimpleXmlEvent::Start(_, _) = open_tag {
             let mut stack = Vec::new();
 
-            while let Some(event) = iterator.next() {
+            for event in iterator.by_ref() {
                 match event {
                     SimpleXmlEvent::Start(t, _) => stack.push(t),
                     SimpleXmlEvent::End(_) => {

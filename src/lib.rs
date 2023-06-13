@@ -13,5 +13,9 @@ mod key;
 pub(crate) mod variant_dictionary;
 pub(crate) mod xml_db;
 
-pub use self::db::Database;
-pub use self::key::DatabaseKey;
+pub use self::{
+    db::Database,
+    error::{Error, Result},
+    key::DatabaseKey,
+};
+pub use uuid::Uuid;

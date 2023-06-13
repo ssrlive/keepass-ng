@@ -70,7 +70,7 @@ impl Database {
 
         match database_version {
             DatabaseVersion::KDB(_) => parse_kdb(data.as_ref(), &key_elements),
-            DatabaseVersion::KDB2(_) => Err(DatabaseOpenError::UnsupportedVersion.into()),
+            DatabaseVersion::KDB2(_) => Err(DatabaseOpenError::UnsupportedVersion),
             DatabaseVersion::KDB3(_) => parse_kdbx3(data.as_ref(), &key_elements),
             DatabaseVersion::KDB4(_) => parse_kdbx4(data.as_ref(), &key_elements),
         }
@@ -89,9 +89,9 @@ impl Database {
         let key_elements = key.get_key_elements()?;
 
         match self.config.version {
-            DatabaseVersion::KDB(_) => Err(DatabaseSaveError::UnsupportedVersion.into()),
-            DatabaseVersion::KDB2(_) => Err(DatabaseSaveError::UnsupportedVersion.into()),
-            DatabaseVersion::KDB3(_) => Err(DatabaseSaveError::UnsupportedVersion.into()),
+            DatabaseVersion::KDB(_) => Err(DatabaseSaveError::UnsupportedVersion),
+            DatabaseVersion::KDB2(_) => Err(DatabaseSaveError::UnsupportedVersion),
+            DatabaseVersion::KDB3(_) => Err(DatabaseSaveError::UnsupportedVersion),
             DatabaseVersion::KDB4(_) => dump_kdbx4(self, &key_elements, destination),
         }
     }
@@ -124,7 +124,7 @@ impl Database {
     ) -> Result<DatabaseVersion, DatabaseIntegrityError> {
         let mut data = Vec::new();
         data.resize(DatabaseVersion::get_version_header_size(), 0);
-        source.read(&mut data)?;
+        _ = source.read(&mut data)?;
         DatabaseVersion::parse(data.as_ref())
     }
 
@@ -318,24 +318,26 @@ impl FromStr for Color {
     }
 }
 
-impl Color {
-    pub fn to_string(&self) -> String {
-        format!("#{:0x}{:0x}{:0x}", self.r, self.g, self.b)
+impl std::fmt::Display for Color {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "#{:0x}{:0x}{:0x}", self.r, self.g, self.b)
     }
 }
 
 #[cfg(test)]
 mod database_tests {
+    use crate::{
+        config::DatabaseConfig,
+        db::{Entry, Node},
+        Database, DatabaseKey, Result,
+    };
     use std::fs::File;
 
-    use crate::{error::DatabaseOpenError, Database, DatabaseKey};
-
     #[test]
-    fn test_xml() -> Result<(), DatabaseOpenError> {
-        let xml = Database::get_xml(
-            &mut File::open("tests/resources/test_db_with_password.kdbx")?,
-            DatabaseKey::new().with_password("demopass"),
-        )?;
+    fn test_xml() -> Result<()> {
+        let key = DatabaseKey::new().with_password("demopass");
+        let mut f = File::open("tests/resources/test_db_with_password.kdbx")?;
+        let xml = Database::get_xml(&mut f, key)?;
 
         assert!(xml.len() > 100);
 
@@ -344,25 +346,21 @@ mod database_tests {
 
     #[cfg(feature = "save_kdbx4")]
     #[test]
-    fn test_save() {
-        use crate::db::{Entry, Node};
-        let mut db = Database::new(Default::default());
+    fn test_save() -> Result<()> {
+        let mut db = Database::new(DatabaseConfig::default());
 
         db.root.children.push(Node::Entry(Entry::new()));
-        db.root.children.push(Node::Entry(Entry::new()));
-        db.root.children.push(Node::Entry(Entry::new()));
+        db.root.add_child(Entry::new().into());
+        db.root.add_child(Entry::new().into());
 
         let mut buffer = Vec::new();
+        let key = DatabaseKey::new().with_password("testing");
 
-        db.save(&mut buffer, DatabaseKey::new().with_password("testing"))
-            .unwrap();
+        db.save(&mut buffer, key.clone())?;
 
-        let db_loaded = Database::open(
-            &mut buffer.as_slice(),
-            DatabaseKey::new().with_password("testing"),
-        )
-        .unwrap();
+        let db_loaded = Database::open(&mut buffer.as_slice(), key.clone())?;
 
         assert_eq!(db, db_loaded);
+        Ok(())
     }
 }

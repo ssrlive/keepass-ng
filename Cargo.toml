@@ -19,52 +19,37 @@ serialization = ["serde", "serde_json", "chrono/serde"]
 totp = ["totp-lite", "url", "base32"]
 save_kdbx4 = []
 
-default = []
+default = ["utilities", "save_kdbx4"]
 
 [dependencies]
-thiserror = "1"
-
-# encoding and parsing
-byteorder = "1"
-flate2 = "1"
-xml-rs = "0.8"
-base64 = "0.21"
-hex-literal = "0.4"
-secstr = "0.5"
-chrono = { version = "0.4.23", default-features = false, features = [
-    "serde",
-    "clock",
-    "std",
-] }
-
-# cryptography
-rust-argon2 = "1.0"
-sha2 = "0.10"
 aes = "0.8"
-block-modes = "0.9"
-hmac = "0.12"
-salsa20 = "0.10"
-chacha20 = "0.9"
-cipher = { version = "0.4", features = ["std"] }
-twofish = "0.7"
-cbc = "0.1"
-
-uuid = { version = "1.2", features = ["v4", "serde"] }
-getrandom = { version = "0.2", features = ["std"] }
-
-# dependencies for command-line utilities
 anyhow = { version = "1", optional = true }
+base32 = { version = "0.4.0", optional = true }
+base64 = "0.21"
+block-modes = "0.9"
+byteorder = "1"
+cbc = "0.1"
+chacha20 = "0.9"
+chrono = { version = "0.4.23", default-features = false, features = ["serde", "clock", "std"] }
+cipher = { version = "0.4", features = ["std"] }
 clap = { version = "4", optional = true, features = ["derive"] }
+flate2 = "1"
+getrandom = { version = "0.2", features = ["std"] }
+hex-literal = "0.4"
+hmac = "0.12"
 rpassword = { version = "7", optional = true }
-
-# dependencies for serialization (enabled by "serialization" feature)
+rust-argon2 = "1.0"
+salsa20 = "0.10"
+secstr = "0.5"
 serde = { version = "1", optional = true, features = ["derive"] }
 serde_json = { version = "1", optional = true }
-
-# dependencies for totp (enabled by "totp" feature)
+sha2 = "0.10"
+thiserror = "1"
 totp-lite = { version = "2.0.0", optional = true }
+twofish = "0.7"
 url = { version = "2.2.2", optional = true }
-base32 = { version = "0.4.0", optional = true }
+uuid = { version = "1.2", features = ["v4", "serde"] }
+xml-rs = "0.8"
 
 [dev-dependencies]
 rustfmt = "0.10.0"

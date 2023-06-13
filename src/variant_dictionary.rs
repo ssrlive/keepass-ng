@@ -20,6 +20,7 @@ pub(crate) struct VariantDictionary {
 }
 
 impl VariantDictionary {
+    #[allow(dead_code)]
     pub(crate) fn new() -> Self {
         Self {
             data: HashMap::new(),
@@ -80,6 +81,7 @@ impl VariantDictionary {
         Ok(VariantDictionary { data })
     }
 
+    #[allow(dead_code)]
     pub(crate) fn dump(&self, writer: &mut dyn Write) -> Result<(), std::io::Error> {
         writer.write_u16::<LittleEndian>(VARIANT_DICTIONARY_VERSION)?;
 
@@ -149,6 +151,7 @@ impl VariantDictionary {
         })
     }
 
+    #[allow(dead_code)]
     pub(crate) fn set<T>(&mut self, key: &str, value: T)
     where
         T: Into<VariantDictionaryValue>,
@@ -210,63 +213,63 @@ impl From<Vec<u8>> for VariantDictionaryValue {
     }
 }
 
-impl<'a> Into<Option<&'a u32>> for &'a VariantDictionaryValue {
-    fn into(self) -> Option<&'a u32> {
-        match self {
+impl<'a> From<&'a VariantDictionaryValue> for Option<&'a u32> {
+    fn from(val: &'a VariantDictionaryValue) -> Self {
+        match val {
             VariantDictionaryValue::UInt32(v) => Some(v),
             _ => None,
         }
     }
 }
 
-impl<'a> Into<Option<&'a u64>> for &'a VariantDictionaryValue {
-    fn into(self) -> Option<&'a u64> {
-        match self {
+impl<'a> From<&'a VariantDictionaryValue> for Option<&'a u64> {
+    fn from(val: &'a VariantDictionaryValue) -> Self {
+        match val {
             VariantDictionaryValue::UInt64(v) => Some(v),
             _ => None,
         }
     }
 }
 
-impl<'a> Into<Option<&'a bool>> for &'a VariantDictionaryValue {
-    fn into(self) -> Option<&'a bool> {
-        match self {
+impl<'a> From<&'a VariantDictionaryValue> for Option<&'a bool> {
+    fn from(val: &'a VariantDictionaryValue) -> Self {
+        match val {
             VariantDictionaryValue::Bool(v) => Some(v),
             _ => None,
         }
     }
 }
 
-impl<'a> Into<Option<&'a i32>> for &'a VariantDictionaryValue {
-    fn into(self) -> Option<&'a i32> {
-        match self {
+impl<'a> From<&'a VariantDictionaryValue> for Option<&'a i32> {
+    fn from(val: &'a VariantDictionaryValue) -> Self {
+        match val {
             VariantDictionaryValue::Int32(v) => Some(v),
             _ => None,
         }
     }
 }
 
-impl<'a> Into<Option<&'a i64>> for &'a VariantDictionaryValue {
-    fn into(self) -> Option<&'a i64> {
-        match self {
+impl<'a> From<&'a VariantDictionaryValue> for Option<&'a i64> {
+    fn from(val: &'a VariantDictionaryValue) -> Self {
+        match val {
             VariantDictionaryValue::Int64(v) => Some(v),
             _ => None,
         }
     }
 }
 
-impl<'a> Into<Option<&'a String>> for &'a VariantDictionaryValue {
-    fn into(self) -> Option<&'a String> {
-        match self {
+impl<'a> From<&'a VariantDictionaryValue> for Option<&'a String> {
+    fn from(val: &'a VariantDictionaryValue) -> Self {
+        match val {
             VariantDictionaryValue::String(v) => Some(v),
             _ => None,
         }
     }
 }
 
-impl<'a> Into<Option<&'a Vec<u8>>> for &'a VariantDictionaryValue {
-    fn into(self) -> Option<&'a Vec<u8>> {
-        match self {
+impl<'a> From<&'a VariantDictionaryValue> for Option<&'a Vec<u8>> {
+    fn from(val: &'a VariantDictionaryValue) -> Self {
+        match val {
             VariantDictionaryValue::ByteArray(v) => Some(v),
             _ => None,
         }

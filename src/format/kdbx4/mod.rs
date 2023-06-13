@@ -6,6 +6,7 @@ use crate::{
     format::DatabaseVersion,
 };
 
+#[allow(unused_imports)]
 pub(crate) use crate::format::kdbx4::dump::dump_kdbx4;
 pub(crate) use crate::format::kdbx4::parse::{decrypt_kdbx4, parse_kdbx4};
 

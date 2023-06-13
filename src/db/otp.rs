@@ -97,7 +97,7 @@ impl std::str::FromStr for TOTP {
         }
         let query_pairs = parsed.query_pairs();
 
-        let label: String = parsed.path().trim_start_matches("/").to_string();
+        let label: String = parsed.path().trim_start_matches('/').to_string();
         let mut secret: Option<String> = None;
         let mut issuer: Option<String> = None;
         let mut period: u64 = DEFAULT_PERIOD;

@@ -24,6 +24,7 @@ pub fn format_xml_timestamp(timestamp: &chrono::NaiveDateTime) -> String {
     base64_engine::STANDARD.encode(timestamp_bytes)
 }
 
+#[allow(dead_code)]
 pub(crate) fn dump(
     db: &Database,
     inner_cipher: &mut dyn Cipher,

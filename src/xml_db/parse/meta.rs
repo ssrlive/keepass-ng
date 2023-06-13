@@ -305,7 +305,7 @@ impl FromXml for BinaryAttachment {
             };
 
         let data = String::from_xml(iterator, inner_cipher)?;
-        let buf = base64_engine::STANDARD.decode(&data)?;
+        let buf = base64_engine::STANDARD.decode(data)?;
 
         out.identifier = identifier;
         out.compressed = compressed;

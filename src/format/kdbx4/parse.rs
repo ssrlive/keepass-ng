@@ -52,6 +52,7 @@ pub(crate) fn parse_kdbx4(
 }
 
 /// Open and decrypt a KeePass KDBX4 database from a source and key elements
+#[allow(clippy::type_complexity)]
 pub(crate) fn decrypt_kdbx4(
     data: &[u8],
     key_elements: &[Vec<u8>],
@@ -105,7 +106,7 @@ pub(crate) fn decrypt_kdbx4(
 
     // read encrypted payload from hmac-verified block stream
     let payload_encrypted =
-        hmac_block_stream::read_hmac_block_stream(&hmac_block_stream, &hmac_key)?;
+        hmac_block_stream::read_hmac_block_stream(hmac_block_stream, &hmac_key)?;
 
     // Decrypt and decompress encrypted payload
     let payload_compressed = outer_header
@@ -184,7 +185,7 @@ fn parse_outer_header(data: &[u8]) -> Result<(KDBX4OuterHeader, usize), Database
 
             HEADER_COMPRESSION_ID => {
                 compression_config = Some(CompressionConfig::try_from(LittleEndian::read_u32(
-                    &entry_buffer,
+                    entry_buffer,
                 ))?);
             }
 
@@ -209,11 +210,8 @@ fn parse_outer_header(data: &[u8]) -> Result<(KDBX4OuterHeader, usize), Database
     // something is missing
 
     fn get_or_err<T>(v: Option<T>, err: &str) -> Result<T, DatabaseIntegrityError> {
-        v.ok_or_else(|| {
-            DatabaseIntegrityError::IncompleteOuterHeader {
-                missing_field: err.into(),
-            }
-            .into()
+        v.ok_or_else(|| DatabaseIntegrityError::IncompleteOuterHeader {
+            missing_field: err.into(),
         })
     }
 
@@ -259,7 +257,7 @@ fn parse_inner_header(
 
             INNER_HEADER_RANDOM_STREAM_ID => {
                 inner_random_stream = Some(InnerCipherConfig::try_from(LittleEndian::read_u32(
-                    &entry_buffer,
+                    entry_buffer,
                 ))?);
             }
 
@@ -277,11 +275,8 @@ fn parse_inner_header(
     }
 
     fn get_or_err<T>(v: Option<T>, err: &str) -> Result<T, DatabaseIntegrityError> {
-        v.ok_or_else(|| {
-            DatabaseIntegrityError::IncompleteInnerHeader {
-                missing_field: err.into(),
-            }
-            .into()
+        v.ok_or_else(|| DatabaseIntegrityError::IncompleteInnerHeader {
+            missing_field: err.into(),
         })
     }
 
