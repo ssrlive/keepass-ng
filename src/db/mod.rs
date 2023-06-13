@@ -347,11 +347,18 @@ mod database_tests {
     #[cfg(feature = "save_kdbx4")]
     #[test]
     fn test_save() -> Result<()> {
+        use crate::db::Group;
+
         let mut db = Database::new(DatabaseConfig::default());
 
         db.root.children.push(Node::Entry(Entry::new()));
         db.root.add_child(Entry::new().into());
         db.root.add_child(Entry::new().into());
+
+        let mut group = Group::new("my group");
+        group.add_child(Entry::new().into());
+        group.add_child(Entry::new().into());
+        db.root.add_child(group.into());
 
         let mut buffer = Vec::new();
         let key = DatabaseKey::new().with_password("testing");

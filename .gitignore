@@ -4,6 +4,7 @@
 Cargo.lock
 tmp/
 build/
+examples/
 
 demo.kdbx
 
