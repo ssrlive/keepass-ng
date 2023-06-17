@@ -241,6 +241,17 @@ impl Group {
         }
     }
 
+    pub(crate) fn has_group(&self, uuid: Uuid) -> bool {
+        for node in &self.children {
+            if let Node::Group(g) = node {
+                if g.uuid == uuid {
+                    return true;
+                }
+            }
+        }
+        false
+    }
+
     pub(crate) fn get_group_mut(&mut self, location: &NodeLocation) -> Result<&mut Group, String> {
         if location.len() == 0 {
             return Err("Empty location.".to_string());
@@ -254,10 +265,26 @@ impl Group {
         }
 
         let next_location = &remaining_location[0];
+        let mut next_location_uuid = next_location.uuid;
+
+        if !self.has_group(next_location_uuid) && true {
+            let mut current_group: Option<Group> = None;
+            for i in (0..(remaining_location.len())).rev() {
+                let mut new_group = Group::new(&remaining_location[i].name);
+                if let Some(group) = &current_group {
+                    new_group.add_node(group.clone());
+                }
+                current_group = Some(new_group);
+            }
+
+            let current_group = current_group.unwrap();
+            next_location_uuid = current_group.uuid;
+            self.add_node(current_group);
+        }
 
         for node in &mut self.children {
             if let Node::Group(g) = node {
-                if g.uuid != next_location.uuid {
+                if g.uuid != next_location_uuid {
                     continue;
                 }
                 return g.get_group_mut(&remaining_location);
@@ -561,7 +588,7 @@ mod group_tests {
 
         let mut source_group = destination_group.clone();
 
-        destination_group.merge(&source_group);
+        destination_group.merge(&source_group).unwrap();
         assert_eq!(destination_group.children.len(), 1);
         // The 2 groups should be exactly the same after merging, since
         // nothing was performed during the merge.
@@ -570,9 +597,9 @@ mod group_tests {
         let mut entry = &mut destination_group.entries_mut()[0];
         entry.set_field_and_commit("Title", "entry1_updated");
 
-        destination_group.merge(&source_group);
+        destination_group.merge(&source_group).unwrap();
         let destination_group_just_after_merge = destination_group.clone();
-        destination_group.merge(&source_group);
+        destination_group.merge(&source_group).unwrap();
         // Merging twice in a row, even if the first merge updated the destination group,
         // should not create more changes.
         assert_eq!(destination_group_just_after_merge, destination_group);
@@ -588,7 +615,7 @@ mod group_tests {
         entry.set_field_and_commit("Title", "entry1");
         source_group.add_node(entry);
 
-        destination_group.merge(&source_group);
+        destination_group.merge(&source_group).unwrap();
         assert_eq!(destination_group.children.len(), 1);
         let new_entry = destination_group.find_entry_by_uuid(entry_uuid);
         assert!(new_entry.is_some());
@@ -598,7 +625,7 @@ mod group_tests {
         );
 
         // Merging the same group again should not create a duplicate entry.
-        destination_group.merge(&source_group);
+        destination_group.merge(&source_group).unwrap();
         assert_eq!(destination_group.children.len(), 1);
     }
 
@@ -616,7 +643,7 @@ mod group_tests {
         entry.set_field_and_commit("Title", "entry1");
         source_sub_group.add_node(entry);
 
-        destination_group.merge(&source_group);
+        destination_group.merge(&source_group).unwrap();
         let destination_entries = destination_group.get_all_entries(&vec![]);
         assert_eq!(destination_entries.len(), 1);
         let (created_entry, created_entry_location) = destination_entries.get(0).unwrap();
@@ -637,7 +664,7 @@ mod group_tests {
         source_sub_group.add_node(entry);
         source_group.add_node(source_sub_group);
 
-        destination_group.merge(&source_group);
+        destination_group.merge(&source_group).unwrap();
         let destination_entries = destination_group.get_all_entries(&vec![]);
         assert_eq!(destination_entries.len(), 1);
         let (created_entry, created_entry_location) = destination_entries.get(0).unwrap();
@@ -695,7 +722,7 @@ mod group_tests {
             )
             .unwrap();
 
-        destination_group.merge(&source_group);
+        destination_group.merge(&source_group).unwrap();
 
         let destination_entries = destination_group.get_all_entries(&vec![]);
         assert_eq!(destination_entries.len(), 1);
@@ -754,7 +781,7 @@ mod group_tests {
         let mut entry = &mut destination_group.entries_mut()[0];
         entry.set_field_and_commit("Title", "entry1_updated");
 
-        destination_group.merge(&source_group);
+        destination_group.merge(&source_group).unwrap();
 
         let entry = destination_group.entries()[0];
         assert_eq!(entry.get_title(), Some("entry1_updated"));
@@ -774,7 +801,7 @@ mod group_tests {
         let mut entry = &mut source_group.entries_mut()[0];
         entry.set_field_and_commit("Title", "entry1_updated");
 
-        destination_group.merge(&source_group);
+        destination_group.merge(&source_group).unwrap();
 
         let entry = destination_group.entries()[0];
         assert_eq!(entry.get_title(), Some("entry1_updated"));
@@ -797,7 +824,7 @@ mod group_tests {
         let mut entry = &mut source_group.entries_mut()[0];
         entry.set_field_and_commit("Title", "entry1_updated_from_source");
 
-        destination_group.merge(&source_group);
+        destination_group.merge(&source_group).unwrap();
 
         let entry = destination_group.entries()[0];
         assert_eq!(entry.get_title(), Some("entry1_updated_from_source"));
