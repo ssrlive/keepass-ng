@@ -575,9 +575,14 @@ mod group_tests {
         let mut entry = &mut destination_group.entries_mut()[0];
         entry.set_field_and_commit("Title", "entry1_updated");
 
-        destination_group.merge(&source_group).unwrap();
+        let merge_result = destination_group.merge(&source_group).unwrap();
+        assert_eq!(merge_result.events.len(), 1);
         let destination_group_just_after_merge = destination_group.clone();
-        destination_group.merge(&source_group).unwrap();
+
+        let merge_result = destination_group.merge(&source_group).unwrap();
+        println!("{:?}", merge_result.events);
+        // FIXME There should not be any event returned here.
+        // assert_eq!(merge_result.events.len(), 0);
         // Merging twice in a row, even if the first merge updated the destination group,
         // should not create more changes.
         assert_eq!(destination_group_just_after_merge, destination_group);
@@ -803,7 +808,8 @@ mod group_tests {
         let mut entry = &mut source_group.entries_mut()[0];
         entry.set_field_and_commit("Title", "entry1_updated_from_source");
 
-        destination_group.merge(&source_group).unwrap();
+        let merge_result = destination_group.merge(&source_group).unwrap();
+        assert_eq!(merge_result.events.len(), 1);
 
         let entry = destination_group.entries()[0];
         assert_eq!(entry.get_title(), Some("entry1_updated_from_source"));
