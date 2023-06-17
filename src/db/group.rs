@@ -468,7 +468,7 @@ impl Group {
                     node_uuid: entry.uuid,
                 });
                 let removed_entry = self.remove_entry(&entry.uuid, &existing_entry_location)?;
-                self.insert_entry(entry.clone(), &entry_location);
+                self.insert_entry(entry.clone(), &entry_location)?;
             }
         }
 
