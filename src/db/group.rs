@@ -706,11 +706,11 @@ mod group_tests {
     }
 
     #[test]
-    #[ignore]
     fn test_merge_entry_relocation_new_group() {
         let mut entry = Entry::new();
         let entry_uuid = entry.uuid.clone();
         entry.set_field_and_commit("Title", "entry1");
+
         let mut destination_group = Group::new("group1");
         let mut destination_sub_group = Group::new("subgroup1");
         destination_sub_group.add_node(entry.clone());
@@ -727,7 +727,10 @@ mod group_tests {
         source_group.children = vec![];
         source_group.add_node(source_sub_group);
 
-        destination_group.merge(&source_group);
+        let merge_result = destination_group.merge(&source_group).unwrap();
+        println!("{:?}", merge_result.events);
+        assert_eq!(merge_result.events.len(), 1);
+
         let destination_entries = destination_group.get_all_entries(&vec![]);
         assert_eq!(destination_entries.len(), 1);
         let (created_entry, created_entry_location) = destination_entries.get(0).unwrap();
