@@ -625,7 +625,8 @@ mod group_tests {
         );
 
         // Merging the same group again should not create a duplicate entry.
-        destination_group.merge(&source_group).unwrap();
+        let merge_result = destination_group.merge(&source_group).unwrap();
+        assert_eq!(merge_result.events.len(), 0);
         assert_eq!(destination_group.children.len(), 1);
     }
 
