@@ -680,7 +680,9 @@ mod group_tests {
         entry.set_field_and_commit("Title", "entry1");
         source_sub_group.add_node(entry);
 
-        destination_group.merge(&source_group).unwrap();
+        let merge_result = destination_group.merge(&source_group).unwrap();
+        assert_eq!(merge_result.warnings.len(), 0);
+        assert_eq!(merge_result.events.len(), 1);
         let destination_entries = destination_group.get_all_entries(&vec![]);
         assert_eq!(destination_entries.len(), 1);
         let (created_entry, created_entry_location) = destination_entries.get(0).unwrap();
@@ -701,7 +703,9 @@ mod group_tests {
         source_sub_group.add_node(entry);
         source_group.add_node(source_sub_group);
 
-        destination_group.merge(&source_group).unwrap();
+        let merge_result = destination_group.merge(&source_group).unwrap();
+        assert_eq!(merge_result.warnings.len(), 0);
+        assert_eq!(merge_result.events.len(), 1);
         let destination_entries = destination_group.get_all_entries(&vec![]);
         assert_eq!(destination_entries.len(), 1);
         let (created_entry, created_entry_location) = destination_entries.get(0).unwrap();
@@ -759,7 +763,9 @@ mod group_tests {
             )
             .unwrap();
 
-        destination_group.merge(&source_group).unwrap();
+        let merge_result = destination_group.merge(&source_group).unwrap();
+        assert_eq!(merge_result.warnings.len(), 0);
+        assert_eq!(merge_result.events.len(), 1);
 
         let destination_entries = destination_group.get_all_entries(&vec![]);
         assert_eq!(destination_entries.len(), 1);
@@ -792,7 +798,7 @@ mod group_tests {
         source_group.add_node(source_sub_group);
 
         let merge_result = destination_group.merge(&source_group).unwrap();
-        println!("{:?}", merge_result.events);
+        assert_eq!(merge_result.warnings.len(), 0);
         assert_eq!(merge_result.events.len(), 1);
 
         let destination_entries = destination_group.get_all_entries(&vec![]);
@@ -818,7 +824,9 @@ mod group_tests {
         let mut entry = &mut destination_group.entries_mut()[0];
         entry.set_field_and_commit("Title", "entry1_updated");
 
-        destination_group.merge(&source_group).unwrap();
+        let merge_result = destination_group.merge(&source_group).unwrap();
+        assert_eq!(merge_result.warnings.len(), 0);
+        assert_eq!(merge_result.events.len(), 0);
 
         let entry = destination_group.entries()[0];
         assert_eq!(entry.get_title(), Some("entry1_updated"));
@@ -838,7 +846,9 @@ mod group_tests {
         let mut entry = &mut source_group.entries_mut()[0];
         entry.set_field_and_commit("Title", "entry1_updated");
 
-        destination_group.merge(&source_group).unwrap();
+        let merge_result = destination_group.merge(&source_group).unwrap();
+        assert_eq!(merge_result.warnings.len(), 0);
+        assert_eq!(merge_result.events.len(), 1);
 
         let entry = destination_group.entries()[0];
         assert_eq!(entry.get_title(), Some("entry1_updated"));
