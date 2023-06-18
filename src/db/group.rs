@@ -648,7 +648,9 @@ mod group_tests {
         entry.set_field_and_commit("Title", "entry1");
         source_group.add_node(entry);
 
-        destination_group.merge(&source_group).unwrap();
+        let merge_result = destination_group.merge(&source_group).unwrap();
+        assert_eq!(merge_result.warnings.len(), 0);
+        assert_eq!(merge_result.events.len(), 1);
         assert_eq!(destination_group.children.len(), 1);
         let new_entry = destination_group.find_entry_by_uuid(entry_uuid);
         assert!(new_entry.is_some());
@@ -659,6 +661,7 @@ mod group_tests {
 
         // Merging the same group again should not create a duplicate entry.
         let merge_result = destination_group.merge(&source_group).unwrap();
+        assert_eq!(merge_result.warnings.len(), 0);
         assert_eq!(merge_result.events.len(), 0);
         assert_eq!(destination_group.children.len(), 1);
     }
