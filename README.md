@@ -18,10 +18,9 @@ Rust KeePass database file parser for KDB, KDBX3 and KDBX4, with experimental su
 
 ```rust
 use keepass::{
-    db::NodeRef,
-    Database,
-    DatabaseKey,
-    error::DatabaseOpenError
+    db::{node_is_group, Entry, Node, NodeIterator},
+    error::DatabaseOpenError,
+    Database, DatabaseKey,
 };
 use std::fs::File;
 
@@ -32,17 +31,17 @@ fn main() -> Result<(), DatabaseOpenError> {
     let db = Database::open(&mut file, key)?;
 
     // Iterate over all `Group`s and `Entry`s
-    for node in &db.root {
-        match node {
-            NodeRef::Group(g) => {
-                println!("Saw group '{0}'", g.name);
-            },
-            NodeRef::Entry(e) => {
-                let title = e.get_title().unwrap_or("(no title)");
-                let user = e.get_username().unwrap_or("(no username)");
-                let pass = e.get_password().unwrap_or("(no password)");
-                println!("Entry '{0}': '{1}' : '{2}'", title, user, pass);
-            }
+    for node in NodeIterator::new(&db.root).into_iter() {
+        if node_is_group(&node) {
+            println!(
+                "Saw group '{0}'",
+                node.borrow().get_title().unwrap_or("(no title)")
+            );
+        } else if let Some(e) = node.borrow().as_any().downcast_ref::<Entry>() {
+            let title = e.get_title().unwrap_or("(no title)");
+            let user = e.get_username().unwrap_or("(no username)");
+            let pass = e.get_password().unwrap_or("(no password)");
+            println!("Entry '{0}': '{1}' : '{2}'", title, user, pass);
         }
     }
 
@@ -64,8 +63,8 @@ You can enable the experimental support for saving KDBX4 databases using the `sa
 
 ```rust
 use keepass::{
-    db::{Database, Entry, Group, Node, NodeRef, Value},
-    DatabaseConfig, DatabaseKey,
+    db::{node_add_child, Database, Entry, Group, Value},
+    rc_refcell, DatabaseConfig, DatabaseKey,
 };
 use std::fs::File;
 
@@ -77,13 +76,22 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut group = Group::new("Demo group");
 
     let mut entry = Entry::new();
-    entry.fields.insert("Title".to_string(), Value::Unprotected("Demo entry".to_string()));
-    entry.fields.insert("UserName".to_string(), Value::Unprotected("jdoe".to_string()));
-    entry.fields.insert("Password".to_string(), Value::Protected("hunter2".as_bytes().into()));
+    entry.fields.insert(
+        "Title".to_string(),
+        Value::Unprotected("Demo entry".to_string()),
+    );
+    entry.fields.insert(
+        "UserName".to_string(),
+        Value::Unprotected("jdoe".to_string()),
+    );
+    entry.fields.insert(
+        "Password".to_string(),
+        Value::Protected("hunter2".as_bytes().into()),
+    );
 
-    group.children.push(Node::Entry(entry));
+    group.children.push(rc_refcell!(entry));
 
-    db.root.children.push(Node::Group(group));
+    node_add_child(&db.root, rc_refcell!(group));
 
     #[cfg(feature = "save_kdbx4")]
     db.save(

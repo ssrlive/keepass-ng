@@ -1,9 +1,10 @@
 use crate::{
     config::{CompressionConfig, DatabaseConfig, InnerCipherConfig, KdfConfig, OuterCipherConfig},
     crypt::calculate_sha256,
-    db::{Database, DeletedObjects, Entry, Group, Meta, Node, NodeRefMut, Value},
+    db::{Database, DeletedObjects, Entry, Group, Meta, NodePtr, Value},
     error::{DatabaseIntegrityError, DatabaseKeyError, DatabaseOpenError},
     format::DatabaseVersion,
+    rc_refcell,
 };
 
 use byteorder::{ByteOrder, LittleEndian};
@@ -88,7 +89,7 @@ fn collapse_tail_groups(branch: &mut Vec<Group>, level: usize, root: &mut Group)
             Some(parent) => parent,
             None => root,
         };
-        parent.children.push(Node::Group(leaf));
+        parent.children.push(rc_refcell!(leaf));
     }
 }
 
@@ -186,7 +187,7 @@ fn parse_groups(
 }
 
 fn parse_entries(
-    root: &mut Group,
+    root: &mut NodePtr,
     gid_map: GidMap,
     header_num_entries: u32,
     data: &mut &[u8],
@@ -252,14 +253,12 @@ fn parse_entries(
                     .map(|v| v.as_str())
                     .collect();
 
-                let group = root.get_mut(group_path.as_slice());
-                let group = if let Some(NodeRefMut::Group(g)) = group {
-                    g
-                } else {
-                    panic!("Follow group_path")
-                };
+                if let Some(group) = Group::get(root, group_path.as_slice()) {
+                    if let Some(group) = group.borrow_mut().as_any_mut().downcast_mut::<Group>() {
+                        group.add_child(rc_refcell!(entry));
+                    }
+                }
 
-                group.children.push(Node::Entry(entry));
                 entry = Entry::default();
                 gid = None;
                 num_entries += 1;
@@ -278,7 +277,7 @@ fn parse_entries(
     Ok(())
 }
 
-fn parse_db(header: &KDBHeader, data: &[u8]) -> Result<Group, DatabaseIntegrityError> {
+fn parse_db(header: &KDBHeader, data: &[u8]) -> Result<NodePtr, DatabaseIntegrityError> {
     let mut root = Group {
         name: "Root".to_owned(),
         ..Group::default()
@@ -287,6 +286,8 @@ fn parse_db(header: &KDBHeader, data: &[u8]) -> Result<Group, DatabaseIntegrityE
     let mut pos = data;
 
     let gid_map = parse_groups(&mut root, header.num_groups, &mut pos)?;
+
+    let mut root: NodePtr = rc_refcell!(root);
 
     parse_entries(&mut root, gid_map, header.num_entries, &mut pos)?;
 

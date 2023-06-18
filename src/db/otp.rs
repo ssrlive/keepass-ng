@@ -168,7 +168,7 @@ impl TOTP {
 mod kdbx4_otp_tests {
     use super::{TOTPAlgorithm, TOTPError, TOTP};
     use crate::{
-        db::{Database, NodeRef},
+        db::{Database, Entry, Group, Node},
         key::DatabaseKey,
     };
     use std::{fs::File, path::Path};
@@ -177,15 +177,14 @@ mod kdbx4_otp_tests {
     fn kdbx4_entry() -> Result<(), Box<dyn std::error::Error>> {
         // KDBX4 database format Base64 encodes ExpiryTime (and all other XML timestamps)
         let path = Path::new("tests/resources/test_db_kdbx4_with_totp_entry.kdbx");
-        let db = Database::open(
-            &mut File::open(path)?,
-            DatabaseKey::new().with_password("test"),
-        )?;
+        let key = DatabaseKey::new().with_password("test");
+        let db = Database::open(&mut File::open(path)?, key)?;
 
         let otp_str = "otpauth://totp/KeePassXC:none?secret=JBSWY3DPEHPK3PXP&period=30&digits=6&issuer=KeePassXC";
 
         // get an entry on the root node
-        if let Some(NodeRef::Entry(e)) = db.root.get(&["this entry has totp"]) {
+        let entry = Group::get(&db.root, &["this entry has totp"]).unwrap();
+        if let Some(e) = entry.borrow().as_any().downcast_ref::<Entry>() {
             assert_eq!(e.get_title(), Some("this entry has totp"));
             assert_eq!(e.get_raw_otp_value(), Some(otp_str));
         } else {

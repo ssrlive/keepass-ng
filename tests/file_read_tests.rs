@@ -1,6 +1,6 @@
 mod file_read_tests {
     use keepass::{
-        db::{Database, NodeRef},
+        db::{Database, Entry, Group, Node, NodeIterator, NodePtr},
         error::{DatabaseIntegrityError, DatabaseOpenError},
         DatabaseKey,
     };
@@ -17,24 +17,25 @@ mod file_read_tests {
         )?;
 
         println!("{:?} DB Opened", db);
-        assert_eq!(db.root.name, "sample");
-        assert_eq!(db.root.children.len(), 5);
+
+        let root = db.root.borrow();
+        let root = root.as_any().downcast_ref::<Group>().unwrap();
+
+        assert_eq!(root.name, "sample");
+        assert_eq!(root.children.len(), 5);
 
         let mut total_groups = 0;
         let mut total_entries = 0;
-        for node in &db.root {
-            match node {
-                NodeRef::Group(g) => {
-                    println!("Saw group '{0}'", g.name);
-                    total_groups += 1;
-                }
-                NodeRef::Entry(e) => {
-                    let title = e.get_title().unwrap_or("(no title)");
-                    let user = e.get_username().unwrap_or("(no user)");
-                    let pass = e.get_password().unwrap_or("(no password)");
-                    println!("Entry '{0}': '{1}' : '{2}'", title, user, pass);
-                    total_entries += 1;
-                }
+        for node in NodeIterator::new(&db.root) {
+            if let Some(g) = node.borrow().as_any().downcast_ref::<Group>() {
+                println!("Saw group '{0}'", g.name);
+                total_groups += 1;
+            } else if let Some(e) = node.borrow().as_any().downcast_ref::<Entry>() {
+                let title = e.get_title().unwrap_or("(no title)");
+                let user = e.get_username().unwrap_or("(no user)");
+                let pass = e.get_password().unwrap_or("(no password)");
+                println!("Entry '{0}': '{1}' : '{2}'", title, user, pass);
+                total_entries += 1;
             }
         }
 
@@ -56,24 +57,24 @@ mod file_read_tests {
         )?;
 
         println!("{:?} DB Opened", db);
-        assert_eq!(db.root.name, "Root");
-        assert_eq!(db.root.children.len(), 1);
+
+        let root = db.root.borrow();
+        let root = root.as_any().downcast_ref::<Group>().unwrap();
+        assert_eq!(root.name, "Root");
+        assert_eq!(root.children.len(), 1);
 
         let mut total_groups = 0;
         let mut total_entries = 0;
-        for node in &db.root {
-            match node {
-                NodeRef::Group(g) => {
-                    println!("Saw group '{0}'", g.name);
-                    total_groups += 1;
-                }
-                NodeRef::Entry(e) => {
-                    let title = e.get_title().unwrap_or("(no title)");
-                    let user = e.get_username().unwrap_or("(no user)");
-                    let pass = e.get_password().unwrap_or("(no password)");
-                    println!("Entry '{0}': '{1}' : '{2}'", title, user, pass);
-                    total_entries += 1;
-                }
+        for node in NodeIterator::new(&db.root) {
+            if let Some(g) = node.borrow().as_any().downcast_ref::<Group>() {
+                println!("Saw group '{0}'", g.name);
+                total_groups += 1;
+            } else if let Some(e) = node.borrow().as_any().downcast_ref::<Entry>() {
+                let title = e.get_title().unwrap_or("(no title)");
+                let user = e.get_username().unwrap_or("(no user)");
+                let pass = e.get_password().unwrap_or("(no password)");
+                println!("Entry '{0}': '{1}' : '{2}'", title, user, pass);
+                total_entries += 1;
             }
         }
 
@@ -95,24 +96,24 @@ mod file_read_tests {
         )?;
 
         println!("{:?} DB Opened", db);
-        assert_eq!(db.root.name, "Root");
-        assert_eq!(db.root.children.len(), 4);
+
+        let root = db.root.borrow();
+        let root = root.as_any().downcast_ref::<Group>().unwrap();
+        assert_eq!(root.name, "Root");
+        assert_eq!(root.children.len(), 4);
 
         let mut total_groups = 0;
         let mut total_entries = 0;
-        for node in &db.root {
-            match node {
-                NodeRef::Group(g) => {
-                    println!("Saw group '{0}'", g.name);
-                    total_groups += 1;
-                }
-                NodeRef::Entry(e) => {
-                    let title = e.get_title().unwrap_or("(no title)");
-                    let user = e.get_username().unwrap_or("(no user)");
-                    let pass = e.get_password().unwrap_or("(no password)");
-                    println!("Entry '{0}': '{1}' : '{2}'", title, user, pass);
-                    total_entries += 1;
-                }
+        for node in NodeIterator::new(&db.root) {
+            if let Some(g) = node.borrow().as_any().downcast_ref::<Group>() {
+                println!("Saw group '{0}'", g.name);
+                total_groups += 1;
+            } else if let Some(e) = node.borrow().as_any().downcast_ref::<Entry>() {
+                let title = e.get_title().unwrap_or("(no title)");
+                let user = e.get_username().unwrap_or("(no user)");
+                let pass = e.get_password().unwrap_or("(no password)");
+                println!("Entry '{0}': '{1}' : '{2}'", title, user, pass);
+                total_entries += 1;
             }
         }
 
@@ -135,8 +136,10 @@ mod file_read_tests {
 
         println!("{:?} DB Opened", db);
 
-        assert_eq!(db.root.name, "Root");
-        assert_eq!(db.root.children.len(), 2);
+        let root = db.root.borrow();
+        let root = root.as_any().downcast_ref::<Group>().unwrap();
+        assert_eq!(root.name, "Root");
+        assert_eq!(root.children.len(), 2);
 
         Ok(())
     }
@@ -152,8 +155,10 @@ mod file_read_tests {
 
         println!("{:?} DB Opened", db);
 
-        assert_eq!(db.root.name, "Root");
-        assert_eq!(db.root.children.len(), 2);
+        let root = db.root.borrow();
+        let root = root.as_any().downcast_ref::<Group>().unwrap();
+        assert_eq!(root.name, "Root");
+        assert_eq!(root.children.len(), 2);
 
         Ok(())
     }
@@ -168,8 +173,10 @@ mod file_read_tests {
 
         println!("{:?} DB Opened", db);
 
-        assert_eq!(db.root.name, "Root");
-        assert_eq!(db.root.children.len(), 1);
+        let root = db.root.borrow();
+        let root = root.as_any().downcast_ref::<Group>().unwrap();
+        assert_eq!(root.name, "Root");
+        assert_eq!(root.children.len(), 1);
 
         Ok(())
     }
@@ -185,8 +192,10 @@ mod file_read_tests {
 
         println!("{:?} DB Opened", db);
 
-        assert_eq!(db.root.name, "Root");
-        assert_eq!(db.root.children.len(), 1);
+        let root = db.root.borrow();
+        let root = root.as_any().downcast_ref::<Group>().unwrap();
+        assert_eq!(root.name, "Root");
+        assert_eq!(root.children.len(), 1);
 
         Ok(())
     }
@@ -202,8 +211,10 @@ mod file_read_tests {
 
         println!("{:?} DB Opened", db);
 
-        assert_eq!(db.root.name, "Root");
-        assert_eq!(db.root.children.len(), 1);
+        let root = db.root.borrow();
+        let root = root.as_any().downcast_ref::<Group>().unwrap();
+        assert_eq!(root.name, "Root");
+        assert_eq!(root.children.len(), 1);
 
         Ok(())
     }
@@ -219,8 +230,10 @@ mod file_read_tests {
 
         println!("{:?} DB Opened", db);
 
-        assert_eq!(db.root.name, "Root");
-        assert_eq!(db.root.children.len(), 1);
+        let root = db.root.borrow();
+        let root = root.as_any().downcast_ref::<Group>().unwrap();
+        assert_eq!(root.name, "Root");
+        assert_eq!(root.children.len(), 1);
 
         Ok(())
     }
@@ -236,8 +249,10 @@ mod file_read_tests {
 
         println!("{:?} DB Opened", db);
 
-        assert_eq!(db.root.name, "Root");
-        assert_eq!(db.root.children.len(), 1);
+        let root = db.root.borrow();
+        let root = root.as_any().downcast_ref::<Group>().unwrap();
+        assert_eq!(root.name, "Root");
+        assert_eq!(root.children.len(), 1);
 
         Ok(())
     }
@@ -254,8 +269,10 @@ mod file_read_tests {
 
         println!("{:?} DB Opened", db);
 
-        assert_eq!(db.root.name, "Root");
-        assert_eq!(db.root.children.len(), 1);
+        let root = db.root.borrow();
+        let root = root.as_any().downcast_ref::<Group>().unwrap();
+        assert_eq!(root.name, "Root");
+        assert_eq!(root.children.len(), 1);
 
         Ok(())
     }
@@ -291,24 +308,24 @@ mod file_read_tests {
         )?;
 
         println!("{:?} DB Opened", db);
-        assert_eq!(db.root.name, "Root");
-        assert_eq!(db.root.children.len(), 3);
+
+        let root = db.root.borrow();
+        let root = root.as_any().downcast_ref::<Group>().unwrap();
+        assert_eq!(root.name, "Root");
+        assert_eq!(root.children.len(), 3);
 
         let mut total_groups = 0;
         let mut total_entries = 0;
-        for node in &db.root {
-            match node {
-                NodeRef::Group(g) => {
-                    println!("Saw group '{0}'", g.name);
-                    total_groups += 1;
-                }
-                NodeRef::Entry(e) => {
-                    let title = e.get_title().unwrap_or("(no title)");
-                    let user = e.get_username().unwrap_or("(no user)");
-                    let pass = e.get_password().unwrap_or("(no password)");
-                    println!("Entry '{0}': '{1}' : '{2}'", title, user, pass);
-                    total_entries += 1;
-                }
+        for node in NodeIterator::new(&db.root) {
+            if let Some(g) = node.borrow().as_any().downcast_ref::<Group>() {
+                println!("Saw group '{0}'", g.name);
+                total_groups += 1;
+            } else if let Some(e) = node.borrow().as_any().downcast_ref::<Entry>() {
+                let title = e.get_title().unwrap_or("(no title)");
+                let user = e.get_username().unwrap_or("(no user)");
+                let pass = e.get_password().unwrap_or("(no password)");
+                println!("Entry '{0}': '{1}' : '{2}'", title, user, pass);
+                total_entries += 1;
             }
         }
 
@@ -329,23 +346,22 @@ mod file_read_tests {
         )?;
 
         println!("{:?} DB Opened", db);
-        assert_eq!(db.root.children.len(), 1);
+        let root = db.root.borrow();
+        let root = root.as_any().downcast_ref::<Group>().unwrap();
+        assert_eq!(root.children.len(), 1);
 
         let mut total_groups = 0;
         let mut total_entries = 0;
-        for node in &db.root {
-            match node {
-                NodeRef::Group(g) => {
-                    println!("Saw group '{0}'", g.name);
-                    total_groups += 1;
-                }
-                NodeRef::Entry(e) => {
-                    let title = e.get_title().unwrap_or("(no title)");
-                    let user = e.get_username().unwrap_or("(no user)");
-                    let pass = e.get_password().unwrap_or("(no password)");
-                    println!("Entry '{0}': '{1}' : '{2}'", title, user, pass);
-                    total_entries += 1;
-                }
+        for node in NodeIterator::new(&db.root) {
+            if let Some(g) = node.borrow().as_any().downcast_ref::<Group>() {
+                println!("Saw group '{0}'", g.name);
+                total_groups += 1;
+            } else if let Some(e) = node.borrow().as_any().downcast_ref::<Entry>() {
+                let title = e.get_title().unwrap_or("(no title)");
+                let user = e.get_username().unwrap_or("(no user)");
+                let pass = e.get_password().unwrap_or("(no password)");
+                println!("Entry '{0}': '{1}' : '{2}'", title, user, pass);
+                total_entries += 1;
             }
         }
 
@@ -367,24 +383,28 @@ mod file_read_tests {
 
         println!("{:?} DB Opened", db);
 
-        assert_eq!(db.root.name, "Root");
+        let root = db.root.borrow();
+        let root = root.as_any().downcast_ref::<Group>().unwrap();
+        assert_eq!(root.name, "Root");
         assert_eq!(
             db.meta.recyclebin_uuid,
             Some(uuid!("563171fe-6598-42dc-8003-f98dde32e872"))
         );
 
-        let recycle_group: Vec<NodeRef> = db
-            .root
-            .iter()
-            .filter(|child| match child {
-                NodeRef::Group(g) => Some(&g.uuid) == db.meta.recyclebin_uuid.as_ref(),
-                NodeRef::Entry(_) => false,
+        let recycle_group: Vec<NodePtr> = NodeIterator::new(&db.root)
+            .into_iter()
+            .filter(|child| {
+                if let Some(g) = child.borrow().as_any().downcast_ref::<Group>() {
+                    Some(&g.uuid) == db.meta.recyclebin_uuid.as_ref()
+                } else {
+                    false
+                }
             })
             .collect();
 
         assert_eq!(recycle_group.len(), 1);
         let group = &recycle_group[0];
-        if let NodeRef::Group(g) = group {
+        if let Some(g) = group.borrow().as_any().downcast_ref::<Group>() {
             assert_eq!(g.name, "Recycle Bin");
         } else {
             panic!("It should've matched a Group!");

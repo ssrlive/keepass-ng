@@ -8,17 +8,15 @@ pub(crate) mod node;
 #[cfg(feature = "totp")]
 pub(crate) mod otp;
 
-use std::{collections::HashMap, str::FromStr};
-
-use chrono::NaiveDateTime;
-use uuid::Uuid;
-
 pub use crate::db::{
     entry::{AutoType, AutoTypeAssociation, Entry, History, Value},
     group::Group,
     meta::{BinaryAttachment, BinaryAttachments, CustomIcons, Icon, MemoryProtection, Meta},
-    node::{Node, NodeIter, NodeRef, NodeRefMut},
+    node::*,
 };
+use chrono::NaiveDateTime;
+use std::{collections::HashMap, str::FromStr};
+use uuid::Uuid;
 
 #[cfg(feature = "totp")]
 pub use crate::db::otp::{TOTPAlgorithm, TOTP};
@@ -33,10 +31,11 @@ use crate::{
         DatabaseVersion,
     },
     key::DatabaseKey,
+    rc_refcell,
 };
 
 /// A decrypted KeePass database
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug)]
 #[cfg_attr(feature = "serialization", derive(serde::Serialize))]
 pub struct Database {
     /// Configuration settings of the database such as encryption and compression algorithms
@@ -46,7 +45,7 @@ pub struct Database {
     pub header_attachments: Vec<HeaderAttachment>,
 
     /// Root node of the KeePass database
-    pub root: Group,
+    pub root: NodePtr,
 
     /// References to previously-deleted objects
     pub deleted_objects: DeletedObjects,
@@ -54,6 +53,19 @@ pub struct Database {
     /// Metadata of the KeePass database
     pub meta: Meta,
 }
+
+impl PartialEq for Database {
+    fn eq(&self, other: &Self) -> bool {
+        self.config == other.config
+            && self.header_attachments == other.header_attachments
+            && self.deleted_objects == other.deleted_objects
+            && self.meta == other.meta
+            && self.root.borrow().as_any().downcast_ref::<Group>()
+                == other.root.borrow().as_any().downcast_ref::<Group>()
+    }
+}
+
+impl Eq for Database {}
 
 impl Database {
     /// Parse a database from a std::io::Read
@@ -133,7 +145,7 @@ impl Database {
         Self {
             config,
             header_attachments: Vec::new(),
-            root: Group::new("Root"),
+            root: rc_refcell!(Group::new("Root")),
             deleted_objects: DeletedObjects::default(),
             meta: Meta::default(),
         }
@@ -282,7 +294,7 @@ pub struct DeletedObject {
 }
 
 /// A color value for the Database, or Entry
-#[derive(Debug, Default, PartialEq, Eq, Clone)]
+#[derive(Debug, Default, PartialEq, Eq, Clone, Copy)]
 pub struct Color {
     pub r: u8,
     pub g: u8,
@@ -326,11 +338,7 @@ impl std::fmt::Display for Color {
 
 #[cfg(test)]
 mod database_tests {
-    use crate::{
-        config::DatabaseConfig,
-        db::{Entry, Node},
-        Database, DatabaseKey, Result,
-    };
+    use crate::{config::DatabaseConfig, db::Entry, Database, DatabaseKey, Result};
     use std::fs::File;
 
     #[test]
@@ -347,18 +355,21 @@ mod database_tests {
     #[cfg(feature = "save_kdbx4")]
     #[test]
     fn test_save() -> Result<()> {
-        use crate::db::Group;
+        use crate::{db::Group, rc_refcell};
 
-        let mut db = Database::new(DatabaseConfig::default());
+        let db = Database::new(DatabaseConfig::default());
+        {
+            let mut root = db.root.borrow_mut();
+            let root = root.as_any_mut().downcast_mut::<Group>().unwrap();
+            root.children.push(rc_refcell!(Entry::new()));
+            root.add_child(rc_refcell!(Entry::new()));
+            root.add_child(rc_refcell!(Entry::new()));
 
-        db.root.children.push(Node::Entry(Entry::new()));
-        db.root.add_child(Entry::new().into());
-        db.root.add_child(Entry::new().into());
-
-        let mut group = Group::new("my group");
-        group.add_child(Entry::new().into());
-        group.add_child(Entry::new().into());
-        db.root.add_child(group.into());
+            let mut group = Group::new("my group");
+            group.add_child(rc_refcell!(Entry::new()));
+            group.add_child(rc_refcell!(Entry::new()));
+            root.add_child(rc_refcell!(group));
+        }
 
         let mut buffer = Vec::new();
         let key = DatabaseKey::new().with_password("testing");

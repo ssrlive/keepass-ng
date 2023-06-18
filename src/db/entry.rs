@@ -1,15 +1,13 @@
-use std::collections::HashMap;
-use std::{thread, time};
-
-use chrono::NaiveDateTime;
-use secstr::SecStr;
-use uuid::Uuid;
-
-use crate::db::group::MergeLog;
-use crate::db::{Color, CustomData, Times};
-
 #[cfg(feature = "totp")]
 use crate::db::otp::{TOTPError, TOTP};
+use crate::{
+    db::{group::MergeLog, node::*, Color, CustomData, Times},
+    rc_refcell,
+};
+use chrono::NaiveDateTime;
+use secstr::SecStr;
+use std::{collections::HashMap, thread, time};
+use uuid::Uuid;
 
 /// A database entry containing several key-value fields.
 #[derive(Debug, Default, Eq, PartialEq, Clone)]
@@ -35,6 +33,40 @@ pub struct Entry {
 
     pub history: Option<History>,
 }
+
+impl Node for Entry {
+    fn duplicate(&self) -> NodePtr {
+        rc_refcell!(self.clone())
+    }
+
+    fn get_uuid(&self) -> Uuid {
+        self.uuid
+    }
+    fn get_title(&self) -> Option<&str> {
+        self.get("Title")
+    }
+
+    fn get_notes(&self) -> Option<&str> {
+        self.get("Notes")
+    }
+
+    fn get_icon_id(&self) -> Option<usize> {
+        self.icon_id
+    }
+
+    fn get_custom_icon_uuid(&self) -> Option<&Uuid> {
+        self.custom_icon_uuid.as_ref()
+    }
+
+    fn get_children(&self) -> Option<Vec<NodePtr>> {
+        None
+    }
+
+    fn get_times(&self) -> &Times {
+        &self.times
+    }
+}
+
 impl Entry {
     pub fn new() -> Entry {
         Entry {
@@ -44,20 +76,21 @@ impl Entry {
         }
     }
 
-    pub(crate) fn merge(&self, other: &Entry) -> Result<(Entry, MergeLog), String> {
-        let mut response: Entry;
-        let mut log = MergeLog::default();
+    pub fn set_title(&mut self, title: Option<&str>) {
+        self.fields.insert(
+            "Title".to_string(),
+            Value::Unprotected(title.unwrap_or_default().to_string()),
+        );
+    }
 
-        let destination_modification_time = self.times.get_last_modification().unwrap();
-        let source_modification_time = other.times.get_last_modification().unwrap();
-        if destination_modification_time == source_modification_time && !self.eq(other) {
-            // This should never happen.
-            // This means that an entry was updated without updating the last modification
-            // timestamp.
-            return Err(
-                "Entries have the same modification time but are not the same!".to_string(),
-            );
-        }
+    pub(crate) fn merge(&self, other: &NodePtr) -> Result<(NodePtr, MergeLog), String> {
+        let other = other.borrow();
+        let other = other
+            .as_any()
+            .downcast_ref::<Entry>()
+            .ok_or("Cannot merge Entry with a Node that is not an Entry.".to_string())?;
+
+        let mut log = MergeLog::default();
 
         let mut source_history = match &other.history {
             Some(h) => h.clone(),
@@ -75,21 +108,13 @@ impl Entry {
                 History::default()
             }
         };
-        let history_merge_log: MergeLog;
 
-        if destination_modification_time > source_modification_time {
-            response = self.clone();
-            source_history.add_entry(other.clone());
-            history_merge_log = destination_history.merge_with(&source_history)?;
-            response.history = Some(destination_history);
-        } else {
-            response = other.clone();
-            destination_history.add_entry(self.clone());
-            history_merge_log = source_history.merge_with(&destination_history)?;
-            response.history = Some(source_history);
-        }
+        let mut response = self.clone();
+        source_history.add_entry(other.clone());
+        let history_merge_log = destination_history.merge_with(&source_history)?;
+        response.history = Some(destination_history);
 
-        Ok((response, log.merge_with(&history_merge_log)))
+        Ok((rc_refcell!(response), log.merge_with(&history_merge_log)))
     }
 
     // Convenience function used in unit tests, to make sure that:
@@ -105,6 +130,22 @@ impl Entry {
         );
         thread::sleep(time::Duration::from_secs(1));
         self.update_history();
+    }
+
+    pub(crate) fn replace_with(&mut self, other: &Entry) {
+        self.uuid = other.uuid;
+        self.fields = other.fields.clone();
+        self.autotype = other.autotype.clone();
+        self.tags = other.tags.clone();
+        self.times = other.times.clone();
+        self.custom_data = other.custom_data.clone();
+        self.icon_id = other.icon_id;
+        self.custom_icon_uuid = other.custom_icon_uuid;
+        self.foreground_color = other.foreground_color;
+        self.background_color = other.background_color;
+        self.override_url = other.override_url.clone();
+        self.quality_check = other.quality_check;
+        self.history = other.history.clone();
     }
 }
 
@@ -125,10 +166,6 @@ impl<'a> Entry {
             Some(Value::Bytes(b)) => Some(b),
             _ => None,
         }
-    }
-
-    pub fn get_uuid(&'a self) -> &'a Uuid {
-        &self.uuid
     }
 
     /// Get a timestamp field by name
@@ -156,11 +193,6 @@ impl<'a> Entry {
     /// Convenience method for getting the raw value of the 'otp' field
     pub fn get_raw_otp_value(&'a self) -> Option<&'a str> {
         self.get("otp")
-    }
-
-    /// Convenience method for getting the value of the 'Title' field
-    pub fn get_title(&'a self) -> Option<&'a str> {
-        self.get("Title")
     }
 
     /// Convenience method for getting the value of the 'UserName' field
@@ -193,6 +225,8 @@ impl<'a> Entry {
             return false;
         }
 
+        self.times.set_last_modification(Times::now());
+
         let mut new_history_entry = self.clone();
         new_history_entry.history.take().unwrap();
 
@@ -200,7 +234,6 @@ impl<'a> Entry {
         // TODO should we validate the maximum size of the history?
         self.history.as_mut().unwrap().add_entry(new_history_entry);
 
-        self.times.set_last_modification(Times::now());
         true
     }
 
@@ -326,7 +359,7 @@ impl History {
 
     // Merge both histories together.
     pub(crate) fn merge_with(&mut self, other: &History) -> Result<MergeLog, String> {
-        let log = MergeLog::default();
+        let mut log = MergeLog::default();
         let mut new_history_entries: HashMap<NaiveDateTime, Entry> = HashMap::new();
 
         for history_entry in &self.entries {
@@ -342,8 +375,7 @@ impl History {
             let existing_history_entry = new_history_entries.get(modification_time);
             if let Some(existing_history_entry) = existing_history_entry {
                 if !existing_history_entry.eq(history_entry) {
-                    // FIXME this will make the unit tests fail.
-                    // return Err("History entries have the same modification timestamp but were not the same.".to_string());
+                    log.warnings.push("History entries have the same modification timestamp but were not the same.".to_string());
                 }
             } else {
                 new_history_entries.insert(*modification_time, history_entry.clone());
@@ -374,7 +406,7 @@ mod entry_tests {
 
     use secstr::SecStr;
 
-    use super::{Entry, Value};
+    use super::{Entry, Node, Value};
 
     #[test]
     fn byte_values() {

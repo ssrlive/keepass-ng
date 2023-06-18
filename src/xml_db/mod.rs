@@ -9,11 +9,6 @@ pub fn get_epoch_baseline() -> chrono::NaiveDateTime {
 
 #[cfg(test)]
 mod tests {
-    use chrono::NaiveDateTime;
-    use secstr::SecStr;
-    use std::collections::HashMap;
-    use uuid::uuid;
-
     use crate::{
         config::DatabaseConfig,
         db::{
@@ -24,7 +19,12 @@ mod tests {
         },
         format::kdbx4,
         key::DatabaseKey,
+        rc_refcell,
     };
+    use chrono::NaiveDateTime;
+    use secstr::SecStr;
+    use std::collections::HashMap;
+    use uuid::uuid;
 
     fn make_key() -> Vec<Vec<u8>> {
         let mut password_bytes: Vec<u8> = vec![];
@@ -105,10 +105,11 @@ mod tests {
 
         entry.history = Some(history);
 
-        root_group.children.push(Node::Entry(entry.clone()));
+        let e = rc_refcell!(entry.clone());
+        root_group.children.push(e);
 
         let mut db = Database::new(DatabaseConfig::default());
-        db.root = root_group;
+        db.root = rc_refcell!(root_group);
 
         let key_elements = make_key();
 
@@ -116,14 +117,28 @@ mod tests {
         kdbx4::dump_kdbx4(&db, &key_elements, &mut encrypted_db).unwrap();
         let decrypted_db = kdbx4::parse_kdbx4(&encrypted_db, &key_elements).unwrap();
 
-        assert_eq!(decrypted_db.root.children.len(), 1);
+        assert_eq!(
+            decrypted_db
+                .root
+                .borrow()
+                .as_any()
+                .downcast_ref::<Group>()
+                .unwrap()
+                .children
+                .len(),
+            1
+        );
 
-        let decrypted_entry = match &decrypted_db.root.children[0] {
-            Node::Entry(e) => e,
-            Node::Group(_) => panic!("Was expecting an entry as the only child."),
-        };
-
-        assert_eq!(decrypted_entry, &entry);
+        let root = decrypted_db.root.borrow();
+        if let Some(g) = root.as_any().downcast_ref::<Group>() {
+            if let Some(decrypted_entry) = g.children[0].borrow().as_any().downcast_ref::<Entry>() {
+                assert_eq!(decrypted_entry, &entry);
+            } else {
+                panic!("Was expecting an entry as the only child.");
+            }
+        } else {
+            panic!("Was expecting an entry as the only child.");
+        }
     }
 
     #[test]
@@ -135,7 +150,7 @@ mod tests {
             .fields
             .insert("Title".to_string(), Value::Unprotected("ASDF".to_string()));
 
-        root_group.children.push(Node::Entry(entry));
+        root_group.children.push(rc_refcell!(entry));
 
         let mut subgroup = Group::new("Child group");
         subgroup.notes = Some("I am a subgroup".to_string());
@@ -164,10 +179,10 @@ mod tests {
             },
         );
 
-        root_group.children.push(Node::Group(subgroup));
+        root_group.children.push(rc_refcell!(subgroup));
 
         let mut db = Database::new(DatabaseConfig::default());
-        db.root = root_group.clone();
+        db.root = rc_refcell!(root_group.clone());
 
         let key_elements = make_key();
 
@@ -175,17 +190,38 @@ mod tests {
         kdbx4::dump_kdbx4(&db, &key_elements, &mut encrypted_db).unwrap();
         let decrypted_db = kdbx4::parse_kdbx4(&encrypted_db, &key_elements).unwrap();
 
-        assert_eq!(decrypted_db.root.children.len(), 2);
+        assert_eq!(
+            decrypted_db
+                .root
+                .borrow()
+                .as_any()
+                .downcast_ref::<Group>()
+                .unwrap()
+                .children
+                .len(),
+            2
+        );
 
-        let decrypted_entry = match &decrypted_db.root.children[0] {
-            Node::Entry(e) => e,
-            Node::Group(_) => panic!("Was expecting an entry as the first child."),
-        };
+        if let Some(g) = decrypted_db.root.borrow().as_any().downcast_ref::<Group>() {
+            if let Some(decrypted_entry) = g.children[0].borrow().as_any().downcast_ref::<Entry>() {
+                assert_eq!(decrypted_entry.get_title(), Some("ASDF"));
+                assert_eq!(decrypted_entry.get_uuid(), new_entry_uuid);
+            } else {
+                panic!("Was expecting an entry as the first child.");
+            }
+        } else {
+            panic!("Was expecting a group as the root.");
+        }
 
-        assert_eq!(decrypted_entry.get_title(), Some("ASDF"));
-        assert_eq!(decrypted_entry.get_uuid(), &new_entry_uuid);
-
-        assert_eq!(&decrypted_db.root, &root_group);
+        assert_eq!(
+            decrypted_db
+                .root
+                .borrow()
+                .as_any()
+                .downcast_ref::<Group>()
+                .unwrap(),
+            &root_group
+        );
     }
 
     #[test]

@@ -55,24 +55,24 @@ struct KDBX4InnerHeader {
 #[cfg(test)]
 mod kdbx4_tests {
     use super::*;
-
     use crate::{
         config::{
             CompressionConfig, DatabaseConfig, InnerCipherConfig, KdfConfig, OuterCipherConfig,
         },
-        db::{Database, Entry, Group, HeaderAttachment, Node, Value},
+        db::{Database, Entry, Group, HeaderAttachment, Value},
         format::{kdbx4::dump::dump_kdbx4, KDBX4_CURRENT_MINOR_VERSION},
         key::DatabaseKey,
+        rc_refcell,
     };
 
     fn test_with_config(config: DatabaseConfig) {
         let mut db = Database::new(config);
 
         let mut root_group = Group::new("Root");
-        root_group.children.push(Node::Entry(Entry::new()));
-        root_group.children.push(Node::Entry(Entry::new()));
-        root_group.children.push(Node::Entry(Entry::new()));
-        db.root = root_group;
+        root_group.children.push(rc_refcell!(Entry::new()));
+        root_group.children.push(rc_refcell!(Entry::new()));
+        root_group.children.push(rc_refcell!(Entry::new()));
+        db.root = rc_refcell!(root_group);
 
         let mut password_bytes: Vec<u8> = vec![];
         let mut password: String = "".to_string();
@@ -92,7 +92,14 @@ mod kdbx4_tests {
 
         let decrypted_db = parse_kdbx4(&encrypted_db, &key_elements).unwrap();
 
-        assert_eq!(decrypted_db.root.children.len(), 3);
+        let len = (&decrypted_db.root)
+            .borrow()
+            .as_any()
+            .downcast_ref::<Group>()
+            .unwrap()
+            .children
+            .len();
+        assert_eq!(len, 3);
     }
 
     #[test]
@@ -151,7 +158,7 @@ mod kdbx4_tests {
     #[test]
     pub fn header_attachments() {
         let mut root_group = Group::new("Root");
-        root_group.children.push(Node::Entry(Entry::new()));
+        root_group.children.push(rc_refcell!(Entry::new()));
 
         let mut db = Database::new(DatabaseConfig::default());
 
@@ -172,7 +179,13 @@ mod kdbx4_tests {
             Value::Unprotected("Demo entry".to_string()),
         );
 
-        db.root.children.push(Node::Entry(entry));
+        (&mut db.root)
+            .borrow_mut()
+            .as_any_mut()
+            .downcast_mut::<Group>()
+            .unwrap()
+            .children
+            .push(rc_refcell!(entry));
 
         let key_elements = DatabaseKey::new()
             .with_password("test")
@@ -184,7 +197,14 @@ mod kdbx4_tests {
 
         let decrypted_db = parse_kdbx4(&encrypted_db, &key_elements).unwrap();
 
-        assert_eq!(decrypted_db.root.children.len(), 1);
+        let len = (&decrypted_db.root)
+            .borrow()
+            .as_any()
+            .downcast_ref::<Group>()
+            .unwrap()
+            .children
+            .len();
+        assert_eq!(len, 1);
 
         let header_attachments = &decrypted_db.header_attachments;
         assert_eq!(header_attachments.len(), 2);

@@ -24,6 +24,7 @@ default = ["utilities", "save_kdbx4"]
 [dependencies]
 aes = "0.8"
 anyhow = { version = "1", optional = true }
+as-any = "0.3"
 base32 = { version = "0.4.0", optional = true }
 base64 = "0.21"
 block-modes = "0.9"
@@ -33,6 +34,7 @@ chacha20 = "0.9"
 chrono = { version = "0.4.23", default-features = false, features = ["serde", "clock", "std"] }
 cipher = { version = "0.4", features = ["std"] }
 clap = { version = "4", optional = true, features = ["derive"] }
+erased-serde = "0.3"
 flate2 = "1"
 getrandom = { version = "0.2", features = ["std"] }
 hex-literal = "0.4"
@@ -42,6 +44,7 @@ rust-argon2 = "1.0"
 salsa20 = "0.10"
 secstr = "0.5"
 serde = { version = "1", optional = true, features = ["derive"] }
+serde_derive = "1.0"
 serde_json = { version = "1", optional = true }
 sha2 = "0.10"
 thiserror = "1"

@@ -4,6 +4,7 @@ use crate::{
     db::Database,
     error::{BlockStreamError, DatabaseIntegrityError, DatabaseKeyError, DatabaseOpenError},
     format::{kdbx_header_field_id::KDBXHeaderFieldID, DatabaseVersion},
+    rc_refcell,
 };
 use byteorder::{ByteOrder, LittleEndian};
 use std::convert::{TryFrom, TryInto};
@@ -182,7 +183,7 @@ pub(crate) fn parse_kdbx3(
     let db = Database {
         config,
         header_attachments: Vec::new(),
-        root: database_content.root.group,
+        root: rc_refcell!(database_content.root.group),
         deleted_objects: database_content.root.deleted_objects,
         meta: database_content.meta,
     };

@@ -16,7 +16,7 @@ use crate::{
         },
         DatabaseVersion,
     },
-    hmac_block_stream,
+    hmac_block_stream, rc_refcell,
     variant_dictionary::VariantDictionary,
 };
 
@@ -43,7 +43,7 @@ pub(crate) fn parse_kdbx4(
     let db = Database {
         config,
         header_attachments,
-        root: database_content.root.group,
+        root: rc_refcell!(database_content.root.group),
         deleted_objects: database_content.root.deleted_objects,
         meta: database_content.meta,
     };

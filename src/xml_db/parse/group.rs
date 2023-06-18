@@ -1,9 +1,9 @@
-use uuid::Uuid;
-
 use crate::{
-    db::{CustomData, Entry, Group, Node, Times},
+    db::{CustomData, Entry, Group, Times},
+    rc_refcell,
     xml_db::parse::{FromXml, SimpleTag, SimpleXmlEvent, XmlParseError},
 };
+use uuid::Uuid;
 
 use super::IgnoreSubfield;
 
@@ -70,11 +70,11 @@ impl FromXml for Group {
                     }
                     "Entry" => {
                         let entry = Entry::from_xml(iterator, inner_cipher)?;
-                        out.children.push(Node::Entry(entry));
+                        out.children.push(rc_refcell!(entry));
                     }
                     "Group" => {
                         let group = Group::from_xml(iterator, inner_cipher)?;
-                        out.children.push(Node::Group(group));
+                        out.children.push(rc_refcell!(group));
                     }
                     "CustomData" => {
                         out.custom_data = CustomData::from_xml(iterator, inner_cipher)?;

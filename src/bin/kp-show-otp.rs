@@ -3,7 +3,10 @@ use std::fs::File;
 
 use anyhow::Result;
 use clap::Parser;
-use keepass::{db::NodeRef, Database, DatabaseKey};
+use keepass::{
+    db::{Entry, Group},
+    Database, DatabaseKey,
+};
 
 #[derive(Parser, Debug)]
 #[command(version, about)]
@@ -38,7 +41,9 @@ pub fn main() -> Result<()> {
 
     let db = Database::open(&mut source, key)?;
 
-    if let Some(NodeRef::Entry(e)) = db.root.get(&[&args.entry]) {
+    if let Some(e) = Group::get(&db.root, &[&args.entry]) {
+        let e = e.borrow();
+        let e = e.as_any().downcast_ref::<Entry>().unwrap();
         let totp = e.get_otp().unwrap();
         println!("Token is {}", totp.value_now().unwrap().code);
         Ok(())
