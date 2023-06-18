@@ -192,6 +192,8 @@ impl<'a> Entry {
             return false;
         }
 
+        self.times.set_last_modification(Times::now());
+
         let mut new_history_entry = self.clone();
         new_history_entry.history.take().unwrap();
 
@@ -199,7 +201,6 @@ impl<'a> Entry {
         // TODO should we validate the maximum size of the history?
         self.history.as_mut().unwrap().add_entry(new_history_entry);
 
-        self.times.set_last_modification(Times::now());
         true
     }
 
@@ -341,8 +342,7 @@ impl History {
             let existing_history_entry = new_history_entries.get(modification_time);
             if let Some(existing_history_entry) = existing_history_entry {
                 if !existing_history_entry.eq(&history_entry) {
-                    // FIXME this will make the unit tests fail.
-                    // return Err("History entries have the same modification timestamp but were not the same.".to_string());
+                    log.warnings.push("History entries have the same modification timestamp but were not the same.".to_string());
                 }
             } else {
                 new_history_entries.insert(modification_time.clone(), history_entry.clone());

@@ -809,6 +809,7 @@ mod group_tests {
         entry.set_field_and_commit("Title", "entry1_updated_from_source");
 
         let merge_result = destination_group.merge(&source_group).unwrap();
+        assert_eq!(merge_result.warnings.len(), 0);
         assert_eq!(merge_result.events.len(), 1);
 
         let entry = destination_group.entries()[0];
@@ -817,7 +818,7 @@ mod group_tests {
         let merged_history = entry.history.clone().unwrap();
         assert!(merged_history.is_ordered());
         assert_eq!(merged_history.entries.len(), 3);
-        let merged_entry = &merged_history.entries[0];
+        let merged_entry = &merged_history.entries[1];
         assert_eq!(
             merged_entry.get_title(),
             Some("entry1_updated_from_destination")
