@@ -515,6 +515,11 @@ impl Group {
                 }
 
                 let (merged_entry, entry_merge_log) = existing_entry.merge(entry)?;
+
+                if existing_entry.eq(&merged_entry) {
+                    continue;
+                }
+
                 self.replace_entry(&merged_entry);
                 log.events.push(MergeEvent {
                     event_type: MergeEventType::EntryUpdated,
@@ -610,14 +615,12 @@ mod group_tests {
 
         let merge_result = destination_group.merge(&source_group).unwrap();
         assert_eq!(merge_result.warnings.len(), 0);
-        assert_eq!(merge_result.events.len(), 1);
+        assert_eq!(merge_result.events.len(), 0);
         let destination_group_just_after_merge = destination_group.clone();
 
         let merge_result = destination_group.merge(&source_group).unwrap();
         assert_eq!(merge_result.warnings.len(), 0);
-        // FIXME we should detect if merging the entries actually changed something,
-        // and not add an event if nothing changed.
-        // assert_eq!(merge_result.events.len(), 0);
+        assert_eq!(merge_result.events.len(), 0);
         // Merging twice in a row, even if the first merge updated the destination group,
         // should not create more changes.
         assert_eq!(destination_group_just_after_merge, destination_group);
