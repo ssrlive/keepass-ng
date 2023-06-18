@@ -507,14 +507,26 @@ impl Group {
                     };
 
                 if destination_last_modification == source_last_modification {
-                    println!(
-                        "{:?} == {:?}",
-                        destination_last_modification, source_last_modification
-                    );
+                    if !existing_entry.eq(&entry) {
+                        // This should never happen.
+                        // This means that an entry was updated without updating the last modification
+                        // timestamp.
+                        return Err(
+                            "Entries have the same modification time but are not the same!"
+                                .to_string(),
+                        );
+                    }
                     continue;
                 }
 
-                let (merged_entry, entry_merge_log) = existing_entry.merge(entry)?;
+                let mut merged_entry: Entry = Entry::default();
+                let mut entry_merge_log: MergeLog = MergeLog::default();
+
+                if destination_last_modification > source_last_modification {
+                    (merged_entry, entry_merge_log) = existing_entry.merge(entry)?;
+                } else {
+                    (merged_entry, entry_merge_log) = entry.clone().merge(existing_entry)?;
+                }
 
                 if existing_entry.eq(&merged_entry) {
                     continue;

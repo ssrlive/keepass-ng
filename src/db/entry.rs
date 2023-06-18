@@ -45,19 +45,7 @@ impl Entry {
     }
 
     pub(crate) fn merge(&self, other: &Entry) -> Result<(Entry, MergeLog), String> {
-        let mut response: Entry = Entry::default();
         let mut log = MergeLog::default();
-
-        let destination_modification_time = self.times.get_last_modification().unwrap();
-        let source_modification_time = other.times.get_last_modification().unwrap();
-        if destination_modification_time == source_modification_time && !self.eq(&other) {
-            // This should never happen.
-            // This means that an entry was updated without updating the last modification
-            // timestamp.
-            return Err(
-                "Entries have the same modification time but are not the same!".to_string(),
-            );
-        }
 
         let mut source_history = match &other.history {
             Some(h) => h.clone(),
@@ -77,17 +65,10 @@ impl Entry {
         };
         let mut history_merge_log: MergeLog = MergeLog::default();
 
-        if destination_modification_time > source_modification_time {
-            response = self.clone();
-            source_history.add_entry(other.clone());
-            history_merge_log = destination_history.merge_with(&source_history)?;
-            response.history = Some(destination_history);
-        } else {
-            response = other.clone();
-            destination_history.add_entry(self.clone());
-            history_merge_log = source_history.merge_with(&destination_history)?;
-            response.history = Some(source_history);
-        }
+        let mut response = self.clone();
+        source_history.add_entry(other.clone());
+        history_merge_log = destination_history.merge_with(&source_history)?;
+        response.history = Some(destination_history);
 
         Ok((response, log.merge_with(&history_merge_log)))
     }
