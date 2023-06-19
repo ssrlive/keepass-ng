@@ -56,23 +56,21 @@ struct KDBX4InnerHeader {
 mod kdbx4_tests {
     use super::*;
     use crate::{
-        config::{
-            CompressionConfig, DatabaseConfig, InnerCipherConfig, KdfConfig, OuterCipherConfig,
-        },
-        db::{Database, Entry, Group, HeaderAttachment, Value},
+        config::{CompressionConfig, DatabaseConfig, InnerCipherConfig, KdfConfig, OuterCipherConfig},
+        db::{group_add_child, node::*, Database, Entry, Group, HeaderAttachment},
         format::{kdbx4::dump::dump_kdbx4, KDBX4_CURRENT_MINOR_VERSION},
         key::DatabaseKey,
-        rc_refcell,
+        rc_refcell_node,
     };
 
     fn test_with_config(config: DatabaseConfig) {
         let mut db = Database::new(config);
 
-        let mut root_group = Group::new("Root");
-        root_group.children.push(rc_refcell!(Entry::new()));
-        root_group.children.push(rc_refcell!(Entry::new()));
-        root_group.children.push(rc_refcell!(Entry::new()));
-        db.root = rc_refcell!(root_group);
+        let root_group = rc_refcell_node!(Group::new("Root"));
+        group_add_child(&root_group, rc_refcell_node!(Entry::new())).unwrap();
+        group_add_child(&root_group, rc_refcell_node!(Entry::new())).unwrap();
+        group_add_child(&root_group, rc_refcell_node!(Entry::new())).unwrap();
+        db.root = root_group;
 
         let mut password_bytes: Vec<u8> = vec![];
         let mut password: String = "".to_string();
@@ -82,10 +80,7 @@ mod kdbx4_tests {
             password += &std::char::from_u32(random_char as u32).unwrap().to_string();
         }
 
-        let key_elements = DatabaseKey::new()
-            .with_password(&password)
-            .get_key_elements()
-            .unwrap();
+        let key_elements = DatabaseKey::new().with_password(&password).get_key_elements().unwrap();
 
         let mut encrypted_db = Vec::new();
         dump_kdbx4(&db, &key_elements, &mut encrypted_db).unwrap();
@@ -104,19 +99,11 @@ mod kdbx4_tests {
 
     #[test]
     pub fn test_config_matrix() {
-        let outer_cipher_configs = [
-            OuterCipherConfig::AES256,
-            OuterCipherConfig::Twofish,
-            OuterCipherConfig::ChaCha20,
-        ];
+        let outer_cipher_configs = [OuterCipherConfig::AES256, OuterCipherConfig::Twofish, OuterCipherConfig::ChaCha20];
 
         let compression_configs = [CompressionConfig::None, CompressionConfig::GZip];
 
-        let inner_cipher_configs = [
-            InnerCipherConfig::Plain,
-            InnerCipherConfig::Salsa20,
-            InnerCipherConfig::ChaCha20,
-        ];
+        let inner_cipher_configs = [InnerCipherConfig::Plain, InnerCipherConfig::Salsa20, InnerCipherConfig::ChaCha20];
 
         let kdf_configs = [
             KdfConfig::Aes { rounds: 10 },
@@ -157,8 +144,8 @@ mod kdbx4_tests {
 
     #[test]
     pub fn header_attachments() {
-        let mut root_group = Group::new("Root");
-        root_group.children.push(rc_refcell!(Entry::new()));
+        let root_group = rc_refcell_node!(Group::new("Root"));
+        group_add_child(&root_group, rc_refcell_node!(Entry::new())).unwrap();
 
         let mut db = Database::new(DatabaseConfig::default());
 
@@ -173,24 +160,11 @@ mod kdbx4_tests {
             },
         ];
 
-        let mut entry = Entry::new();
-        entry.fields.insert(
-            "Title".to_string(),
-            Value::Unprotected("Demo entry".to_string()),
-        );
+        let entry = rc_refcell_node!(Entry::new());
+        entry.borrow_mut().set_title(Some("Demo entry"));
+        group_add_child(&db.root, entry).unwrap();
 
-        (&mut db.root)
-            .borrow_mut()
-            .as_any_mut()
-            .downcast_mut::<Group>()
-            .unwrap()
-            .children
-            .push(rc_refcell!(entry));
-
-        let key_elements = DatabaseKey::new()
-            .with_password("test")
-            .get_key_elements()
-            .unwrap();
+        let key_elements = DatabaseKey::new().with_password("test").get_key_elements().unwrap();
 
         let mut encrypted_db = Vec::new();
         dump_kdbx4(&db, &key_elements, &mut encrypted_db).unwrap();

@@ -1,6 +1,6 @@
 use crate::{
-    db::{CustomData, Entry, Group, Times},
-    rc_refcell,
+    db::{node::*, CustomData, Entry, Group, Times},
+    rc_refcell_node,
     xml_db::parse::{FromXml, SimpleTag, SimpleXmlEvent, XmlParseError},
 };
 use uuid::Uuid;
@@ -22,7 +22,7 @@ impl FromXml for Group {
             });
         }
 
-        let mut out = Self::default();
+        let mut out = Group::default();
 
         while let Some(event) = iterator.peek() {
             match event {
@@ -34,47 +34,39 @@ impl FromXml for Group {
                         out.name = SimpleTag::<String>::from_xml(iterator, inner_cipher)?.value;
                     }
                     "Notes" => {
-                        out.notes =
-                            SimpleTag::<Option<String>>::from_xml(iterator, inner_cipher)?.value;
+                        out.notes = SimpleTag::<Option<String>>::from_xml(iterator, inner_cipher)?.value;
                     }
                     "IconID" => {
-                        out.icon_id =
-                            SimpleTag::<Option<usize>>::from_xml(iterator, inner_cipher)?.value;
+                        out.icon_id = SimpleTag::<Option<usize>>::from_xml(iterator, inner_cipher)?.value;
                     }
                     "CustomIconUUID" => {
-                        out.custom_icon_uuid =
-                            SimpleTag::<Option<Uuid>>::from_xml(iterator, inner_cipher)?.value;
+                        out.custom_icon_uuid = SimpleTag::<Option<Uuid>>::from_xml(iterator, inner_cipher)?.value;
                     }
                     "Times" => {
                         out.times = Times::from_xml(iterator, inner_cipher)?;
                     }
                     "IsExpanded" => {
-                        out.is_expanded =
-                            SimpleTag::<bool>::from_xml(iterator, inner_cipher)?.value;
+                        out.is_expanded = SimpleTag::<bool>::from_xml(iterator, inner_cipher)?.value;
                     }
                     "DefaultAutoTypeSequence" => {
-                        out.default_autotype_sequence =
-                            SimpleTag::<Option<String>>::from_xml(iterator, inner_cipher)?.value;
+                        out.default_autotype_sequence = SimpleTag::<Option<String>>::from_xml(iterator, inner_cipher)?.value;
                     }
                     "EnableAutoType" => {
-                        out.enable_autotype =
-                            SimpleTag::<Option<String>>::from_xml(iterator, inner_cipher)?.value;
+                        out.enable_autotype = SimpleTag::<Option<String>>::from_xml(iterator, inner_cipher)?.value;
                     }
                     "EnableSearching" => {
-                        out.enable_searching =
-                            SimpleTag::<Option<String>>::from_xml(iterator, inner_cipher)?.value;
+                        out.enable_searching = SimpleTag::<Option<String>>::from_xml(iterator, inner_cipher)?.value;
                     }
                     "LastTopVisibleEntry" => {
-                        out.last_top_visible_entry =
-                            SimpleTag::<Option<Uuid>>::from_xml(iterator, inner_cipher)?.value;
+                        out.last_top_visible_entry = SimpleTag::<Option<Uuid>>::from_xml(iterator, inner_cipher)?.value;
                     }
                     "Entry" => {
                         let entry = Entry::from_xml(iterator, inner_cipher)?;
-                        out.children.push(rc_refcell!(entry));
+                        out.children.push(rc_refcell_node!(entry));
                     }
                     "Group" => {
                         let group = Group::from_xml(iterator, inner_cipher)?;
-                        out.children.push(rc_refcell!(group));
+                        out.children.push(rc_refcell_node!(group));
                     }
                     "CustomData" => {
                         out.custom_data = CustomData::from_xml(iterator, inner_cipher)?;
@@ -117,13 +109,8 @@ mod parse_group_test {
         let value = parse_test_xml::<Group>("<Group><Notes>ASDF</Notes></Group>")?;
         assert_eq!(value.notes, Some("ASDF".to_string()));
 
-        let value = parse_test_xml::<Group>(
-            "<Group><CustomIconUUID>oaKjpLGywcLR0tPU1dbX2A==</CustomIconUUID></Group>",
-        )?;
-        assert_eq!(
-            value.custom_icon_uuid,
-            Some(uuid!("a1a2a3a4b1b2c1c2d1d2d3d4d5d6d7d8"))
-        );
+        let value = parse_test_xml::<Group>("<Group><CustomIconUUID>oaKjpLGywcLR0tPU1dbX2A==</CustomIconUUID></Group>")?;
+        assert_eq!(value.custom_icon_uuid, Some(uuid!("a1a2a3a4b1b2c1c2d1d2d3d4d5d6d7d8")));
 
         let value = parse_test_xml::<Group>("");
         assert!(matches!(value, Err(XmlParseError::BadEvent { .. })));

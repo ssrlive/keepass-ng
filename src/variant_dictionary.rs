@@ -22,9 +22,7 @@ pub(crate) struct VariantDictionary {
 impl VariantDictionary {
     #[allow(dead_code)]
     pub(crate) fn new() -> Self {
-        Self {
-            data: HashMap::new(),
-        }
+        Self { data: HashMap::new() }
     }
 
     pub(crate) fn parse(buffer: &[u8]) -> Result<VariantDictionary, VariantDictionaryError> {
@@ -59,9 +57,7 @@ impl VariantDictionary {
                 BOOL_TYPE_ID => VariantDictionaryValue::Bool(value_buffer != [0]),
                 I32_TYPE_ID => VariantDictionaryValue::Int32(LittleEndian::read_i32(value_buffer)),
                 I64_TYPE_ID => VariantDictionaryValue::Int64(LittleEndian::read_i64(value_buffer)),
-                STR_TYPE_ID => VariantDictionaryValue::String(
-                    String::from_utf8_lossy(value_buffer).to_string(),
-                ),
+                STR_TYPE_ID => VariantDictionaryValue::String(String::from_utf8_lossy(value_buffer).to_string()),
                 BYTES_TYPE_ID => VariantDictionaryValue::ByteArray(value_buffer.to_vec()),
                 _ => {
                     return Err(VariantDictionaryError::InvalidValueType { value_type });
@@ -142,13 +138,9 @@ impl VariantDictionary {
         let vdv = self
             .data
             .get(key)
-            .ok_or_else(|| VariantDictionaryError::MissingKey {
-                key: key.to_owned(),
-            })?;
+            .ok_or_else(|| VariantDictionaryError::MissingKey { key: key.to_owned() })?;
 
-        vdv.into().ok_or_else(|| VariantDictionaryError::Mistyped {
-            key: key.to_owned(),
-        })
+        vdv.into().ok_or_else(|| VariantDictionaryError::Mistyped { key: key.to_owned() })
     }
 
     #[allow(dead_code)]
@@ -285,10 +277,7 @@ mod variant_dictionary_tests {
     #[test]
     fn parsing_errors() -> Result<(), VariantDictionaryError> {
         let res = VariantDictionary::parse("not-a-variant-dictionary".as_bytes());
-        assert!(matches!(
-            res,
-            Err(VariantDictionaryError::InvalidVersion { .. })
-        ));
+        assert!(matches!(res, Err(VariantDictionaryError::InvalidVersion { .. })));
 
         let res = VariantDictionary::parse(&hex!("0001"));
         assert!(matches!(res, Err(VariantDictionaryError::NotTerminated)));
@@ -305,10 +294,7 @@ mod variant_dictionary_tests {
         //                                        |   | |       |   |       |
         let res = VariantDictionary::parse(&hex!("0001AA0200000041420000000000"));
         dbg!(&res);
-        assert!(matches!(
-            res,
-            Err(VariantDictionaryError::InvalidValueType { value_type: 0xAA })
-        ));
+        assert!(matches!(res, Err(VariantDictionaryError::InvalidValueType { value_type: 0xAA })));
 
         Ok(())
     }

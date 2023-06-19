@@ -8,11 +8,7 @@ use crate::{
 };
 
 impl DumpXml for Entry {
-    fn dump_xml<E: std::io::Write>(
-        &self,
-        writer: &mut EventWriter<E>,
-        inner_cipher: &mut dyn Cipher,
-    ) -> Result<(), xml::writer::Error> {
+    fn dump_xml<E: std::io::Write>(&self, writer: &mut EventWriter<E>, inner_cipher: &mut dyn Cipher) -> Result<(), xml::writer::Error> {
         writer.write(WriterEvent::start_element("Entry"))?;
 
         SimpleTag("UUID", &self.uuid).dump_xml(writer, inner_cipher)?;
@@ -71,21 +67,14 @@ impl DumpXml for Entry {
 }
 
 impl DumpXml for Value {
-    fn dump_xml<E: std::io::Write>(
-        &self,
-        writer: &mut EventWriter<E>,
-        inner_cipher: &mut dyn Cipher,
-    ) -> Result<(), xml::writer::Error> {
+    fn dump_xml<E: std::io::Write>(&self, writer: &mut EventWriter<E>, inner_cipher: &mut dyn Cipher) -> Result<(), xml::writer::Error> {
         match self {
-            Value::Bytes(b) => SimpleTag("Value", std::str::from_utf8(b).expect("utf-8"))
-                .dump_xml(writer, inner_cipher),
+            Value::Bytes(b) => SimpleTag("Value", std::str::from_utf8(b).expect("utf-8")).dump_xml(writer, inner_cipher),
             Value::Unprotected(s) => SimpleTag("Value", s).dump_xml(writer, inner_cipher),
             Value::Protected(p) => {
                 writer.write(WriterEvent::start_element("Value").attr("Protected", "True"))?;
 
-                let encrypted_value = inner_cipher
-                    .encrypt(p.unsecure())
-                    .expect("Encrypt with inner cipher");
+                let encrypted_value = inner_cipher.encrypt(p.unsecure()).expect("Encrypt with inner cipher");
 
                 let protected_value = base64_engine::STANDARD.encode(encrypted_value);
 
@@ -99,11 +88,7 @@ impl DumpXml for Value {
 }
 
 impl DumpXml for AutoType {
-    fn dump_xml<E: std::io::Write>(
-        &self,
-        writer: &mut EventWriter<E>,
-        inner_cipher: &mut dyn Cipher,
-    ) -> Result<(), xml::writer::Error> {
+    fn dump_xml<E: std::io::Write>(&self, writer: &mut EventWriter<E>, inner_cipher: &mut dyn Cipher) -> Result<(), xml::writer::Error> {
         writer.write(WriterEvent::start_element("AutoType"))?;
 
         SimpleTag("Enabled", self.enabled).dump_xml(writer, inner_cipher)?;
@@ -122,11 +107,7 @@ impl DumpXml for AutoType {
 }
 
 impl DumpXml for AutoTypeAssociation {
-    fn dump_xml<E: std::io::Write>(
-        &self,
-        writer: &mut EventWriter<E>,
-        inner_cipher: &mut dyn Cipher,
-    ) -> Result<(), xml::writer::Error> {
+    fn dump_xml<E: std::io::Write>(&self, writer: &mut EventWriter<E>, inner_cipher: &mut dyn Cipher) -> Result<(), xml::writer::Error> {
         writer.write(WriterEvent::start_element("Association"))?;
 
         if let Some(ref value) = self.window {
@@ -143,11 +124,7 @@ impl DumpXml for AutoTypeAssociation {
 }
 
 impl DumpXml for History {
-    fn dump_xml<E: std::io::Write>(
-        &self,
-        writer: &mut EventWriter<E>,
-        inner_cipher: &mut dyn Cipher,
-    ) -> Result<(), xml::writer::Error> {
+    fn dump_xml<E: std::io::Write>(&self, writer: &mut EventWriter<E>, inner_cipher: &mut dyn Cipher) -> Result<(), xml::writer::Error> {
         writer.write(WriterEvent::start_element("History"))?;
 
         for entry in &self.entries {

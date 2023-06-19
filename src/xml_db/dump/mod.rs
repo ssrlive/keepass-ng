@@ -25,14 +25,8 @@ pub fn format_xml_timestamp(timestamp: &chrono::NaiveDateTime) -> String {
 }
 
 #[allow(dead_code)]
-pub(crate) fn dump(
-    db: &Database,
-    inner_cipher: &mut dyn Cipher,
-    writer: &mut dyn Write,
-) -> Result<(), xml::writer::Error> {
-    let mut xml_writer = EmitterConfig::new()
-        .perform_indent(false)
-        .create_writer(writer);
+pub(crate) fn dump(db: &Database, inner_cipher: &mut dyn Cipher, writer: &mut dyn Write) -> Result<(), xml::writer::Error> {
+    let mut xml_writer = EmitterConfig::new().perform_indent(false).create_writer(writer);
 
     db.dump_xml(&mut xml_writer, inner_cipher)?;
 
@@ -44,94 +38,54 @@ pub(crate) fn dump(
 /// Using an `xml::writer::EventWriter` and an inner cipher, emit a series of `XmlEvent`s to the
 /// writer to build up the XML document.
 pub(crate) trait DumpXml {
-    fn dump_xml<E: std::io::Write>(
-        &self,
-        writer: &mut EventWriter<E>,
-        inner_cipher: &mut dyn Cipher,
-    ) -> Result<(), xml::writer::Error>;
+    fn dump_xml<E: std::io::Write>(&self, writer: &mut EventWriter<E>, inner_cipher: &mut dyn Cipher) -> Result<(), xml::writer::Error>;
 }
 
 impl DumpXml for &chrono::NaiveDateTime {
-    fn dump_xml<E: std::io::Write>(
-        &self,
-        writer: &mut EventWriter<E>,
-        _inner_cipher: &mut dyn Cipher,
-    ) -> Result<(), xml::writer::Error> {
+    fn dump_xml<E: std::io::Write>(&self, writer: &mut EventWriter<E>, _inner_cipher: &mut dyn Cipher) -> Result<(), xml::writer::Error> {
         writer.write(WriterEvent::characters(&format_xml_timestamp(self)))
     }
 }
 
 impl DumpXml for bool {
-    fn dump_xml<E: std::io::Write>(
-        &self,
-        writer: &mut EventWriter<E>,
-        _inner_cipher: &mut dyn Cipher,
-    ) -> Result<(), xml::writer::Error> {
-        writer.write(WriterEvent::characters(if *self {
-            "True"
-        } else {
-            "False"
-        }))
+    fn dump_xml<E: std::io::Write>(&self, writer: &mut EventWriter<E>, _inner_cipher: &mut dyn Cipher) -> Result<(), xml::writer::Error> {
+        writer.write(WriterEvent::characters(if *self { "True" } else { "False" }))
     }
 }
 
 impl DumpXml for usize {
-    fn dump_xml<E: std::io::Write>(
-        &self,
-        writer: &mut EventWriter<E>,
-        _inner_cipher: &mut dyn Cipher,
-    ) -> Result<(), xml::writer::Error> {
+    fn dump_xml<E: std::io::Write>(&self, writer: &mut EventWriter<E>, _inner_cipher: &mut dyn Cipher) -> Result<(), xml::writer::Error> {
         writer.write(WriterEvent::characters(&format!("{}", self)))
     }
 }
 
 impl DumpXml for isize {
-    fn dump_xml<E: std::io::Write>(
-        &self,
-        writer: &mut EventWriter<E>,
-        _inner_cipher: &mut dyn Cipher,
-    ) -> Result<(), xml::writer::Error> {
+    fn dump_xml<E: std::io::Write>(&self, writer: &mut EventWriter<E>, _inner_cipher: &mut dyn Cipher) -> Result<(), xml::writer::Error> {
         writer.write(WriterEvent::characters(&format!("{}", self)))
     }
 }
 
 impl DumpXml for &str {
-    fn dump_xml<E: std::io::Write>(
-        &self,
-        writer: &mut EventWriter<E>,
-        _inner_cipher: &mut dyn Cipher,
-    ) -> Result<(), xml::writer::Error> {
+    fn dump_xml<E: std::io::Write>(&self, writer: &mut EventWriter<E>, _inner_cipher: &mut dyn Cipher) -> Result<(), xml::writer::Error> {
         writer.write(WriterEvent::characters(self))
     }
 }
 
 impl DumpXml for &String {
-    fn dump_xml<E: std::io::Write>(
-        &self,
-        writer: &mut EventWriter<E>,
-        _inner_cipher: &mut dyn Cipher,
-    ) -> Result<(), xml::writer::Error> {
+    fn dump_xml<E: std::io::Write>(&self, writer: &mut EventWriter<E>, _inner_cipher: &mut dyn Cipher) -> Result<(), xml::writer::Error> {
         writer.write(WriterEvent::characters(self))
     }
 }
 
 impl DumpXml for &Uuid {
-    fn dump_xml<E: std::io::Write>(
-        &self,
-        writer: &mut EventWriter<E>,
-        _inner_cipher: &mut dyn Cipher,
-    ) -> Result<(), xml::writer::Error> {
+    fn dump_xml<E: std::io::Write>(&self, writer: &mut EventWriter<E>, _inner_cipher: &mut dyn Cipher) -> Result<(), xml::writer::Error> {
         let b64 = base64_engine::STANDARD.encode(self.as_bytes());
         writer.write(WriterEvent::Characters(&b64))
     }
 }
 
 impl DumpXml for &Color {
-    fn dump_xml<E: std::io::Write>(
-        &self,
-        writer: &mut EventWriter<E>,
-        _inner_cipher: &mut dyn Cipher,
-    ) -> Result<(), xml::writer::Error> {
+    fn dump_xml<E: std::io::Write>(&self, writer: &mut EventWriter<E>, _inner_cipher: &mut dyn Cipher) -> Result<(), xml::writer::Error> {
         writer.write(WriterEvent::Characters(&self.to_string()))
     }
 }
@@ -140,11 +94,7 @@ impl DumpXml for &Color {
 struct SimpleTag<S: AsRef<str>, D: DumpXml>(S, D);
 
 impl<S: AsRef<str>, D: DumpXml> DumpXml for SimpleTag<S, D> {
-    fn dump_xml<E: std::io::Write>(
-        &self,
-        writer: &mut EventWriter<E>,
-        inner_cipher: &mut dyn Cipher,
-    ) -> Result<(), xml::writer::Error> {
+    fn dump_xml<E: std::io::Write>(&self, writer: &mut EventWriter<E>, inner_cipher: &mut dyn Cipher) -> Result<(), xml::writer::Error> {
         writer.write(WriterEvent::start_element(self.0.as_ref()))?;
         self.1.dump_xml(writer, inner_cipher)?;
         writer.write(WriterEvent::end_element())?;
@@ -153,11 +103,7 @@ impl<S: AsRef<str>, D: DumpXml> DumpXml for SimpleTag<S, D> {
 }
 
 impl DumpXml for Database {
-    fn dump_xml<E: std::io::Write>(
-        &self,
-        writer: &mut EventWriter<E>,
-        inner_cipher: &mut dyn Cipher,
-    ) -> Result<(), xml::writer::Error> {
+    fn dump_xml<E: std::io::Write>(&self, writer: &mut EventWriter<E>, inner_cipher: &mut dyn Cipher) -> Result<(), xml::writer::Error> {
         writer.write(WriterEvent::start_element("KeePassFile"))?;
 
         self.meta.dump_xml(writer, inner_cipher)?;
@@ -177,11 +123,7 @@ impl DumpXml for Database {
 }
 
 impl DumpXml for Times {
-    fn dump_xml<E: std::io::Write>(
-        &self,
-        writer: &mut EventWriter<E>,
-        inner_cipher: &mut dyn Cipher,
-    ) -> Result<(), xml::writer::Error> {
+    fn dump_xml<E: std::io::Write>(&self, writer: &mut EventWriter<E>, inner_cipher: &mut dyn Cipher) -> Result<(), xml::writer::Error> {
         writer.write(WriterEvent::start_element("Times"))?;
         for (time_name, time) in &self.times {
             SimpleTag(time_name, time).dump_xml(writer, inner_cipher)?;
@@ -197,11 +139,7 @@ impl DumpXml for Times {
 }
 
 impl DumpXml for CustomData {
-    fn dump_xml<E: std::io::Write>(
-        &self,
-        writer: &mut EventWriter<E>,
-        inner_cipher: &mut dyn Cipher,
-    ) -> Result<(), xml::writer::Error> {
+    fn dump_xml<E: std::io::Write>(&self, writer: &mut EventWriter<E>, inner_cipher: &mut dyn Cipher) -> Result<(), xml::writer::Error> {
         writer.write(WriterEvent::start_element("CustomData"))?;
 
         for (key, item) in &self.items {
@@ -220,11 +158,7 @@ impl DumpXml for CustomData {
 }
 
 impl DumpXml for CustomDataItem {
-    fn dump_xml<E: std::io::Write>(
-        &self,
-        writer: &mut EventWriter<E>,
-        inner_cipher: &mut dyn Cipher,
-    ) -> Result<(), xml::writer::Error> {
+    fn dump_xml<E: std::io::Write>(&self, writer: &mut EventWriter<E>, inner_cipher: &mut dyn Cipher) -> Result<(), xml::writer::Error> {
         if let Some(ref value) = self.value {
             value.dump_xml(writer, inner_cipher)?;
         }
@@ -238,11 +172,7 @@ impl DumpXml for CustomDataItem {
 }
 
 impl DumpXml for DeletedObjects {
-    fn dump_xml<E: std::io::Write>(
-        &self,
-        writer: &mut EventWriter<E>,
-        inner_cipher: &mut dyn Cipher,
-    ) -> Result<(), xml::writer::Error> {
+    fn dump_xml<E: std::io::Write>(&self, writer: &mut EventWriter<E>, inner_cipher: &mut dyn Cipher) -> Result<(), xml::writer::Error> {
         writer.write(WriterEvent::start_element("DeletedObjects"))?;
 
         for object in &self.objects {
@@ -255,11 +185,7 @@ impl DumpXml for DeletedObjects {
 }
 
 impl DumpXml for DeletedObject {
-    fn dump_xml<E: std::io::Write>(
-        &self,
-        writer: &mut EventWriter<E>,
-        inner_cipher: &mut dyn Cipher,
-    ) -> Result<(), xml::writer::Error> {
+    fn dump_xml<E: std::io::Write>(&self, writer: &mut EventWriter<E>, inner_cipher: &mut dyn Cipher) -> Result<(), xml::writer::Error> {
         writer.write(WriterEvent::start_element("DeletedObject"))?;
 
         SimpleTag("UUID", &self.uuid).dump_xml(writer, inner_cipher)?;

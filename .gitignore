@@ -2,6 +2,7 @@
 .idea
 *.iml
 Cargo.lock
+.*
 tmp/
 build/
 examples/

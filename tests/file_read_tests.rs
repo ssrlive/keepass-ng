@@ -2,7 +2,7 @@ mod file_read_tests {
     use keepass::{
         db::{Database, Entry, Group, Node, NodeIterator, NodePtr},
         error::{DatabaseIntegrityError, DatabaseOpenError},
-        DatabaseKey,
+        group_get_children, DatabaseKey,
     };
     use uuid::uuid;
 
@@ -11,24 +11,18 @@ mod file_read_tests {
     #[test]
     fn open_kdbx3_with_password() -> Result<(), DatabaseOpenError> {
         let path = Path::new("tests/resources/test_db_with_password.kdbx");
-        let db = Database::open(
-            &mut File::open(path)?,
-            DatabaseKey::new().with_password("demopass"),
-        )?;
+        let key = DatabaseKey::new().with_password("demopass");
+        let db = Database::open(&mut File::open(path)?, key)?;
 
         println!("{:?} DB Opened", db);
-
-        let root = db.root.borrow();
-        let root = root.as_any().downcast_ref::<Group>().unwrap();
-
-        assert_eq!(root.name, "sample");
-        assert_eq!(root.children.len(), 5);
+        assert_eq!(db.root.borrow().get_title().unwrap(), "sample");
+        assert_eq!(group_get_children(&db.root).unwrap().len(), 5);
 
         let mut total_groups = 0;
         let mut total_entries = 0;
         for node in NodeIterator::new(&db.root) {
             if let Some(g) = node.borrow().as_any().downcast_ref::<Group>() {
-                println!("Saw group '{0}'", g.name);
+                println!("Saw group '{0}'", g.get_title().unwrap());
                 total_groups += 1;
             } else if let Some(e) = node.borrow().as_any().downcast_ref::<Entry>() {
                 let title = e.get_title().unwrap_or("(no title)");
@@ -51,17 +45,12 @@ mod file_read_tests {
     fn open_kdbx3_with_keyfile() -> Result<(), DatabaseOpenError> {
         let path = Path::new("tests/resources/test_db_with_keyfile.kdbx");
         let kf_path = Path::new("tests/resources/test_key.key");
-        let db = Database::open(
-            &mut File::open(path)?,
-            DatabaseKey::new().with_keyfile(&mut File::open(kf_path)?)?,
-        )?;
+        let key = DatabaseKey::new().with_keyfile(&mut File::open(kf_path)?)?;
+        let db = Database::open(&mut File::open(path)?, key)?;
 
         println!("{:?} DB Opened", db);
-
-        let root = db.root.borrow();
-        let root = root.as_any().downcast_ref::<Group>().unwrap();
-        assert_eq!(root.name, "Root");
-        assert_eq!(root.children.len(), 1);
+        assert_eq!(db.root.borrow().get_title().unwrap(), "Root");
+        assert_eq!(group_get_children(&db.root).unwrap().len(), 1);
 
         let mut total_groups = 0;
         let mut total_entries = 0;
@@ -90,17 +79,12 @@ mod file_read_tests {
     fn open_kdbx3_with_keyfile_xml() -> Result<(), DatabaseOpenError> {
         let path = Path::new("tests/resources/test_db_with_keyfile_xml.kdbx");
         let kf_path = Path::new("tests/resources/test_key_xml.key");
-        let db = Database::open(
-            &mut File::open(path)?,
-            DatabaseKey::new().with_keyfile(&mut File::open(kf_path)?)?,
-        )?;
+        let key = DatabaseKey::new().with_keyfile(&mut File::open(kf_path)?)?;
+        let db = Database::open(&mut File::open(path)?, key)?;
 
         println!("{:?} DB Opened", db);
-
-        let root = db.root.borrow();
-        let root = root.as_any().downcast_ref::<Group>().unwrap();
-        assert_eq!(root.name, "Root");
-        assert_eq!(root.children.len(), 4);
+        assert_eq!(db.root.borrow().get_title().unwrap(), "Root");
+        assert_eq!(group_get_children(&db.root).unwrap().len(), 4);
 
         let mut total_groups = 0;
         let mut total_entries = 0;
@@ -129,17 +113,12 @@ mod file_read_tests {
     fn open_kdbx4_with_password_kdf_argon2_cipher_aes() -> Result<(), DatabaseOpenError> {
         let path = Path::new("tests/resources/test_db_kdbx4_with_password_argon2.kdbx");
 
-        let db = Database::open(
-            &mut File::open(path)?,
-            DatabaseKey::new().with_password("demopass"),
-        )?;
+        let key = DatabaseKey::new().with_password("demopass");
+        let db = Database::open(&mut File::open(path)?, key)?;
 
         println!("{:?} DB Opened", db);
-
-        let root = db.root.borrow();
-        let root = root.as_any().downcast_ref::<Group>().unwrap();
-        assert_eq!(root.name, "Root");
-        assert_eq!(root.children.len(), 2);
+        assert_eq!(db.root.borrow().get_title().unwrap(), "Root");
+        assert_eq!(group_get_children(&db.root).unwrap().len(), 2);
 
         Ok(())
     }
@@ -148,17 +127,12 @@ mod file_read_tests {
     fn open_kdbx4_with_password_kdf_argon2id_cipher_aes() -> Result<(), DatabaseOpenError> {
         let path = Path::new("tests/resources/test_db_kdbx4_with_password_argon2id.kdbx");
 
-        let db = Database::open(
-            &mut File::open(path)?,
-            DatabaseKey::new().with_password("demopass"),
-        )?;
+        let key = DatabaseKey::new().with_password("demopass");
+        let db = Database::open(&mut File::open(path)?, key)?;
 
         println!("{:?} DB Opened", db);
-
-        let root = db.root.borrow();
-        let root = root.as_any().downcast_ref::<Group>().unwrap();
-        assert_eq!(root.name, "Root");
-        assert_eq!(root.children.len(), 2);
+        assert_eq!(db.root.borrow().get_title().unwrap(), "Root");
+        assert_eq!(group_get_children(&db.root).unwrap().len(), 2);
 
         Ok(())
     }
@@ -166,17 +140,12 @@ mod file_read_tests {
     #[test]
     fn open_kdbx4_with_password_kdf_aes_cipher_aes() -> Result<(), DatabaseOpenError> {
         let path = Path::new("tests/resources/test_db_kdbx4_with_password_aes.kdbx");
-        let db = Database::open(
-            &mut File::open(path)?,
-            DatabaseKey::new().with_password("demopass"),
-        )?;
+        let key = DatabaseKey::new().with_password("demopass");
+        let db = Database::open(&mut File::open(path)?, key)?;
 
         println!("{:?} DB Opened", db);
-
-        let root = db.root.borrow();
-        let root = root.as_any().downcast_ref::<Group>().unwrap();
-        assert_eq!(root.name, "Root");
-        assert_eq!(root.children.len(), 1);
+        assert_eq!(db.root.borrow().get_title().unwrap(), "Root");
+        assert_eq!(group_get_children(&db.root).unwrap().len(), 1);
 
         Ok(())
     }
@@ -185,17 +154,12 @@ mod file_read_tests {
     fn open_kdbx4_with_password_kdf_argon2_cipher_twofish() -> Result<(), DatabaseOpenError> {
         let path = Path::new("tests/resources/test_db_kdbx4_with_password_argon2_twofish.kdbx");
 
-        let db = Database::open(
-            &mut File::open(path)?,
-            DatabaseKey::new().with_password("demopass"),
-        )?;
+        let key = DatabaseKey::new().with_password("demopass");
+        let db = Database::open(&mut File::open(path)?, key)?;
 
         println!("{:?} DB Opened", db);
-
-        let root = db.root.borrow();
-        let root = root.as_any().downcast_ref::<Group>().unwrap();
-        assert_eq!(root.name, "Root");
-        assert_eq!(root.children.len(), 1);
+        assert_eq!(db.root.borrow().get_title().unwrap(), "Root");
+        assert_eq!(group_get_children(&db.root).unwrap().len(), 1);
 
         Ok(())
     }
@@ -204,17 +168,12 @@ mod file_read_tests {
     fn open_kdbx4_with_password_kdf_argon2_cipher_chacha20() -> Result<(), DatabaseOpenError> {
         let path = Path::new("tests/resources/test_db_kdbx4_with_password_argon2_chacha20.kdbx");
 
-        let db = Database::open(
-            &mut File::open(path)?,
-            DatabaseKey::new().with_password("demopass"),
-        )?;
+        let key = DatabaseKey::new().with_password("demopass");
+        let db = Database::open(&mut File::open(path)?, key)?;
 
         println!("{:?} DB Opened", db);
-
-        let root = db.root.borrow();
-        let root = root.as_any().downcast_ref::<Group>().unwrap();
-        assert_eq!(root.name, "Root");
-        assert_eq!(root.children.len(), 1);
+        assert_eq!(db.root.borrow().get_title().unwrap(), "Root");
+        assert_eq!(group_get_children(&db.root).unwrap().len(), 1);
 
         Ok(())
     }
@@ -223,17 +182,12 @@ mod file_read_tests {
     fn open_kdbx4_with_password_kdf_argon2id_cipher_twofish() -> Result<(), DatabaseOpenError> {
         let path = Path::new("tests/resources/test_db_kdbx4_with_password_argon2id_twofish.kdbx");
 
-        let db = Database::open(
-            &mut File::open(path)?,
-            DatabaseKey::new().with_password("demopass"),
-        )?;
+        let key = DatabaseKey::new().with_password("demopass");
+        let db = Database::open(&mut File::open(path)?, key)?;
 
         println!("{:?} DB Opened", db);
-
-        let root = db.root.borrow();
-        let root = root.as_any().downcast_ref::<Group>().unwrap();
-        assert_eq!(root.name, "Root");
-        assert_eq!(root.children.len(), 1);
+        assert_eq!(db.root.borrow().get_title().unwrap(), "Root");
+        assert_eq!(group_get_children(&db.root).unwrap().len(), 1);
 
         Ok(())
     }
@@ -242,17 +196,12 @@ mod file_read_tests {
     fn open_kdbx4_with_password_kdf_argon2id_cipher_chacha20() -> Result<(), DatabaseOpenError> {
         let path = Path::new("tests/resources/test_db_kdbx4_with_password_argon2id_chacha20.kdbx");
 
-        let db = Database::open(
-            &mut File::open(path)?,
-            DatabaseKey::new().with_password("demopass"),
-        )?;
+        let key = DatabaseKey::new().with_password("demopass");
+        let db = Database::open(&mut File::open(path)?, key)?;
 
         println!("{:?} DB Opened", db);
-
-        let root = db.root.borrow();
-        let root = root.as_any().downcast_ref::<Group>().unwrap();
-        assert_eq!(root.name, "Root");
-        assert_eq!(root.children.len(), 1);
+        assert_eq!(db.root.borrow().get_title().unwrap(), "Root");
+        assert_eq!(group_get_children(&db.root).unwrap().len(), 1);
 
         Ok(())
     }
@@ -262,17 +211,12 @@ mod file_read_tests {
         let path = Path::new("tests/resources/test_db_kdbx4_with_keyfile.kdbx");
         let kf_path = Path::new("tests/resources/test_key.key");
 
-        let db = Database::open(
-            &mut File::open(path)?,
-            DatabaseKey::new().with_keyfile(&mut File::open(kf_path)?)?,
-        )?;
+        let key = DatabaseKey::new().with_keyfile(&mut File::open(kf_path)?)?;
+        let db = Database::open(&mut File::open(path)?, key)?;
 
         println!("{:?} DB Opened", db);
-
-        let root = db.root.borrow();
-        let root = root.as_any().downcast_ref::<Group>().unwrap();
-        assert_eq!(root.name, "Root");
-        assert_eq!(root.children.len(), 1);
+        assert_eq!(db.root.borrow().get_title().unwrap(), "Root");
+        assert_eq!(group_get_children(&db.root).unwrap().len(), 1);
 
         Ok(())
     }
@@ -281,38 +225,27 @@ mod file_read_tests {
     #[should_panic(expected = r#"InvalidKDBXIdentifier"#)]
     fn open_broken_random_data() {
         let path = Path::new("tests/resources/broken_random_data.kdbx");
-        Database::open(
-            &mut File::open(path).unwrap(),
-            DatabaseKey::new().with_password(""),
-        )
-        .unwrap();
+        let key = DatabaseKey::new().with_password("");
+        Database::open(&mut File::open(path).unwrap(), key).unwrap();
     }
 
     #[test]
     #[should_panic(expected = r#"InvalidKDBXVersion"#)]
     fn open_broken_kdbx_version() {
         let path = Path::new("tests/resources/broken_kdbx_version.kdbx");
-        Database::open(
-            &mut File::open(path).unwrap(),
-            DatabaseKey::new().with_password(""),
-        )
-        .unwrap();
+        let key = DatabaseKey::new().with_password("");
+        Database::open(&mut File::open(path).unwrap(), key).unwrap();
     }
 
     #[test]
     fn open_kdb_with_password() -> Result<(), DatabaseOpenError> {
         let path = Path::new("tests/resources/test_db_kdb_with_password.kdb");
-        let db = Database::open(
-            &mut File::open(path)?,
-            DatabaseKey::new().with_password("foobar"),
-        )?;
+        let key = DatabaseKey::new().with_password("foobar");
+        let db = Database::open(&mut File::open(path)?, key)?;
 
         println!("{:?} DB Opened", db);
-
-        let root = db.root.borrow();
-        let root = root.as_any().downcast_ref::<Group>().unwrap();
-        assert_eq!(root.name, "Root");
-        assert_eq!(root.children.len(), 3);
+        assert_eq!(db.root.borrow().get_title().unwrap(), "Root");
+        assert_eq!(group_get_children(&db.root).unwrap().len(), 3);
 
         let mut total_groups = 0;
         let mut total_entries = 0;
@@ -340,15 +273,11 @@ mod file_read_tests {
     #[test]
     fn open_kdb_with_larger_than_1mb_file_does_not_crash() -> Result<(), DatabaseOpenError> {
         let path = Path::new("tests/resources/test_db_kdb3_with_file_larger_1mb.kdbx");
-        let db = Database::open(
-            &mut File::open(path)?,
-            DatabaseKey::new().with_password("samplepassword"),
-        )?;
+        let key = DatabaseKey::new().with_password("samplepassword");
+        let db = Database::open(&mut File::open(path)?, key)?;
 
         println!("{:?} DB Opened", db);
-        let root = db.root.borrow();
-        let root = root.as_any().downcast_ref::<Group>().unwrap();
-        assert_eq!(root.children.len(), 1);
+        assert_eq!(group_get_children(&db.root).unwrap().len(), 1);
 
         let mut total_groups = 0;
         let mut total_entries = 0;
@@ -376,20 +305,13 @@ mod file_read_tests {
     fn open_kdbx4_with_password_deleted_entry() -> Result<(), DatabaseOpenError> {
         let path = Path::new("tests/resources/test_db_kdbx4_with_password_deleted_entry.kdbx");
 
-        let db = Database::open(
-            &mut File::open(path)?,
-            DatabaseKey::new().with_password("demopass"),
-        )?;
+        let key = DatabaseKey::new().with_password("demopass");
+        let db = Database::open(&mut File::open(path)?, key)?;
 
         println!("{:?} DB Opened", db);
 
-        let root = db.root.borrow();
-        let root = root.as_any().downcast_ref::<Group>().unwrap();
-        assert_eq!(root.name, "Root");
-        assert_eq!(
-            db.meta.recyclebin_uuid,
-            Some(uuid!("563171fe-6598-42dc-8003-f98dde32e872"))
-        );
+        assert_eq!(db.root.borrow().get_title().unwrap(), "Root");
+        assert_eq!(db.meta.recyclebin_uuid, Some(uuid!("563171fe-6598-42dc-8003-f98dde32e872")));
 
         let recycle_group: Vec<NodePtr> = NodeIterator::new(&db.root)
             .into_iter()

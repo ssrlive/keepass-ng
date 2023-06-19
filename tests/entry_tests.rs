@@ -10,10 +10,8 @@ mod entry_tests {
     #[test]
     fn kdbx3_entry() -> Result<(), DatabaseOpenError> {
         let path = Path::new("tests/resources/test_db_with_password.kdbx");
-        let db = Database::open(
-            &mut File::open(path)?,
-            DatabaseKey::new().with_password("demopass"),
-        )?;
+        let key = DatabaseKey::new().with_password("demopass");
+        let db = Database::open(&mut File::open(path)?, key)?;
 
         // get an entry on the root node
         if let Some(e) = Group::get(&db.root, &["Sample Entry"]) {
@@ -28,9 +26,7 @@ mod entry_tests {
             assert_eq!(e.get("URL"), Some("http://keepass.info/"));
             assert_eq!(e.times.expires, false);
 
-            let et =
-                chrono::NaiveDateTime::parse_from_str("2016-01-06 09:43:01", "%Y-%m-%d %H:%M:%S")
-                    .unwrap();
+            let et = chrono::NaiveDateTime::parse_from_str("2016-01-06 09:43:01", "%Y-%m-%d %H:%M:%S").unwrap();
             assert_eq!(e.get_expiry_time(), Some(&et));
             assert_eq!(e.get_time("ExpiryTime"), Some(&et));
 
@@ -72,10 +68,8 @@ mod entry_tests {
     fn kdbx4_entry() -> Result<(), DatabaseOpenError> {
         // KDBX4 database format Base64 encodes ExpiryTime (and all other XML timestamps)
         let path = Path::new("tests/resources/test_db_kdbx4_with_password_aes.kdbx");
-        let db = Database::open(
-            &mut File::open(path)?,
-            DatabaseKey::new().with_password("demopass"),
-        )?;
+        let key = DatabaseKey::new().with_password("demopass");
+        let db = Database::open(&mut File::open(path)?, key)?;
 
         // get an entry on the root node
         if let Some(e) = Group::get(&db.root, &["ASDF"]) {
@@ -102,10 +96,8 @@ mod entry_tests {
     #[test]
     fn kdbx4_entry_bad_password() -> Result<(), DatabaseOpenError> {
         let path = Path::new("tests/resources/test_db_kdbx4_with_password_aes.kdbx");
-        let db = Database::open(
-            &mut File::open(path)?,
-            DatabaseKey::new().with_password("this password is not correct"),
-        );
+        let key = DatabaseKey::new().with_password("this password is not correct");
+        let db = Database::open(&mut File::open(path)?, key);
 
         assert!(db.is_err());
 

@@ -48,12 +48,8 @@ impl DatabaseVersion {
         let response = match version {
             KEEPASS_1_ID => DatabaseVersion::KDB(file_minor_version),
             KEEPASS_2_ID => DatabaseVersion::KDB2(file_minor_version),
-            KEEPASS_LATEST_ID if file_major_version == KDBX3_MAJOR_VERSION => {
-                DatabaseVersion::KDB3(file_minor_version)
-            }
-            KEEPASS_LATEST_ID if file_major_version == KDBX4_MAJOR_VERSION => {
-                DatabaseVersion::KDB4(file_minor_version)
-            }
+            KEEPASS_LATEST_ID if file_major_version == KDBX3_MAJOR_VERSION => DatabaseVersion::KDB3(file_minor_version),
+            KEEPASS_LATEST_ID if file_major_version == KDBX4_MAJOR_VERSION => DatabaseVersion::KDB4(file_minor_version),
             _ => {
                 return Err(DatabaseIntegrityError::InvalidKDBXVersion {
                     version,

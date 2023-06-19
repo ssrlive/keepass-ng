@@ -5,18 +5,17 @@ use byteorder::{ByteOrder, LittleEndian};
 use crate::{
     config::{CompressionConfig, DatabaseConfig, InnerCipherConfig, KdfConfig, OuterCipherConfig},
     crypt::{self, ciphers::Cipher},
-    db::{Database, HeaderAttachment},
+    db::{node::*, Database, HeaderAttachment},
     error::{DatabaseIntegrityError, DatabaseKeyError, DatabaseOpenError},
     format::{
         kdbx4::{
-            KDBX4OuterHeader, HEADER_COMMENT, HEADER_COMPRESSION_ID, HEADER_ENCRYPTION_IV,
-            HEADER_END, HEADER_KDF_PARAMS, HEADER_MASTER_SEED, HEADER_OUTER_ENCRYPTION_ID,
-            INNER_HEADER_BINARY_ATTACHMENTS, INNER_HEADER_END, INNER_HEADER_RANDOM_STREAM_ID,
-            INNER_HEADER_RANDOM_STREAM_KEY,
+            KDBX4OuterHeader, HEADER_COMMENT, HEADER_COMPRESSION_ID, HEADER_ENCRYPTION_IV, HEADER_END, HEADER_KDF_PARAMS,
+            HEADER_MASTER_SEED, HEADER_OUTER_ENCRYPTION_ID, INNER_HEADER_BINARY_ATTACHMENTS, INNER_HEADER_END,
+            INNER_HEADER_RANDOM_STREAM_ID, INNER_HEADER_RANDOM_STREAM_KEY,
         },
         DatabaseVersion,
     },
-    hmac_block_stream, rc_refcell,
+    hmac_block_stream, rc_refcell_node,
     variant_dictionary::VariantDictionary,
 };
 
@@ -32,10 +31,7 @@ impl From<&[u8]> for HeaderAttachment {
 }
 
 /// Open, decrypt and parse a KeePass database from a source and key elements
-pub(crate) fn parse_kdbx4(
-    data: &[u8],
-    key_elements: &[Vec<u8>],
-) -> Result<Database, DatabaseOpenError> {
+pub(crate) fn parse_kdbx4(data: &[u8], key_elements: &[Vec<u8>]) -> Result<Database, DatabaseOpenError> {
     let (config, header_attachments, mut inner_decryptor, xml) = decrypt_kdbx4(data, key_elements)?;
 
     let database_content = crate::xml_db::parse::parse(&xml, &mut *inner_decryptor)?;
@@ -43,7 +39,7 @@ pub(crate) fn parse_kdbx4(
     let db = Database {
         config,
         header_attachments,
-        root: rc_refcell!(database_content.root.group),
+        root: rc_refcell_node!(database_content.root.group),
         deleted_objects: database_content.root.deleted_objects,
         meta: database_content.meta,
     };
@@ -56,15 +52,7 @@ pub(crate) fn parse_kdbx4(
 pub(crate) fn decrypt_kdbx4(
     data: &[u8],
     key_elements: &[Vec<u8>],
-) -> Result<
-    (
-        DatabaseConfig,
-        Vec<HeaderAttachment>,
-        Box<dyn Cipher>,
-        Vec<u8>,
-    ),
-    DatabaseOpenError,
-> {
+) -> Result<(DatabaseConfig, Vec<HeaderAttachment>, Box<dyn Cipher>, Vec<u8>), DatabaseOpenError> {
     // parse header
     let (outer_header, inner_header_start) = parse_outer_header(data)?;
 
@@ -85,8 +73,7 @@ pub(crate) fn decrypt_kdbx4(
         .kdf_config
         .get_kdf_seeded(&outer_header.kdf_seed)
         .transform_key(&composite_key)?;
-    let master_key =
-        crypt::calculate_sha256(&[outer_header.master_seed.as_ref(), &transformed_key])?;
+    let master_key = crypt::calculate_sha256(&[outer_header.master_seed.as_ref(), &transformed_key])?;
 
     // verify header
     if header_sha256 != crypt::calculate_sha256(&[&data[0..inner_header_start]])?.as_slice() {
@@ -94,19 +81,14 @@ pub(crate) fn decrypt_kdbx4(
     }
 
     // verify credentials
-    let hmac_key = crypt::calculate_sha512(&[
-        &outer_header.master_seed,
-        &transformed_key,
-        &hmac_block_stream::HMAC_KEY_END,
-    ])?;
+    let hmac_key = crypt::calculate_sha512(&[&outer_header.master_seed, &transformed_key, &hmac_block_stream::HMAC_KEY_END])?;
     let header_hmac_key = hmac_block_stream::get_hmac_block_key(u64::max_value(), &hmac_key)?;
     if header_hmac != crypt::calculate_hmac(&[header_data], &header_hmac_key)?.as_slice() {
         return Err(DatabaseKeyError::IncorrectKey.into());
     }
 
     // read encrypted payload from hmac-verified block stream
-    let payload_encrypted =
-        hmac_block_stream::read_hmac_block_stream(hmac_block_stream, &hmac_key)?;
+    let payload_encrypted = hmac_block_stream::read_hmac_block_stream(hmac_block_stream, &hmac_key)?;
 
     // Decrypt and decompress encrypted payload
     let payload_compressed = outer_header
@@ -114,10 +96,7 @@ pub(crate) fn decrypt_kdbx4(
         .get_cipher(&master_key, &outer_header.outer_iv)?
         .decrypt(&payload_encrypted)?;
 
-    let payload = outer_header
-        .compression_config
-        .get_compression()
-        .decompress(&payload_compressed)?;
+    let payload = outer_header.compression_config.get_compression().decompress(&payload_compressed)?;
 
     // KDBX4 has inner header, too - parse it
     let (header_attachments, inner_header, body_start) = parse_inner_header(&payload)?;
@@ -126,9 +105,7 @@ pub(crate) fn decrypt_kdbx4(
     let xml = &payload[body_start..];
 
     // initialize the inner decryptor
-    let inner_decryptor = inner_header
-        .inner_random_stream
-        .get_cipher(&inner_header.inner_random_stream_key)?;
+    let inner_decryptor = inner_header.inner_random_stream.get_cipher(&inner_header.inner_random_stream_key)?;
 
     let config = DatabaseConfig {
         version: outer_header.version,
@@ -184,9 +161,7 @@ fn parse_outer_header(data: &[u8]) -> Result<(KDBX4OuterHeader, usize), Database
             }
 
             HEADER_COMPRESSION_ID => {
-                compression_config = Some(CompressionConfig::try_from(LittleEndian::read_u32(
-                    entry_buffer,
-                ))?);
+                compression_config = Some(CompressionConfig::try_from(LittleEndian::read_u32(entry_buffer))?);
             }
 
             HEADER_MASTER_SEED => master_seed = Some(entry_buffer.to_vec()),
@@ -210,9 +185,7 @@ fn parse_outer_header(data: &[u8]) -> Result<(KDBX4OuterHeader, usize), Database
     // something is missing
 
     fn get_or_err<T>(v: Option<T>, err: &str) -> Result<T, DatabaseIntegrityError> {
-        v.ok_or_else(|| DatabaseIntegrityError::IncompleteOuterHeader {
-            missing_field: err.into(),
-        })
+        v.ok_or_else(|| DatabaseIntegrityError::IncompleteOuterHeader { missing_field: err.into() })
     }
 
     let outer_cipher_config = get_or_err(outer_cipher, "Outer Cipher ID")?;
@@ -236,9 +209,7 @@ fn parse_outer_header(data: &[u8]) -> Result<(KDBX4OuterHeader, usize), Database
     ))
 }
 
-fn parse_inner_header(
-    data: &[u8],
-) -> Result<(Vec<HeaderAttachment>, KDBX4InnerHeader, usize), DatabaseOpenError> {
+fn parse_inner_header(data: &[u8]) -> Result<(Vec<HeaderAttachment>, KDBX4InnerHeader, usize), DatabaseOpenError> {
     let mut pos = 0;
 
     let mut inner_random_stream = None;
@@ -256,9 +227,7 @@ fn parse_inner_header(
             INNER_HEADER_END => break,
 
             INNER_HEADER_RANDOM_STREAM_ID => {
-                inner_random_stream = Some(InnerCipherConfig::try_from(LittleEndian::read_u32(
-                    entry_buffer,
-                ))?);
+                inner_random_stream = Some(InnerCipherConfig::try_from(LittleEndian::read_u32(entry_buffer))?);
             }
 
             INNER_HEADER_RANDOM_STREAM_KEY => inner_random_stream_key = Some(entry_buffer.to_vec()),
@@ -275,9 +244,7 @@ fn parse_inner_header(
     }
 
     fn get_or_err<T>(v: Option<T>, err: &str) -> Result<T, DatabaseIntegrityError> {
-        v.ok_or_else(|| DatabaseIntegrityError::IncompleteInnerHeader {
-            missing_field: err.into(),
-        })
+        v.ok_or_else(|| DatabaseIntegrityError::IncompleteInnerHeader { missing_field: err.into() })
     }
 
     let inner_random_stream = get_or_err(inner_random_stream, "Inner random stream")?;

@@ -11,10 +11,7 @@ use crate::error::CryptographyError;
 pub(crate) mod ciphers;
 pub(crate) mod kdf;
 
-pub(crate) fn calculate_hmac(
-    elements: &[&[u8]],
-    key: &[u8],
-) -> Result<GenericArray<u8, U32>, CryptographyError> {
+pub(crate) fn calculate_hmac(elements: &[&[u8]], key: &[u8]) -> Result<GenericArray<u8, U32>, CryptographyError> {
     type HmacSha256 = Hmac<Sha256>;
     let mut mac = HmacSha256::new_from_slice(key)?;
 
@@ -26,9 +23,7 @@ pub(crate) fn calculate_hmac(
     Ok(result.into_bytes())
 }
 
-pub(crate) fn calculate_sha256(
-    elements: &[&[u8]],
-) -> Result<GenericArray<u8, U32>, CryptographyError> {
+pub(crate) fn calculate_sha256(elements: &[&[u8]]) -> Result<GenericArray<u8, U32>, CryptographyError> {
     let mut digest = Sha256::new();
 
     for element in elements {
@@ -38,9 +33,7 @@ pub(crate) fn calculate_sha256(
     Ok(digest.finalize())
 }
 
-pub(crate) fn calculate_sha512(
-    elements: &[&[u8]],
-) -> Result<GenericArray<u8, U64>, CryptographyError> {
+pub(crate) fn calculate_sha512(elements: &[&[u8]]) -> Result<GenericArray<u8, U64>, CryptographyError> {
     let mut digest = Sha512::new();
 
     for element in elements {

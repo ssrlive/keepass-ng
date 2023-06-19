@@ -34,106 +34,76 @@ impl FromXml for Meta {
             match event {
                 SimpleXmlEvent::Start(name, _) => match &name[..] {
                     "Generator" => {
-                        out.generator =
-                            SimpleTag::<Option<String>>::from_xml(iterator, inner_cipher)?.value;
+                        out.generator = SimpleTag::<Option<String>>::from_xml(iterator, inner_cipher)?.value;
                     }
                     "DatabaseName" => {
-                        out.database_name =
-                            SimpleTag::<Option<String>>::from_xml(iterator, inner_cipher)?.value;
+                        out.database_name = SimpleTag::<Option<String>>::from_xml(iterator, inner_cipher)?.value;
                     }
                     "DatabaseNameChanged" => {
-                        out.database_name_changed =
-                            SimpleTag::<Option<NaiveDateTime>>::from_xml(iterator, inner_cipher)?
-                                .value;
+                        out.database_name_changed = SimpleTag::<Option<NaiveDateTime>>::from_xml(iterator, inner_cipher)?.value;
                     }
                     "DatabaseDescription" => {
-                        out.database_description =
-                            SimpleTag::<Option<String>>::from_xml(iterator, inner_cipher)?.value;
+                        out.database_description = SimpleTag::<Option<String>>::from_xml(iterator, inner_cipher)?.value;
                     }
                     "DatabaseDescriptionChanged" => {
-                        out.database_description_changed =
-                            SimpleTag::<Option<NaiveDateTime>>::from_xml(iterator, inner_cipher)?
-                                .value;
+                        out.database_description_changed = SimpleTag::<Option<NaiveDateTime>>::from_xml(iterator, inner_cipher)?.value;
                     }
                     "DefaultUserName" => {
-                        out.default_username =
-                            SimpleTag::<Option<String>>::from_xml(iterator, inner_cipher)?.value;
+                        out.default_username = SimpleTag::<Option<String>>::from_xml(iterator, inner_cipher)?.value;
                     }
                     "DefaultUserNameChanged" => {
-                        out.default_username_changed =
-                            SimpleTag::<Option<NaiveDateTime>>::from_xml(iterator, inner_cipher)?
-                                .value;
+                        out.default_username_changed = SimpleTag::<Option<NaiveDateTime>>::from_xml(iterator, inner_cipher)?.value;
                     }
                     "MaintenanceHistoryDays" => {
-                        out.maintenance_history_days =
-                            SimpleTag::<Option<usize>>::from_xml(iterator, inner_cipher)?.value;
+                        out.maintenance_history_days = SimpleTag::<Option<usize>>::from_xml(iterator, inner_cipher)?.value;
                     }
                     "Color" => {
-                        out.color =
-                            SimpleTag::<Option<Color>>::from_xml(iterator, inner_cipher)?.value;
+                        out.color = SimpleTag::<Option<Color>>::from_xml(iterator, inner_cipher)?.value;
                     }
                     "MasterKeyChanged" => {
-                        out.master_key_changed =
-                            SimpleTag::<Option<NaiveDateTime>>::from_xml(iterator, inner_cipher)?
-                                .value;
+                        out.master_key_changed = SimpleTag::<Option<NaiveDateTime>>::from_xml(iterator, inner_cipher)?.value;
                     }
                     "MasterKeyChangeRec" => {
-                        out.master_key_change_rec =
-                            SimpleTag::<Option<isize>>::from_xml(iterator, inner_cipher)?.value;
+                        out.master_key_change_rec = SimpleTag::<Option<isize>>::from_xml(iterator, inner_cipher)?.value;
                     }
                     "MasterKeyChangeForce" => {
-                        out.master_key_change_force =
-                            SimpleTag::<Option<isize>>::from_xml(iterator, inner_cipher)?.value;
+                        out.master_key_change_force = SimpleTag::<Option<isize>>::from_xml(iterator, inner_cipher)?.value;
                     }
                     "MemoryProtection" => {
-                        out.memory_protection =
-                            Some(MemoryProtection::from_xml(iterator, inner_cipher)?);
+                        out.memory_protection = Some(MemoryProtection::from_xml(iterator, inner_cipher)?);
                     }
                     "CustomIcons" => {
                         out.custom_icons = CustomIcons::from_xml(iterator, inner_cipher)?;
                     }
                     "RecycleBinEnabled" => {
-                        out.recyclebin_enabled =
-                            SimpleTag::<Option<bool>>::from_xml(iterator, inner_cipher)?.value;
+                        out.recyclebin_enabled = SimpleTag::<Option<bool>>::from_xml(iterator, inner_cipher)?.value;
                     }
                     "RecycleBinUUID" => {
-                        out.recyclebin_uuid =
-                            SimpleTag::<Option<Uuid>>::from_xml(iterator, inner_cipher)?.value;
+                        out.recyclebin_uuid = SimpleTag::<Option<Uuid>>::from_xml(iterator, inner_cipher)?.value;
                     }
                     "RecycleBinChanged" => {
-                        out.recyclebin_changed =
-                            SimpleTag::<Option<NaiveDateTime>>::from_xml(iterator, inner_cipher)?
-                                .value;
+                        out.recyclebin_changed = SimpleTag::<Option<NaiveDateTime>>::from_xml(iterator, inner_cipher)?.value;
                     }
                     "EntryTemplatesGroup" => {
-                        out.entry_templates_group =
-                            SimpleTag::<Option<Uuid>>::from_xml(iterator, inner_cipher)?.value;
+                        out.entry_templates_group = SimpleTag::<Option<Uuid>>::from_xml(iterator, inner_cipher)?.value;
                     }
                     "EntryTemplatesGroupChanged" => {
-                        out.entry_templates_group_changed =
-                            SimpleTag::<Option<NaiveDateTime>>::from_xml(iterator, inner_cipher)?
-                                .value;
+                        out.entry_templates_group_changed = SimpleTag::<Option<NaiveDateTime>>::from_xml(iterator, inner_cipher)?.value;
                     }
                     "LastSelectedGroup" => {
-                        out.last_selected_group =
-                            SimpleTag::<Option<Uuid>>::from_xml(iterator, inner_cipher)?.value;
+                        out.last_selected_group = SimpleTag::<Option<Uuid>>::from_xml(iterator, inner_cipher)?.value;
                     }
                     "LastTopVisibleGroup" => {
-                        out.last_top_visible_group =
-                            SimpleTag::<Option<Uuid>>::from_xml(iterator, inner_cipher)?.value;
+                        out.last_top_visible_group = SimpleTag::<Option<Uuid>>::from_xml(iterator, inner_cipher)?.value;
                     }
                     "HistoryMaxItems" => {
-                        out.history_max_items =
-                            SimpleTag::<Option<usize>>::from_xml(iterator, inner_cipher)?.value;
+                        out.history_max_items = SimpleTag::<Option<usize>>::from_xml(iterator, inner_cipher)?.value;
                     }
                     "HistoryMaxSize" => {
-                        out.history_max_size =
-                            SimpleTag::<Option<usize>>::from_xml(iterator, inner_cipher)?.value;
+                        out.history_max_size = SimpleTag::<Option<usize>>::from_xml(iterator, inner_cipher)?.value;
                     }
                     "SettingsChanged" => {
-                        out.settings_changed =
-                            SimpleTag::<Option<NaiveDateTime>>::from_xml(iterator, inner_cipher)?
-                                .value;
+                        out.settings_changed = SimpleTag::<Option<NaiveDateTime>>::from_xml(iterator, inner_cipher)?.value;
                     }
                     "Binaries" => {
                         out.binaries = BinaryAttachments::from_xml(iterator, inner_cipher)?;
@@ -185,24 +155,19 @@ impl FromXml for MemoryProtection {
             match event {
                 SimpleXmlEvent::Start(name, _) => match &name[..] {
                     "ProtectTitle" => {
-                        out.protect_title =
-                            SimpleTag::<bool>::from_xml(iterator, inner_cipher)?.value;
+                        out.protect_title = SimpleTag::<bool>::from_xml(iterator, inner_cipher)?.value;
                     }
                     "ProtectUserName" => {
-                        out.protect_username =
-                            SimpleTag::<bool>::from_xml(iterator, inner_cipher)?.value;
+                        out.protect_username = SimpleTag::<bool>::from_xml(iterator, inner_cipher)?.value;
                     }
                     "ProtectPassword" => {
-                        out.protect_password =
-                            SimpleTag::<bool>::from_xml(iterator, inner_cipher)?.value;
+                        out.protect_password = SimpleTag::<bool>::from_xml(iterator, inner_cipher)?.value;
                     }
                     "ProtectURL" => {
-                        out.protect_url =
-                            SimpleTag::<bool>::from_xml(iterator, inner_cipher)?.value;
+                        out.protect_url = SimpleTag::<bool>::from_xml(iterator, inner_cipher)?.value;
                     }
                     "ProtectNotes" => {
-                        out.protect_notes =
-                            SimpleTag::<bool>::from_xml(iterator, inner_cipher)?.value;
+                        out.protect_notes = SimpleTag::<bool>::from_xml(iterator, inner_cipher)?.value;
                     }
                     _ => {
                         IgnoreSubfield::from_xml(iterator, inner_cipher)?;
@@ -280,29 +245,28 @@ impl FromXml for BinaryAttachment {
         let open_tag = iterator.next().ok_or(XmlParseError::Eof)?;
 
         let mut out = Self::default();
-        let (identifier, compressed) =
-            if let SimpleXmlEvent::Start(ref name, ref attributes) = open_tag {
-                if name != "Binary" {
-                    return Err(XmlParseError::BadEvent {
-                        expected: "Open Binary tag",
-                        event: open_tag,
-                    });
-                }
-
-                let identifier = attributes.get("ID").map(|s| s.to_string());
-
-                let compressed = attributes
-                    .get("Compressed")
-                    .map(|v| v.to_lowercase().parse())
-                    .unwrap_or(Ok(false))?;
-
-                (identifier, compressed)
-            } else {
+        let (identifier, compressed) = if let SimpleXmlEvent::Start(ref name, ref attributes) = open_tag {
+            if name != "Binary" {
                 return Err(XmlParseError::BadEvent {
                     expected: "Open Binary tag",
                     event: open_tag,
                 });
-            };
+            }
+
+            let identifier = attributes.get("ID").map(|s| s.to_string());
+
+            let compressed = attributes
+                .get("Compressed")
+                .map(|v| v.to_lowercase().parse())
+                .unwrap_or(Ok(false))?;
+
+            (identifier, compressed)
+        } else {
+            return Err(XmlParseError::BadEvent {
+                expected: "Open Binary tag",
+                event: open_tag,
+            });
+        };
 
         let data = String::from_xml(iterator, inner_cipher)?;
         let buf = base64_engine::STANDARD.decode(data)?;
@@ -420,9 +384,7 @@ impl FromXml for Icon {
 mod parse_meta_test {
 
     use crate::{
-        db::meta::{
-            BinaryAttachment, BinaryAttachments, CustomIcons, Icon, MemoryProtection, Meta,
-        },
+        db::meta::{BinaryAttachment, BinaryAttachments, CustomIcons, Icon, MemoryProtection, Meta},
         xml_db::parse::{parse_test::parse_test_xml, XmlParseError},
     };
     use uuid::{uuid, Uuid};
@@ -455,14 +417,10 @@ mod parse_meta_test {
         let value = parse_test_xml::<MemoryProtection>("<MemoryProtection></TestTag>");
         assert!(matches!(value, Err(XmlParseError::BadEvent { .. })));
 
-        let value = parse_test_xml::<MemoryProtection>(
-            "<MemoryProtection>No-Characters-Allowed</MemoryProtection>",
-        );
+        let value = parse_test_xml::<MemoryProtection>("<MemoryProtection>No-Characters-Allowed</MemoryProtection>");
         assert!(matches!(value, Err(XmlParseError::BadEvent { .. })));
 
-        let _value = parse_test_xml::<MemoryProtection>(
-            "<MemoryProtection><UnkownChildTag/></MemoryProtection>",
-        )?;
+        let _value = parse_test_xml::<MemoryProtection>("<MemoryProtection><UnkownChildTag/></MemoryProtection>")?;
 
         Ok(())
     }
@@ -477,8 +435,7 @@ mod parse_meta_test {
         let value = parse_test_xml::<BinaryAttachments>("<Binaries></TestTag>");
         assert!(matches!(value, Err(XmlParseError::BadEvent { .. })));
 
-        let value =
-            parse_test_xml::<BinaryAttachments>("<Binaries>No-Characters-Allowed</Binaries>");
+        let value = parse_test_xml::<BinaryAttachments>("<Binaries>No-Characters-Allowed</Binaries>");
         assert!(matches!(value, Err(XmlParseError::BadEvent { .. })));
 
         let _value = parse_test_xml::<BinaryAttachments>("<Binaries><UnkownChildTag/></Binaries>")?;
@@ -488,8 +445,7 @@ mod parse_meta_test {
 
     #[test]
     fn test_binary_attachment() -> Result<(), XmlParseError> {
-        let value =
-            parse_test_xml::<BinaryAttachment>("<Binary ID=\"1\">QmluYXJ5IERhdGE=</Binary>")?;
+        let value = parse_test_xml::<BinaryAttachment>("<Binary ID=\"1\">QmluYXJ5IERhdGE=</Binary>")?;
         assert_eq!(value.identifier, Some("1".to_string()));
         assert_eq!(value.content, r"Binary Data".as_bytes());
 
@@ -521,8 +477,7 @@ mod parse_meta_test {
         let value = parse_test_xml::<CustomIcons>("<CustomIcons></TestTag>");
         assert!(matches!(value, Err(XmlParseError::BadEvent { .. })));
 
-        let value =
-            parse_test_xml::<CustomIcons>("<CustomIcons>No-Characters-Allowed</CustomIcons>");
+        let value = parse_test_xml::<CustomIcons>("<CustomIcons>No-Characters-Allowed</CustomIcons>");
         assert!(matches!(value, Err(XmlParseError::BadEvent { .. })));
 
         let _value = parse_test_xml::<CustomIcons>("<CustomIcons><UnkownChildTag/></CustomIcons>")?;
@@ -536,9 +491,7 @@ mod parse_meta_test {
         assert_eq!(value.uuid, Uuid::default());
         assert_eq!(value.data.len(), 0);
 
-        let value = parse_test_xml::<Icon>(
-            "<Icon><UUID>oaKjpLGywcLR0tPU1dbX2A==</UUID><Data>QmluYXJ5IERhdGE=</Data></Icon>",
-        )?;
+        let value = parse_test_xml::<Icon>("<Icon><UUID>oaKjpLGywcLR0tPU1dbX2A==</UUID><Data>QmluYXJ5IERhdGE=</Data></Icon>")?;
         assert_eq!(value.uuid, uuid!("a1a2a3a4b1b2c1c2d1d2d3d4d5d6d7d8"),);
         assert_eq!(value.data, r"Binary Data".as_bytes());
 

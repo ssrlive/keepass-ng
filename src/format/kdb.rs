@@ -1,10 +1,10 @@
 use crate::{
     config::{CompressionConfig, DatabaseConfig, InnerCipherConfig, KdfConfig, OuterCipherConfig},
     crypt::calculate_sha256,
-    db::{Database, DeletedObjects, Entry, Group, Meta, NodePtr, Value},
+    db::{group_add_child, Database, DeletedObjects, Entry, Group, Meta, NodePtr, Value},
     error::{DatabaseIntegrityError, DatabaseKeyError, DatabaseOpenError},
     format::DatabaseVersion,
-    rc_refcell,
+    rc_refcell_node,
 };
 
 use byteorder::{ByteOrder, LittleEndian};
@@ -47,16 +47,10 @@ fn parse_header(data: &[u8]) -> Result<KDBHeader, DatabaseIntegrityError> {
 }
 
 fn from_utf8(data: &[u8]) -> String {
-    String::from_utf8_lossy(data)
-        .trim_end_matches('\0')
-        .to_owned()
+    String::from_utf8_lossy(data).trim_end_matches('\0').to_owned()
 }
 
-fn ensure_length(
-    field_type: u16,
-    field_size: u32,
-    expected_field_size: u32,
-) -> Result<(), DatabaseIntegrityError> {
+fn ensure_length(field_type: u16, field_size: u32, expected_field_size: u32) -> Result<(), DatabaseIntegrityError> {
     if field_size != expected_field_size {
         Err(DatabaseIntegrityError::InvalidKDBFieldLength {
             field_type,
@@ -82,29 +76,26 @@ fn entry_name(field_type: u16) -> &'static str {
 }
 
 // Collapse the tail of a deque of Groups up to the given level
-fn collapse_tail_groups(branch: &mut Vec<Group>, level: usize, root: &mut Group) {
+fn collapse_tail_groups(branch: &mut Vec<NodePtr>, level: usize, root: &NodePtr) -> Option<()> {
     while level < branch.len() {
-        let leaf = branch.pop().unwrap(); // guaranteed to be at least 1 element since 0 <= level < branch.len()
-        let parent = match branch.last_mut() {
+        let leaf = branch.pop()?; // guaranteed to be at least 1 element since 0 <= level < branch.len()
+        let parent = match branch.last() {
             Some(parent) => parent,
             None => root,
         };
-        parent.children.push(rc_refcell!(leaf));
+        group_add_child(parent, leaf).ok()?;
     }
+    Some(())
 }
 
 // A map from a GroupId to a path identifying (by name) a group in the group tree.
 type GidMap = HashMap<u32, Vec<String>>;
 
-fn parse_groups(
-    root: &mut Group,
-    header_num_groups: u32,
-    data: &mut &[u8],
-) -> Result<GidMap, DatabaseIntegrityError> {
+fn parse_groups(root: &NodePtr, header_num_groups: u32, data: &mut &[u8]) -> Result<GidMap, DatabaseIntegrityError> {
     // Loop over group TLVs
     let mut gid_map: HashMap<u32, Vec<String>> = HashMap::new(); // the gid to group path map
-    let mut branch: Vec<Group> = Vec::new(); // the current branch in the group tree
-    let mut group: Group = Group::default(); // the current group (will be added as a leaf of the branch)
+    let mut branch: Vec<NodePtr> = Vec::new(); // the current branch in the group tree
+    let mut group = rc_refcell_node!(Group::new("")); // the current group (will be added as a leaf of the branch)
     let mut level: Option<u16> = None; // the current group's level
     let mut gid: Option<u32> = None; // the current group's id
     let mut group_path: Vec<String> = Vec::new(); // the current group path
@@ -122,7 +113,7 @@ fn parse_groups(
                 ensure_length(field_type, field_size, 4)?;
                 gid = Some(LittleEndian::read_u32(field_value));
             }
-            0x0002 => group.name = from_utf8(field_value), // GroupName
+            0x0002 => group.borrow_mut().set_title(Some(&from_utf8(field_value))), // GroupName
             0x0003..=0x0006 => {
                 // Creation/LastMod/LastAccess/Expire
                 ensure_length(field_type, field_size, 5)?;
@@ -143,17 +134,16 @@ fn parse_groups(
             0xffff => {
                 ensure_length(field_type, field_size, 0)?;
 
-                let level =
-                    level.ok_or_else(|| DatabaseIntegrityError::MissingKDBGroupLevel)? as usize;
+                let level = level.ok_or_else(|| DatabaseIntegrityError::MissingKDBGroupLevel)? as usize;
 
                 // Update the current group tree branch (collapse previous sub-branch, initiate
                 // current sub-branch)
                 if level < branch.len() {
                     group_path.truncate(level);
-                    collapse_tail_groups(&mut branch, level, root);
+                    collapse_tail_groups(&mut branch, level, root).ok_or(DatabaseIntegrityError::IncompleteKDBGroup)?;
                 }
                 if level == branch.len() {
-                    group_path.push(group.name.clone());
+                    group_path.push(group.borrow().get_title().unwrap_or("").to_string());
                     branch.push(group);
                 } else {
                     // Level is beyond the current depth, missing intermediate levels?
@@ -166,7 +156,7 @@ fn parse_groups(
                 // Update the GroupId map and reset state for the next group
                 let group_id = gid.ok_or_else(|| DatabaseIntegrityError::MissingKDBGroupId)?;
                 gid_map.insert(group_id, group_path.clone());
-                group = Group::default();
+                group = rc_refcell_node!(Group::new(""));
                 gid = None;
                 num_groups += 1;
             }
@@ -181,19 +171,14 @@ fn parse_groups(
         return Err(DatabaseIntegrityError::IncompleteKDBGroup);
     }
     // Collapse last group tree branch into the root
-    collapse_tail_groups(&mut branch, 0, root);
+    collapse_tail_groups(&mut branch, 0, root).ok_or(DatabaseIntegrityError::IncompleteKDBGroup)?;
 
     Ok(gid_map)
 }
 
-fn parse_entries(
-    root: &mut NodePtr,
-    gid_map: GidMap,
-    header_num_entries: u32,
-    data: &mut &[u8],
-) -> Result<(), DatabaseIntegrityError> {
+fn parse_entries(root: &NodePtr, gid_map: GidMap, header_num_entries: u32, data: &mut &[u8]) -> Result<(), DatabaseIntegrityError> {
     // Loop over entry TLVs
-    let mut entry = Entry::default(); // the current entry
+    let mut entry = Entry::new(); // the current entry
     let mut gid: Option<u32> = None; // the current entry's group id
     let mut num_entries = 0;
     while num_entries < header_num_entries {
@@ -219,17 +204,15 @@ fn parse_entries(
             }
             0x0004 | 0x0005 | 0x0006 | 0x0008 | 0x000d => {
                 // Title/URL/UserName/Additional/BinaryDesc
-                entry.fields.insert(
-                    String::from(entry_name(field_type)),
-                    Value::Unprotected(from_utf8(field_value)),
-                );
+                entry
+                    .fields
+                    .insert(String::from(entry_name(field_type)), Value::Unprotected(from_utf8(field_value)));
             }
             0x0007 => {
                 // Password
-                entry.fields.insert(
-                    String::from("Password"),
-                    Value::Protected(from_utf8(field_value).into()),
-                );
+                entry
+                    .fields
+                    .insert(String::from("Password"), Value::Protected(from_utf8(field_value).into()));
             }
             0x0009..=0x000c => {
                 // Creation/LastMod/LastAccess/Expire
@@ -237,10 +220,7 @@ fn parse_entries(
             }
             0x000e => {
                 // BinaryData
-                entry.fields.insert(
-                    String::from("BinaryData"),
-                    Value::Bytes(field_value.to_vec()),
-                );
+                entry.fields.insert(String::from("BinaryData"), Value::Bytes(field_value.to_vec()));
             }
             0xffff => {
                 ensure_length(field_type, field_size, 0)?;
@@ -254,12 +234,10 @@ fn parse_entries(
                     .collect();
 
                 if let Some(group) = Group::get(root, group_path.as_slice()) {
-                    if let Some(group) = group.borrow_mut().as_any_mut().downcast_mut::<Group>() {
-                        group.add_child(rc_refcell!(entry));
-                    }
+                    group_add_child(&group, rc_refcell_node!(entry)).map_err(|_| DatabaseIntegrityError::IncompleteKDBGroup)?;
                 }
 
-                entry = Entry::default();
+                entry = Entry::new();
                 gid = None;
                 num_entries += 1;
             }
@@ -278,26 +256,18 @@ fn parse_entries(
 }
 
 fn parse_db(header: &KDBHeader, data: &[u8]) -> Result<NodePtr, DatabaseIntegrityError> {
-    let mut root = Group {
-        name: "Root".to_owned(),
-        ..Group::default()
-    };
+    let root = rc_refcell_node!(Group::new("Root"));
 
     let mut pos = data;
 
-    let gid_map = parse_groups(&mut root, header.num_groups, &mut pos)?;
+    let gid_map = parse_groups(&root, header.num_groups, &mut pos)?;
 
-    let mut root: NodePtr = rc_refcell!(root);
-
-    parse_entries(&mut root, gid_map, header.num_entries, &mut pos)?;
+    parse_entries(&root, gid_map, header.num_entries, &mut pos)?;
 
     Ok(root)
 }
 
-pub(crate) fn parse_kdb(
-    data: &[u8],
-    key_elements: &[Vec<u8>],
-) -> Result<Database, DatabaseOpenError> {
+pub(crate) fn parse_kdb(data: &[u8], key_elements: &[Vec<u8>]) -> Result<Database, DatabaseOpenError> {
     let header = parse_header(data)?;
     let version = DatabaseVersion::KDB(header.subversion as u16);
 
@@ -318,9 +288,7 @@ pub(crate) fn parse_kdb(
         rounds: header.transform_rounds as u64,
     };
 
-    let transformed_key = kdf_config
-        .get_kdf_seeded(&header.transform_seed)
-        .transform_key(&composite_key)?;
+    let transformed_key = kdf_config.get_kdf_seeded(&header.transform_seed).transform_key(&composite_key)?;
 
     let master_key = calculate_sha256(&[&header.master_seed, &transformed_key])?;
 

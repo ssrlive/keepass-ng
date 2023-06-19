@@ -27,7 +27,7 @@ impl FromXml for Entry {
             });
         }
 
-        let mut out = Self::new();
+        let mut out = Entry::new();
 
         while let Some(event) = iterator.peek() {
             match event {
@@ -36,13 +36,8 @@ impl FromXml for Entry {
                         out.uuid = SimpleTag::<Uuid>::from_xml(iterator, inner_cipher)?.value;
                     }
                     "Tags" => {
-                        if let Some(tags) =
-                            SimpleTag::<Option<String>>::from_xml(iterator, inner_cipher)?.value
-                        {
-                            out.tags = tags
-                                .split(|c| c == ';' || c == ',')
-                                .map(|x| x.to_owned())
-                                .collect();
+                        if let Some(tags) = SimpleTag::<Option<String>>::from_xml(iterator, inner_cipher)?.value {
+                            out.tags = tags.split(|c| c == ';' || c == ',').map(|x| x.to_owned()).collect();
                         }
                     }
                     "String" => {
@@ -66,28 +61,22 @@ impl FromXml for Entry {
                         out.times = Times::from_xml(iterator, inner_cipher)?;
                     }
                     "IconID" => {
-                        out.icon_id =
-                            SimpleTag::<Option<usize>>::from_xml(iterator, inner_cipher)?.value;
+                        out.icon_id = SimpleTag::<Option<usize>>::from_xml(iterator, inner_cipher)?.value;
                     }
                     "CustomIconUUID" => {
-                        out.custom_icon_uuid =
-                            SimpleTag::<Option<Uuid>>::from_xml(iterator, inner_cipher)?.value;
+                        out.custom_icon_uuid = SimpleTag::<Option<Uuid>>::from_xml(iterator, inner_cipher)?.value;
                     }
                     "ForegroundColor" => {
-                        out.foreground_color =
-                            SimpleTag::<Option<Color>>::from_xml(iterator, inner_cipher)?.value;
+                        out.foreground_color = SimpleTag::<Option<Color>>::from_xml(iterator, inner_cipher)?.value;
                     }
                     "BackgroundColor" => {
-                        out.background_color =
-                            SimpleTag::<Option<Color>>::from_xml(iterator, inner_cipher)?.value;
+                        out.background_color = SimpleTag::<Option<Color>>::from_xml(iterator, inner_cipher)?.value;
                     }
                     "OverrideURL" => {
-                        out.override_url =
-                            SimpleTag::<Option<String>>::from_xml(iterator, inner_cipher)?.value;
+                        out.override_url = SimpleTag::<Option<String>>::from_xml(iterator, inner_cipher)?.value;
                     }
                     "QualityCheck" => {
-                        out.quality_check =
-                            SimpleTag::<Option<bool>>::from_xml(iterator, inner_cipher)?.value;
+                        out.quality_check = SimpleTag::<Option<bool>>::from_xml(iterator, inner_cipher)?.value;
                     }
                     "History" => {
                         out.history = Some(History::from_xml(iterator, inner_cipher)?);
@@ -195,9 +184,7 @@ impl FromXml for BinaryField {
 
         let value_event = iterator.next().ok_or(XmlParseError::Eof)?;
         let identifier = match value_event {
-            SimpleXmlEvent::Start(ref name, ref attributes) if name == "Value" => {
-                attributes.get("Ref").cloned()
-            }
+            SimpleXmlEvent::Start(ref name, ref attributes) if name == "Value" => attributes.get("Ref").cloned(),
             _ => None,
         }
         .ok_or(XmlParseError::BadEvent {
@@ -236,8 +223,7 @@ impl FromXml for Value {
                     .map(|v| v.to_lowercase().parse::<bool>())
                     .unwrap_or(Ok(false))?;
 
-                let content =
-                    Option::<String>::from_xml(iterator, inner_cipher)?.unwrap_or(String::new());
+                let content = Option::<String>::from_xml(iterator, inner_cipher)?.unwrap_or(String::new());
 
                 let value = if protected {
                     let buf = base64_engine::STANDARD.decode(&content)?;
@@ -290,12 +276,10 @@ impl FromXml for AutoType {
                         out.enabled = SimpleTag::<bool>::from_xml(iterator, inner_cipher)?.value;
                     }
                     "DefaultSequence" => {
-                        out.sequence =
-                            SimpleTag::<Option<String>>::from_xml(iterator, inner_cipher)?.value;
+                        out.sequence = SimpleTag::<Option<String>>::from_xml(iterator, inner_cipher)?.value;
                     }
                     "DataTransferObfuscation" => {
-                        let _value =
-                            SimpleTag::<Option<usize>>::from_xml(iterator, inner_cipher)?.value;
+                        let _value = SimpleTag::<Option<usize>>::from_xml(iterator, inner_cipher)?.value;
                         // TODO probably not needed?
                     }
                     "Association" => {
@@ -344,12 +328,10 @@ impl FromXml for AutoTypeAssociation {
             match event {
                 SimpleXmlEvent::Start(name, _) => match &name[..] {
                     "Window" => {
-                        out.window =
-                            SimpleTag::<Option<String>>::from_xml(iterator, inner_cipher)?.value;
+                        out.window = SimpleTag::<Option<String>>::from_xml(iterator, inner_cipher)?.value;
                     }
                     "KeystrokeSequence" => {
-                        out.sequence =
-                            SimpleTag::<Option<String>>::from_xml(iterator, inner_cipher)?.value;
+                        out.sequence = SimpleTag::<Option<String>>::from_xml(iterator, inner_cipher)?.value;
                     }
                     _ => {
                         IgnoreSubfield::from_xml(iterator, inner_cipher)?;

@@ -2,7 +2,7 @@
 use crate::db::otp::{TOTPError, TOTP};
 use crate::{
     db::{group::MergeLog, node::*, Color, CustomData, Times},
-    rc_refcell,
+    rc_refcell_node,
 };
 use chrono::NaiveDateTime;
 use secstr::SecStr;
@@ -36,7 +36,8 @@ pub struct Entry {
 
 impl Node for Entry {
     fn duplicate(&self) -> NodePtr {
-        rc_refcell!(self.clone())
+        let mut _tmp = self.clone();
+        rc_refcell_node!(_tmp)
     }
 
     fn get_uuid(&self) -> Uuid {
@@ -46,25 +47,48 @@ impl Node for Entry {
         self.get("Title")
     }
 
+    fn set_title(&mut self, title: Option<&str>) {
+        self.set_unprotected_field_pair("Title", title);
+    }
+
     fn get_notes(&self) -> Option<&str> {
         self.get("Notes")
+    }
+
+    fn set_notes(&mut self, notes: Option<&str>) {
+        self.set_unprotected_field_pair("Notes", notes);
     }
 
     fn get_icon_id(&self) -> Option<usize> {
         self.icon_id
     }
 
-    fn get_custom_icon_uuid(&self) -> Option<&Uuid> {
-        self.custom_icon_uuid.as_ref()
-    }
-
-    fn get_children(&self) -> Option<Vec<NodePtr>> {
-        None
+    fn get_custom_icon_uuid(&self) -> Option<Uuid> {
+        self.custom_icon_uuid
     }
 
     fn get_times(&self) -> &Times {
         &self.times
     }
+
+    fn get_time(&self, key: &str) -> Option<&chrono::NaiveDateTime> {
+        self.times.get(key)
+    }
+
+    fn get_expiry_time(&self) -> Option<&chrono::NaiveDateTime> {
+        self.times.get_expiry()
+    }
+}
+
+#[allow(dead_code)]
+pub fn entry_set_field_and_commit(entry: &NodePtr, field_name: &str, field_value: &str) -> crate::Result<()> {
+    entry
+        .borrow_mut()
+        .as_any_mut()
+        .downcast_mut::<Entry>()
+        .ok_or("node is not an Entry.")?
+        .set_field_and_commit(field_name, field_value);
+    Ok(())
 }
 
 impl Entry {
@@ -76,45 +100,31 @@ impl Entry {
         }
     }
 
-    pub fn set_title(&mut self, title: Option<&str>) {
-        self.fields.insert(
-            "Title".to_string(),
-            Value::Unprotected(title.unwrap_or_default().to_string()),
-        );
-    }
-
-    pub(crate) fn merge(&self, other: &NodePtr) -> Result<(NodePtr, MergeLog), String> {
-        let other = other.borrow();
-        let other = other
-            .as_any()
-            .downcast_ref::<Entry>()
-            .ok_or("Cannot merge Entry with a Node that is not an Entry.".to_string())?;
-
+    pub(crate) fn merge(entry: &NodePtr, other: &NodePtr) -> Result<(NodePtr, MergeLog), String> {
         let mut log = MergeLog::default();
 
-        let mut source_history = match &other.history {
+        let mut source_history = match &other.borrow().as_any().downcast_ref::<Entry>().ok_or("Error")?.history {
             Some(h) => h.clone(),
             None => {
-                log.warnings
-                    .push(format!("Entry {} had no history.", self.uuid));
+                log.warnings.push(format!("Entry {} had no history.", entry.borrow().get_uuid()));
                 History::default()
             }
         };
-        let mut destination_history = match &self.history {
+        let mut destination_history = match &entry.borrow().as_any().downcast_ref::<Entry>().ok_or("Error")?.history {
             Some(h) => h.clone(),
             None => {
-                log.warnings
-                    .push(format!("Entry {} had no history.", self.uuid));
+                log.warnings.push(format!("Entry {} had no history.", entry.borrow().get_uuid()));
                 History::default()
             }
         };
 
-        let mut response = self.clone();
-        source_history.add_entry(other.clone());
+        let other = other.borrow().duplicate();
+        source_history.add_entry(other.borrow().as_any().downcast_ref::<Entry>().ok_or("Error")?.clone());
         let history_merge_log = destination_history.merge_with(&source_history)?;
-        response.history = Some(destination_history);
+        let response = entry.borrow().duplicate();
+        response.borrow_mut().as_any_mut().downcast_mut::<Entry>().ok_or("Error")?.history = Some(destination_history);
 
-        Ok((rc_refcell!(response), log.merge_with(&history_merge_log)))
+        Ok((response, log.merge_with(&history_merge_log)))
     }
 
     // Convenience function used in unit tests, to make sure that:
@@ -122,30 +132,45 @@ impl Entry {
     // 2. We wait a second before commiting the changes so that the timestamp is not the same
     //    as it previously was. This is necessary since the timestamps in the KDBX format
     //    do not preserve the msecs.
-    #[allow(dead_code)]
     pub(crate) fn set_field_and_commit(&mut self, field_name: &str, field_value: &str) {
-        self.fields.insert(
-            field_name.to_string(),
-            Value::Unprotected(field_value.to_string()),
-        );
+        self.set_unprotected_field_pair(field_name, Some(field_value));
         thread::sleep(time::Duration::from_secs(1));
         self.update_history();
     }
 
-    pub(crate) fn replace_with(&mut self, other: &Entry) {
-        self.uuid = other.uuid;
-        self.fields = other.fields.clone();
-        self.autotype = other.autotype.clone();
-        self.tags = other.tags.clone();
-        self.times = other.times.clone();
-        self.custom_data = other.custom_data.clone();
-        self.icon_id = other.icon_id;
-        self.custom_icon_uuid = other.custom_icon_uuid;
-        self.foreground_color = other.foreground_color;
-        self.background_color = other.background_color;
-        self.override_url = other.override_url.clone();
-        self.quality_check = other.quality_check;
-        self.history = other.history.clone();
+    fn set_unprotected_field_pair(&mut self, field_name: &str, field_value: Option<&str>) {
+        if let Some(field_value) = field_value {
+            self.fields
+                .insert(field_name.to_string(), Value::Unprotected(field_value.to_string()));
+        } else {
+            self.fields.remove(field_name);
+        }
+    }
+
+    pub(crate) fn entry_replaced_with(entry: &NodePtr, other: &NodePtr) -> Option<()> {
+        let mut success = false;
+        if let Some(mut entry) = entry.borrow_mut().as_any_mut().downcast_mut::<Entry>() {
+            if let Some(other) = other.borrow().as_any().downcast_ref::<Entry>() {
+                entry.uuid = other.uuid;
+                entry.fields = other.fields.clone();
+                entry.autotype = other.autotype.clone();
+                entry.tags = other.tags.clone();
+                entry.times = other.times.clone();
+                entry.custom_data = other.custom_data.clone();
+                entry.icon_id = other.icon_id;
+                entry.custom_icon_uuid = other.custom_icon_uuid;
+                entry.foreground_color = other.foreground_color;
+                entry.background_color = other.background_color;
+                entry.override_url = other.override_url.clone();
+                entry.quality_check = other.quality_check;
+                entry.history = other.history.clone();
+                success = true;
+            }
+        }
+        if !success {
+            return None;
+        }
+        Some(())
     }
 }
 
@@ -168,22 +193,6 @@ impl<'a> Entry {
         }
     }
 
-    /// Get a timestamp field by name
-    ///
-    /// Returning the chrono::NaiveDateTime which does not include timezone
-    /// or UTC offset because KeePass clients typically store timestamps
-    /// relative to the local time on the machine writing the data without
-    /// including accurate UTC offset or timezone information.
-    pub fn get_time(&self, key: &str) -> Option<&chrono::NaiveDateTime> {
-        self.times.get(key)
-    }
-
-    /// Convenience method for getting the time that the entry expires.
-    /// This value is usually only meaningful/useful when expires == true
-    pub fn get_expiry_time(&self) -> Option<&chrono::NaiveDateTime> {
-        self.times.get_expiry()
-    }
-
     /// Convenience method for getting a TOTP from this entry
     #[cfg(feature = "totp")]
     pub fn get_otp(&'a self) -> Result<TOTP, TOTPError> {
@@ -200,6 +209,10 @@ impl<'a> Entry {
         self.get("UserName")
     }
 
+    pub fn set_username(&mut self, username: Option<&str>) {
+        self.set_unprotected_field_pair("UserName", username);
+    }
+
     /// Convenience method for getting the value of the 'Password' field
     pub fn get_password(&'a self) -> Option<&'a str> {
         self.get("Password")
@@ -208,6 +221,10 @@ impl<'a> Entry {
     /// Convenience method for getting the value of the 'URL' field
     pub fn get_url(&'a self) -> Option<&'a str> {
         self.get("URL")
+    }
+
+    pub fn set_url(&mut self, url: Option<&str>) {
+        self.set_unprotected_field_pair("URL", url);
     }
 
     /// Adds the current version of the entry to the entry's history
@@ -246,15 +263,11 @@ impl<'a> Entry {
             }
 
             let mut sanitized_entry = self.clone();
-            sanitized_entry
-                .times
-                .set_last_modification(NaiveDateTime::default());
+            sanitized_entry.times.set_last_modification(NaiveDateTime::default());
             sanitized_entry.history.take();
 
             let mut last_history_entry = history.entries.get(0).unwrap().clone();
-            last_history_entry
-                .times
-                .set_last_modification(NaiveDateTime::default());
+            last_history_entry.times.set_last_modification(NaiveDateTime::default());
             last_history_entry.history.take();
 
             if sanitized_entry.eq(&last_history_entry) {
@@ -292,9 +305,7 @@ impl serde::Serialize for Value {
         match self {
             Value::Bytes(b) => serializer.serialize_bytes(b),
             Value::Unprotected(u) => serializer.serialize_str(u),
-            Value::Protected(p) => {
-                serializer.serialize_str(String::from_utf8_lossy(p.unsecure()).as_ref())
-            }
+            Value::Protected(p) => serializer.serialize_str(String::from_utf8_lossy(p.unsecure()).as_ref()),
         }
     }
 }
@@ -375,7 +386,8 @@ impl History {
             let existing_history_entry = new_history_entries.get(modification_time);
             if let Some(existing_history_entry) = existing_history_entry {
                 if !existing_history_entry.eq(history_entry) {
-                    log.warnings.push("History entries have the same modification timestamp but were not the same.".to_string());
+                    log.warnings
+                        .push("History entries have the same modification timestamp but were not the same.".to_string());
                 }
             } else {
                 new_history_entries.insert(*modification_time, history_entry.clone());
@@ -411,19 +423,15 @@ mod entry_tests {
     #[test]
     fn byte_values() {
         let mut entry = Entry::new();
+        entry.fields.insert("a-bytes".to_string(), Value::Bytes(vec![1, 2, 3]));
+
         entry
             .fields
-            .insert("a-bytes".to_string(), Value::Bytes(vec![1, 2, 3]));
+            .insert("a-unprotected".to_string(), Value::Unprotected("asdf".to_string()));
 
-        entry.fields.insert(
-            "a-unprotected".to_string(),
-            Value::Unprotected("asdf".to_string()),
-        );
-
-        entry.fields.insert(
-            "a-protected".to_string(),
-            Value::Protected(SecStr::new("asdf".as_bytes().to_vec())),
-        );
+        entry
+            .fields
+            .insert("a-protected".to_string(), Value::Protected(SecStr::new("asdf".as_bytes().to_vec())));
 
         assert_eq!(entry.get_bytes("a-bytes"), Some(&[1, 2, 3][..]));
         assert_eq!(entry.get_bytes("a-unprotected"), None);
@@ -439,10 +447,7 @@ mod entry_tests {
         let mut entry = Entry::new();
         let mut last_modification_time = entry.times.get_last_modification().unwrap().clone();
 
-        entry.fields.insert(
-            "Username".to_string(),
-            Value::Unprotected("user".to_string()),
-        );
+        entry.fields.insert("Username".to_string(), Value::Unprotected("user".to_string()));
         // Making sure to wait 1 sec before update the history, to make
         // sure that we get a different modification timestamp.
         thread::sleep(time::Duration::from_secs(1));
@@ -450,10 +455,7 @@ mod entry_tests {
         assert!(entry.update_history());
         assert!(entry.history.is_some());
         assert_eq!(entry.history.as_ref().unwrap().entries.len(), 1);
-        assert_ne!(
-            entry.times.get_last_modification().unwrap(),
-            &last_modification_time
-        );
+        assert_ne!(entry.times.get_last_modification().unwrap(), &last_modification_time);
         last_modification_time = entry.times.get_last_modification().unwrap().clone();
         thread::sleep(time::Duration::from_secs(1));
 
@@ -462,56 +464,35 @@ mod entry_tests {
         assert!(!entry.update_history());
         assert!(entry.history.is_some());
         assert_eq!(entry.history.as_ref().unwrap().entries.len(), 1);
-        assert_eq!(
-            entry.times.get_last_modification().unwrap(),
-            &last_modification_time
-        );
+        assert_eq!(entry.times.get_last_modification().unwrap(), &last_modification_time);
 
-        entry.fields.insert(
-            "Title".to_string(),
-            Value::Unprotected("first title".to_string()),
-        );
+        entry.set_title(Some("first title"));
 
         assert!(entry.update_history());
         assert!(entry.history.is_some());
         assert_eq!(entry.history.as_ref().unwrap().entries.len(), 2);
-        assert_ne!(
-            entry.times.get_last_modification().unwrap(),
-            &last_modification_time
-        );
+        assert_ne!(entry.times.get_last_modification().unwrap(), &last_modification_time);
         last_modification_time = entry.times.get_last_modification().unwrap().clone();
         thread::sleep(time::Duration::from_secs(1));
 
         assert!(!entry.update_history());
         assert!(entry.history.is_some());
         assert_eq!(entry.history.as_ref().unwrap().entries.len(), 2);
-        assert_eq!(
-            entry.times.get_last_modification().unwrap(),
-            &last_modification_time
-        );
+        assert_eq!(entry.times.get_last_modification().unwrap(), &last_modification_time);
 
-        entry.fields.insert(
-            "Title".to_string(),
-            Value::Unprotected("second title".to_string()),
-        );
+        entry.set_title(Some("second title"));
 
         assert!(entry.update_history());
         assert!(entry.history.is_some());
         assert_eq!(entry.history.as_ref().unwrap().entries.len(), 3);
-        assert_ne!(
-            entry.times.get_last_modification().unwrap(),
-            &last_modification_time
-        );
+        assert_ne!(entry.times.get_last_modification().unwrap(), &last_modification_time);
         last_modification_time = entry.times.get_last_modification().unwrap().clone();
         thread::sleep(time::Duration::from_secs(1));
 
         assert!(!entry.update_history());
         assert!(entry.history.is_some());
         assert_eq!(entry.history.as_ref().unwrap().entries.len(), 3);
-        assert_eq!(
-            entry.times.get_last_modification().unwrap(),
-            &last_modification_time
-        );
+        assert_eq!(entry.times.get_last_modification().unwrap(), &last_modification_time);
 
         let last_history_entry = entry.history.as_ref().unwrap().entries.get(0).unwrap();
         assert_eq!(last_history_entry.get_title().unwrap(), "second title");
@@ -525,7 +506,13 @@ mod entry_tests {
     #[test]
     fn totp() {
         let mut entry = Entry::new();
-        entry.fields.insert("otp".to_string(), Value::Unprotected("otpauth://totp/ACME%20Co:john.doe@email.com?secret=HXDMVJECJJWSRB3HWIZR4IFUGFTMXBOZ&issuer=ACME%20Co&algorithm=SHA1&digits=6&period=30".to_string()));
+        entry.fields.insert(
+            "otp".to_string(),
+            Value::Unprotected(
+                "otpauth://totp/ACME%20Co:john.doe@email.com?secret=HXDMVJECJJWSRB3HWIZR4IFUGFTMXBOZ&issuer=ACME%20Co&algorithm=SHA1&digits=6&period=30"
+                    .to_string(),
+            ),
+        );
 
         assert!(entry.get_otp().is_ok());
     }
@@ -544,8 +531,7 @@ mod entry_tests {
         );
 
         assert_eq!(
-            serde_json::to_string(&Value::Protected(SecStr::new("ABC".as_bytes().to_vec())))
-                .unwrap(),
+            serde_json::to_string(&Value::Protected(SecStr::new("ABC".as_bytes().to_vec()))).unwrap(),
             "\"ABC\"".to_string()
         );
     }

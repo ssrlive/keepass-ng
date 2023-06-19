@@ -13,13 +13,15 @@ mod tests {
         config::DatabaseConfig,
         db::{
             entry::History,
+            group_get_children,
             meta::{BinaryAttachments, CustomIcons, Icon, MemoryProtection},
-            AutoType, AutoTypeAssociation, BinaryAttachment, CustomData, CustomDataItem, Database,
-            DeletedObject, Entry, Group, Meta, Node, Times, Value,
+            node::*,
+            node_is_equals_to, AutoType, AutoTypeAssociation, BinaryAttachment, CustomData, CustomDataItem, Database, DeletedObject, Entry,
+            Group, Meta, NodePtr, Times, Value,
         },
         format::kdbx4,
         key::DatabaseKey,
-        rc_refcell,
+        rc_refcell_node,
     };
     use chrono::NaiveDateTime;
     use secstr::SecStr;
@@ -35,25 +37,16 @@ mod tests {
             password += &std::char::from_u32(random_char as u32).unwrap().to_string();
         }
 
-        let key_elements = DatabaseKey::new()
-            .with_password(&password)
-            .get_key_elements()
-            .unwrap();
+        let key_elements = DatabaseKey::new().with_password(&password).get_key_elements().unwrap();
         key_elements
     }
 
     #[test]
     pub fn test_entry() {
-        let mut root_group = Group::new("Root");
         let mut entry = Entry::new();
 
-        entry
-            .fields
-            .insert("Title".to_string(), Value::Unprotected("ASDF".to_string()));
-        entry.fields.insert(
-            "UserName".to_string(),
-            Value::Unprotected("ghj".to_string()),
-        );
+        entry.set_title(Some("ASDF"));
+        entry.fields.insert("UserName".to_string(), Value::Unprotected("ghj".to_string()));
         entry.fields.insert(
             "Password".to_string(),
             Value::Protected(std::str::from_utf8(b"klmno").unwrap().into()),
@@ -105,11 +98,13 @@ mod tests {
 
         entry.history = Some(history);
 
-        let e = rc_refcell!(entry.clone());
-        root_group.children.push(e);
+        let entry = rc_refcell_node!(entry);
+
+        let root_group = rc_refcell_node!(Group::new("Root"));
+        group_add_child(&root_group, entry.borrow().duplicate()).unwrap();
 
         let mut db = Database::new(DatabaseConfig::default());
-        db.root = rc_refcell!(root_group);
+        db.root = root_group;
 
         let key_elements = make_key();
 
@@ -117,72 +112,53 @@ mod tests {
         kdbx4::dump_kdbx4(&db, &key_elements, &mut encrypted_db).unwrap();
         let decrypted_db = kdbx4::parse_kdbx4(&encrypted_db, &key_elements).unwrap();
 
-        assert_eq!(
-            decrypted_db
-                .root
-                .borrow()
-                .as_any()
-                .downcast_ref::<Group>()
-                .unwrap()
-                .children
-                .len(),
-            1
-        );
+        assert_eq!(group_get_children(&decrypted_db.root).unwrap().len(), 1);
 
-        let root = decrypted_db.root.borrow();
-        if let Some(g) = root.as_any().downcast_ref::<Group>() {
-            if let Some(decrypted_entry) = g.children[0].borrow().as_any().downcast_ref::<Entry>() {
-                assert_eq!(decrypted_entry, &entry);
-            } else {
-                panic!("Was expecting an entry as the only child.");
-            }
-        } else {
-            panic!("Was expecting an entry as the only child.");
-        }
+        let decrypted_entry = &group_get_children(&decrypted_db.root).unwrap()[0];
+        assert!(node_is_equals_to(decrypted_entry, &entry));
     }
 
     #[test]
     pub fn test_group() {
-        let mut root_group = Group::new("Root");
-        let mut entry = Entry::new();
-        let new_entry_uuid = entry.uuid.clone();
-        entry
-            .fields
-            .insert("Title".to_string(), Value::Unprotected("ASDF".to_string()));
+        let root_group = rc_refcell_node!(Group::new("Root"));
+        let entry = rc_refcell_node!(Entry::new());
+        let new_entry_uuid = entry.borrow().get_uuid();
+        entry.borrow_mut().set_title(Some("ASDF"));
 
-        root_group.children.push(rc_refcell!(entry));
+        group_add_child(&root_group, entry).unwrap();
 
-        let mut subgroup = Group::new("Child group");
-        subgroup.notes = Some("I am a subgroup".to_string());
-        subgroup.icon_id = Some(42);
-        subgroup.custom_icon_uuid = Some(uuid!("11111111111111111111111111111111"));
-        subgroup.times.expires = true;
-        subgroup.times.usage_count = 100;
-        subgroup.times.set_creation(NaiveDateTime::default());
-        subgroup.times.set_expiry(NaiveDateTime::default());
-        subgroup.times.set_last_access(NaiveDateTime::default());
-        subgroup.times.set_location_changed(Times::now());
-        subgroup.times.set_last_modification(Times::now());
-        subgroup.is_expanded = true;
-        subgroup.default_autotype_sequence =
-            Some("{UP}{UP}{DOWN}{DOWN}{LEFT}{RIGHT}{LEFT}{RIGHT}BA".to_string());
-        subgroup.enable_autotype = Some("yes".to_string());
-        subgroup.enable_searching = Some("sure".to_string());
+        let subgroup = rc_refcell_node!(Group::new("Child group"));
+        if let Some(subgroup) = subgroup.borrow_mut().as_any_mut().downcast_mut::<Group>() {
+            subgroup.notes = Some("I am a subgroup".to_string());
+            subgroup.icon_id = Some(42);
+            subgroup.custom_icon_uuid = Some(uuid!("11111111111111111111111111111111"));
+            subgroup.times.expires = true;
+            subgroup.times.usage_count = 100;
+            subgroup.times.set_creation(NaiveDateTime::default());
+            subgroup.times.set_expiry(NaiveDateTime::default());
+            subgroup.times.set_last_access(NaiveDateTime::default());
+            subgroup.times.set_location_changed(Times::now());
+            subgroup.times.set_last_modification(Times::now());
+            subgroup.is_expanded = true;
+            subgroup.default_autotype_sequence = Some("{UP}{UP}{DOWN}{DOWN}{LEFT}{RIGHT}{LEFT}{RIGHT}BA".to_string());
+            subgroup.enable_autotype = Some("yes".to_string());
+            subgroup.enable_searching = Some("sure".to_string());
 
-        subgroup.last_top_visible_entry = Some(uuid!("43210000000000000000000000000000"));
+            subgroup.last_top_visible_entry = Some(uuid!("43210000000000000000000000000000"));
 
-        subgroup.custom_data.items.insert(
-            "CustomOption".to_string(),
-            CustomDataItem {
-                value: Some(Value::Unprotected("CustomOption-Value".to_string())),
-                last_modification_time: Some(NaiveDateTime::default()),
-            },
-        );
+            subgroup.custom_data.items.insert(
+                "CustomOption".to_string(),
+                CustomDataItem {
+                    value: Some(Value::Unprotected("CustomOption-Value".to_string())),
+                    last_modification_time: Some(NaiveDateTime::default()),
+                },
+            );
+        }
 
-        root_group.children.push(rc_refcell!(subgroup));
+        group_add_child(&root_group, subgroup).unwrap();
 
         let mut db = Database::new(DatabaseConfig::default());
-        db.root = rc_refcell!(root_group.clone());
+        db.root = root_group.borrow().duplicate();
 
         let key_elements = make_key();
 
@@ -190,38 +166,13 @@ mod tests {
         kdbx4::dump_kdbx4(&db, &key_elements, &mut encrypted_db).unwrap();
         let decrypted_db = kdbx4::parse_kdbx4(&encrypted_db, &key_elements).unwrap();
 
-        assert_eq!(
-            decrypted_db
-                .root
-                .borrow()
-                .as_any()
-                .downcast_ref::<Group>()
-                .unwrap()
-                .children
-                .len(),
-            2
-        );
+        assert_eq!(group_get_children(&decrypted_db.root).unwrap().len(), 2);
 
-        if let Some(g) = decrypted_db.root.borrow().as_any().downcast_ref::<Group>() {
-            if let Some(decrypted_entry) = g.children[0].borrow().as_any().downcast_ref::<Entry>() {
-                assert_eq!(decrypted_entry.get_title(), Some("ASDF"));
-                assert_eq!(decrypted_entry.get_uuid(), new_entry_uuid);
-            } else {
-                panic!("Was expecting an entry as the first child.");
-            }
-        } else {
-            panic!("Was expecting a group as the root.");
-        }
+        let decrypted_entry = &group_get_children(&decrypted_db.root).unwrap()[0];
+        assert_eq!(decrypted_entry.borrow().get_title(), Some("ASDF"));
+        assert_eq!(decrypted_entry.borrow().get_uuid(), new_entry_uuid);
 
-        assert_eq!(
-            decrypted_db
-                .root
-                .borrow()
-                .as_any()
-                .downcast_ref::<Group>()
-                .unwrap(),
-            &root_group
-        );
+        assert!(node_is_equals_to(&decrypted_db.root, &root_group));
     }
 
     #[test]
@@ -302,9 +253,7 @@ mod tests {
                     (
                         "custom-data-protected-key".to_string(),
                         CustomDataItem {
-                            value: Some(Value::Protected(SecStr::new(
-                                b"custom-data-value".to_vec(),
-                            ))),
+                            value: Some(Value::Protected(SecStr::new(b"custom-data-value".to_vec()))),
                             last_modification_time: Some("2000-12-31T12:35:03".parse().unwrap()),
                         },
                     ),

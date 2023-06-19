@@ -31,7 +31,7 @@ use crate::{
         DatabaseVersion,
     },
     key::DatabaseKey,
-    rc_refcell,
+    rc_refcell_node,
 };
 
 /// A decrypted KeePass database
@@ -60,8 +60,7 @@ impl PartialEq for Database {
             && self.header_attachments == other.header_attachments
             && self.deleted_objects == other.deleted_objects
             && self.meta == other.meta
-            && self.root.borrow().as_any().downcast_ref::<Group>()
-                == other.root.borrow().as_any().downcast_ref::<Group>()
+            && node_is_equals_to(&self.root, &other.root)
     }
 }
 
@@ -69,10 +68,7 @@ impl Eq for Database {}
 
 impl Database {
     /// Parse a database from a std::io::Read
-    pub fn open(
-        source: &mut dyn std::io::Read,
-        key: DatabaseKey,
-    ) -> Result<Database, DatabaseOpenError> {
+    pub fn open(source: &mut dyn std::io::Read, key: DatabaseKey) -> Result<Database, DatabaseOpenError> {
         let key_elements = key.get_key_elements()?;
 
         let mut data = Vec::new();
@@ -90,11 +86,7 @@ impl Database {
 
     /// Save a database to a std::io::Write
     #[cfg(feature = "save_kdbx4")]
-    pub fn save(
-        &self,
-        destination: &mut dyn std::io::Write,
-        key: DatabaseKey,
-    ) -> Result<(), crate::error::DatabaseSaveError> {
+    pub fn save(&self, destination: &mut dyn std::io::Write, key: DatabaseKey) -> Result<(), crate::error::DatabaseSaveError> {
         use crate::error::DatabaseSaveError;
         use crate::format::kdbx4::dump_kdbx4;
 
@@ -109,10 +101,7 @@ impl Database {
     }
 
     /// Helper function to load a database into its internal XML chunks
-    pub fn get_xml(
-        source: &mut dyn std::io::Read,
-        key: DatabaseKey,
-    ) -> Result<Vec<u8>, DatabaseOpenError> {
+    pub fn get_xml(source: &mut dyn std::io::Read, key: DatabaseKey) -> Result<Vec<u8>, DatabaseOpenError> {
         let key_elements = key.get_key_elements()?;
 
         let mut data = Vec::new();
@@ -131,9 +120,7 @@ impl Database {
     }
 
     /// Get the version of a database without decrypting it
-    pub fn get_version(
-        source: &mut dyn std::io::Read,
-    ) -> Result<DatabaseVersion, DatabaseIntegrityError> {
+    pub fn get_version(source: &mut dyn std::io::Read) -> Result<DatabaseVersion, DatabaseIntegrityError> {
         let mut data = Vec::new();
         data.resize(DatabaseVersion::get_version_header_size(), 0);
         _ = source.read(&mut data)?;
@@ -145,7 +132,7 @@ impl Database {
         Self {
             config,
             header_attachments: Vec::new(),
-            root: rc_refcell!(Group::new("Root")),
+            root: rc_refcell_node!(Group::new("Root")),
             deleted_objects: DeletedObjects::default(),
             meta: Meta::default(),
         }
@@ -193,8 +180,7 @@ impl Times {
     }
 
     pub fn set_last_modification(&mut self, time: NaiveDateTime) {
-        self.times
-            .insert(LAST_MODIFICATION_TIME_TAG_NAME.to_string(), time);
+        self.times.insert(LAST_MODIFICATION_TIME_TAG_NAME.to_string(), time);
     }
 
     pub fn get_creation(&self) -> Option<&NaiveDateTime> {
@@ -210,8 +196,7 @@ impl Times {
     }
 
     pub fn set_last_access(&mut self, time: NaiveDateTime) {
-        self.times
-            .insert(LAST_ACCESS_TIME_TAG_NAME.to_string(), time);
+        self.times.insert(LAST_ACCESS_TIME_TAG_NAME.to_string(), time);
     }
 
     pub fn get_location_changed(&self) -> Option<&NaiveDateTime> {
@@ -219,8 +204,7 @@ impl Times {
     }
 
     pub fn set_location_changed(&mut self, time: NaiveDateTime) {
-        self.times
-            .insert(LOCATION_CHANGED_TAG_NAME.to_string(), time);
+        self.times.insert(LOCATION_CHANGED_TAG_NAME.to_string(), time);
     }
 
     // Returns the current time, without the nanoseconds since
@@ -319,8 +303,7 @@ impl FromStr for Color {
             return Err(ParseColorError(s.to_string()));
         }
 
-        let v = u64::from_str_radix(s.trim_start_matches('#'), 16)
-            .map_err(|_e| ParseColorError(s.to_string()))?;
+        let v = u64::from_str_radix(s.trim_start_matches('#'), 16).map_err(|_e| ParseColorError(s.to_string()))?;
 
         let r = ((v >> 16) & 0xff) as u8;
         let g = ((v >> 8) & 0xff) as u8;
@@ -338,7 +321,9 @@ impl std::fmt::Display for Color {
 
 #[cfg(test)]
 mod database_tests {
-    use crate::{config::DatabaseConfig, db::Entry, Database, DatabaseKey, Result};
+    #[cfg(feature = "save_kdbx4")]
+    use crate::{config::DatabaseConfig, db::Entry, db::NodePtr};
+    use crate::{Database, DatabaseKey, Result};
     use std::fs::File;
 
     #[test]
@@ -355,21 +340,18 @@ mod database_tests {
     #[cfg(feature = "save_kdbx4")]
     #[test]
     fn test_save() -> Result<()> {
-        use crate::{db::Group, rc_refcell};
+        use crate::{db::group_add_child, db::Group, rc_refcell_node};
 
         let db = Database::new(DatabaseConfig::default());
-        {
-            let mut root = db.root.borrow_mut();
-            let root = root.as_any_mut().downcast_mut::<Group>().unwrap();
-            root.children.push(rc_refcell!(Entry::new()));
-            root.add_child(rc_refcell!(Entry::new()));
-            root.add_child(rc_refcell!(Entry::new()));
 
-            let mut group = Group::new("my group");
-            group.add_child(rc_refcell!(Entry::new()));
-            group.add_child(rc_refcell!(Entry::new()));
-            root.add_child(rc_refcell!(group));
-        }
+        group_add_child(&db.root, rc_refcell_node!(Entry::new())).unwrap();
+        group_add_child(&db.root, rc_refcell_node!(Entry::new())).unwrap();
+        group_add_child(&db.root, rc_refcell_node!(Entry::new())).unwrap();
+
+        let group = rc_refcell_node!(Group::new("my group"));
+        group_add_child(&group, rc_refcell_node!(Entry::new())).unwrap();
+        group_add_child(&group, rc_refcell_node!(Entry::new())).unwrap();
+        group_add_child(&db.root, group).unwrap();
 
         let mut buffer = Vec::new();
         let key = DatabaseKey::new().with_password("testing");

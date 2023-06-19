@@ -42,8 +42,7 @@ impl Cipher for AES256Cipher {
     fn encrypt(&mut self, plaintext: &[u8]) -> Result<Vec<u8>, CryptographyError> {
         let cipher = Aes256CbcEncryptor::new_from_slices(&self.key, &self.iv)?;
 
-        let ciphertext =
-            cipher.encrypt_padded_vec_mut::<twofish::cipher::block_padding::Pkcs7>(plaintext);
+        let ciphertext = cipher.encrypt_padded_vec_mut::<twofish::cipher::block_padding::Pkcs7>(plaintext);
 
         Ok(ciphertext)
     }
@@ -52,9 +51,7 @@ impl Cipher for AES256Cipher {
 
         let cipher = Aes256CbcDecryptor::new_from_slices(&self.key[..], &self.iv[..])?;
 
-        let len = cipher
-            .decrypt_padded_b2b_mut::<Pkcs7>(ciphertext, &mut out)?
-            .len();
+        let len = cipher.decrypt_padded_b2b_mut::<Pkcs7>(ciphertext, &mut out)?.len();
 
         out.truncate(len);
 
@@ -90,8 +87,7 @@ impl Cipher for TwofishCipher {
     fn encrypt(&mut self, plaintext: &[u8]) -> Result<Vec<u8>, CryptographyError> {
         let cipher = TwofishCbcEncryptor::new_from_slices(&self.key, &self.iv)?;
 
-        let ciphertext =
-            cipher.encrypt_padded_vec_mut::<twofish::cipher::block_padding::Pkcs7>(plaintext);
+        let ciphertext = cipher.encrypt_padded_vec_mut::<twofish::cipher::block_padding::Pkcs7>(plaintext);
 
         Ok(ciphertext)
     }

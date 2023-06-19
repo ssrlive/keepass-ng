@@ -63,8 +63,8 @@ You can enable the experimental support for saving KDBX4 databases using the `sa
 
 ```rust
 use keepass::{
-    db::{node_add_child, Database, Entry, Group, Value},
-    rc_refcell, DatabaseConfig, DatabaseKey,
+    db::{group_add_child, Database, Entry, Group, Node, Value},
+    rc_refcell_node, DatabaseConfig, DatabaseKey, NodePtr,
 };
 use std::fs::File;
 
@@ -73,31 +73,22 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     db.meta.database_name = Some("Demo database".to_string());
 
-    let mut group = Group::new("Demo group");
+    let entry = rc_refcell_node!(Entry::new());
+    if let Some(entry) = entry.borrow_mut().as_any_mut().downcast_mut::<Entry>() {
+        entry.set_title(Some("Demo entry"));
+        entry.set_username(Some("jdoe"));
+        entry
+            .fields
+            .insert("Password".to_string(), Value::Protected("hunter2".as_bytes().into()));
+    }
 
-    let mut entry = Entry::new();
-    entry.fields.insert(
-        "Title".to_string(),
-        Value::Unprotected("Demo entry".to_string()),
-    );
-    entry.fields.insert(
-        "UserName".to_string(),
-        Value::Unprotected("jdoe".to_string()),
-    );
-    entry.fields.insert(
-        "Password".to_string(),
-        Value::Protected("hunter2".as_bytes().into()),
-    );
+    let group = rc_refcell_node!(Group::new("Demo group"));
+    group_add_child(&group, entry).unwrap();
 
-    group.children.push(rc_refcell!(entry));
-
-    node_add_child(&db.root, rc_refcell!(group));
+    group_add_child(&db.root, group).unwrap();
 
     #[cfg(feature = "save_kdbx4")]
-    db.save(
-        &mut File::create("demo.kdbx")?,
-        DatabaseKey::new().with_password("demopass"),
-    )?;
+    db.save(&mut File::create("demo.kdbx")?, DatabaseKey::new().with_password("demopass"))?;
 
     Ok(())
 }
@@ -127,7 +118,7 @@ cargo run --release --features "utilities" --bin kp-dump-xml -- path/to/database
 ## Installation
 Add the following to the `dependencies` section of your `Cargo.toml`:
 
-```ignore
+```toml
 [dependencies]
 keepass = "*" # TODO replace with current version
 ```
@@ -148,7 +139,7 @@ Alternatively, you can add a `.cargo/config.toml` like in this project to ensure
 
 The `aes` optimizations are not yet enabled on stable rust. If you want a big performance boost you can build using nightly and enabling the `armv8` feature of the `aes` crate:
 
-```ignore
+```toml
 [dependencies.aes]
 # Needs at least 0.7.5 for the feature
 version = "0.7.5"

@@ -99,12 +99,7 @@ pub enum DatabaseIntegrityError {
     InvalidKDBXIdentifier,
 
     /// The version of the KDBX file is invalid
-    #[error(
-        "Invalid KDBX version: {}.{}.{}",
-        version,
-        file_major_version,
-        file_minor_version
-    )]
+    #[error("Invalid KDBX version: {}.{}.{}", version, file_major_version, file_minor_version)]
     InvalidKDBXVersion {
         version: u32,
         file_major_version: u32,
@@ -115,12 +110,7 @@ pub enum DatabaseIntegrityError {
     #[error("Invalid header size: {}", size)]
     InvalidFixedHeader { size: usize },
 
-    #[error(
-        "Invalid field length for type {}: {} (expected {})",
-        field_type,
-        field_size,
-        expected_field_size
-    )]
+    #[error("Invalid field length for type {}: {} (expected {})", field_type, field_size, expected_field_size)]
     InvalidKDBFieldLength {
         field_type: u16,
         field_size: u32,
@@ -133,15 +123,8 @@ pub enum DatabaseIntegrityError {
     #[error("Invalid KDBX header field ID: {}", field_id)]
     InvalidKDBXHeaderFieldID { field_id: u8 },
 
-    #[error(
-        "Invalid group level {} (current level {})",
-        group_level,
-        current_level
-    )]
-    InvalidKDBGroupLevel {
-        group_level: u16,
-        current_level: u16,
-    },
+    #[error("Invalid group level {} (current level {})", group_level, current_level)]
+    InvalidKDBGroupLevel { group_level: u16, current_level: u16 },
 
     #[error("Missing group ID")]
     MissingKDBGroupId,

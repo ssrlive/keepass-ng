@@ -4,7 +4,7 @@ use crate::{
     db::Database,
     error::{BlockStreamError, DatabaseIntegrityError, DatabaseKeyError, DatabaseOpenError},
     format::{kdbx_header_field_id::KDBXHeaderFieldID, DatabaseVersion},
-    rc_refcell,
+    rc_refcell_node, NodePtr,
 };
 use byteorder::{ByteOrder, LittleEndian};
 use std::convert::{TryFrom, TryInto};
@@ -77,18 +77,13 @@ fn parse_outer_header(data: &[u8]) -> Result<KDBX3Header, DatabaseOpenError> {
             // CIPHERID - a UUID specifying which cipher suite
             //            should be used to encrypt the payload
             KDBXHeaderFieldID::CipherID => {
-                outer_cipher = Some(
-                    OuterCipherConfig::try_from(field_buffer)
-                        .map_err(DatabaseIntegrityError::from)?,
-                );
+                outer_cipher = Some(OuterCipherConfig::try_from(field_buffer).map_err(DatabaseIntegrityError::from)?);
             }
 
             // COMPRESSIONFLAGS - first byte determines compression of payload
             KDBXHeaderFieldID::CompressionFlags => {
-                compression = Some(
-                    CompressionConfig::try_from(LittleEndian::read_u32(field_buffer))
-                        .map_err(DatabaseIntegrityError::from)?,
-                );
+                compression =
+                    Some(CompressionConfig::try_from(LittleEndian::read_u32(field_buffer)).map_err(DatabaseIntegrityError::from)?);
             }
 
             // MASTERSEED - Master seed for deriving the master key
@@ -98,17 +93,13 @@ fn parse_outer_header(data: &[u8]) -> Result<KDBX3Header, DatabaseOpenError> {
             KDBXHeaderFieldID::TransformSeed => transform_seed = Some(field_buffer.to_vec()),
 
             // TRANSFORMROUNDS - Number of rounds used in derivation of transformed key
-            KDBXHeaderFieldID::TransformRounds => {
-                transform_rounds = Some(LittleEndian::read_u64(field_buffer))
-            }
+            KDBXHeaderFieldID::TransformRounds => transform_rounds = Some(LittleEndian::read_u64(field_buffer)),
 
             // ENCRYPTIONIV - Initialization Vector for decrypting the payload
             KDBXHeaderFieldID::EncryptionIV => encryption_iv = Some(field_buffer.to_vec()),
 
             // PROTECTEDSTREAMKEY - Key for decrypting the inner protected values
-            KDBXHeaderFieldID::InnerRandomStreamKey => {
-                inner_random_stream_key = Some(field_buffer.to_vec())
-            }
+            KDBXHeaderFieldID::InnerRandomStreamKey => inner_random_stream_key = Some(field_buffer.to_vec()),
 
             // STREAMSTARTBYTES - First bytes of decrypted payload (to check correct decryption)
             KDBXHeaderFieldID::StreamStartBytes => stream_start = Some(field_buffer.to_vec()),
@@ -116,17 +107,12 @@ fn parse_outer_header(data: &[u8]) -> Result<KDBX3Header, DatabaseOpenError> {
             // INNERRANDOMSTREAMID - specifies which cipher suite
             //                       to use for decrypting the inner protected values
             KDBXHeaderFieldID::InnerRandomStreamID => {
-                inner_random_stream_id = Some(
-                    InnerCipherConfig::try_from(LittleEndian::read_u32(field_buffer))
-                        .map_err(DatabaseIntegrityError::from)?,
-                );
+                inner_random_stream_id =
+                    Some(InnerCipherConfig::try_from(LittleEndian::read_u32(field_buffer)).map_err(DatabaseIntegrityError::from)?);
             }
 
             _ => {
-                return Err(DatabaseIntegrityError::InvalidKDBXHeaderFieldID {
-                    field_id: field_id.into(),
-                }
-                .into());
+                return Err(DatabaseIntegrityError::InvalidKDBXHeaderFieldID { field_id: field_id.into() }.into());
             }
         };
     }
@@ -135,9 +121,7 @@ fn parse_outer_header(data: &[u8]) -> Result<KDBX3Header, DatabaseOpenError> {
     // something is missing
 
     fn get_or_err<T>(v: Option<T>, err: &str) -> Result<T, DatabaseIntegrityError> {
-        v.ok_or_else(|| DatabaseIntegrityError::IncompleteOuterHeader {
-            missing_field: err.into(),
-        })
+        v.ok_or_else(|| DatabaseIntegrityError::IncompleteOuterHeader { missing_field: err.into() })
     }
 
     let outer_cipher = get_or_err(outer_cipher, "Outer Cipher ID")?;
@@ -151,9 +135,7 @@ fn parse_outer_header(data: &[u8]) -> Result<KDBX3Header, DatabaseOpenError> {
     let inner_random_stream_id = get_or_err(inner_random_stream_id, "Inner cipher ID")?;
 
     // KDF type is always AES for KDBX3
-    let kdf_config = KdfConfig::Aes {
-        rounds: transform_rounds,
-    };
+    let kdf_config = KdfConfig::Aes { rounds: transform_rounds };
 
     Ok(KDBX3Header {
         outer_cipher,
@@ -170,20 +152,16 @@ fn parse_outer_header(data: &[u8]) -> Result<KDBX3Header, DatabaseOpenError> {
 }
 
 /// Open, decrypt and parse a KeePass database from a source and a password
-pub(crate) fn parse_kdbx3(
-    data: &[u8],
-    key_elements: &[Vec<u8>],
-) -> Result<Database, DatabaseOpenError> {
+pub(crate) fn parse_kdbx3(data: &[u8], key_elements: &[Vec<u8>]) -> Result<Database, DatabaseOpenError> {
     let (config, mut inner_decryptor, xml) = decrypt_kdbx3(data, key_elements)?;
 
     // Parse XML data blocks
-    let database_content = crate::xml_db::parse::parse(&xml, &mut *inner_decryptor)
-        .map_err(DatabaseIntegrityError::from)?;
+    let database_content = crate::xml_db::parse::parse(&xml, &mut *inner_decryptor).map_err(DatabaseIntegrityError::from)?;
 
     let db = Database {
         config,
         header_attachments: Vec::new(),
-        root: rc_refcell!(database_content.root.group),
+        root: rc_refcell_node!(database_content.root.group),
         deleted_objects: database_content.root.deleted_objects,
         meta: database_content.meta,
     };
@@ -201,8 +179,7 @@ pub(crate) fn decrypt_kdbx3(
     let header = parse_outer_header(data)?;
 
     // Derive stream key for decrypting inner protected values and set up decryption context
-    let stream_key = calculate_sha256(&[header.inner_random_stream_key.as_ref()])
-        .map_err(DatabaseIntegrityError::from)?;
+    let stream_key = calculate_sha256(&[header.inner_random_stream_key.as_ref()]).map_err(DatabaseIntegrityError::from)?;
 
     let inner_decryptor = header
         .inner_random_stream_id
@@ -223,11 +200,9 @@ pub(crate) fn decrypt_kdbx3(
     let compression = config.compression_config.get_compression();
 
     // Rest of file after header is payload
-    let payload_encrypted =
-        data.get(pos..)
-            .ok_or_else(|| DatabaseIntegrityError::IncompleteOuterHeader {
-                missing_field: "Payload".into(),
-            })?;
+    let payload_encrypted = data.get(pos..).ok_or_else(|| DatabaseIntegrityError::IncompleteOuterHeader {
+        missing_field: "Payload".into(),
+    })?;
 
     // derive master key from composite key, transform_seed, transform_rounds and master_seed
     let key_elements: Vec<&[u8]> = key_elements.iter().map(|v| &v[..]).collect();

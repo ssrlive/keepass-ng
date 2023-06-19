@@ -9,11 +9,7 @@ use crate::{
 };
 
 impl DumpXml for Meta {
-    fn dump_xml<E: std::io::Write>(
-        &self,
-        writer: &mut EventWriter<E>,
-        inner_cipher: &mut dyn Cipher,
-    ) -> Result<(), xml::writer::Error> {
+    fn dump_xml<E: std::io::Write>(&self, writer: &mut EventWriter<E>, inner_cipher: &mut dyn Cipher) -> Result<(), xml::writer::Error> {
         writer.write(WriterEvent::start_element("Meta"))?;
 
         if let Some(ref value) = self.generator {
@@ -121,11 +117,7 @@ impl DumpXml for Meta {
 }
 
 impl DumpXml for MemoryProtection {
-    fn dump_xml<E: std::io::Write>(
-        &self,
-        writer: &mut EventWriter<E>,
-        inner_cipher: &mut dyn Cipher,
-    ) -> Result<(), xml::writer::Error> {
+    fn dump_xml<E: std::io::Write>(&self, writer: &mut EventWriter<E>, inner_cipher: &mut dyn Cipher) -> Result<(), xml::writer::Error> {
         writer.write(WriterEvent::start_element("MemoryProtection"))?;
 
         SimpleTag("ProtectTitle", self.protect_title).dump_xml(writer, inner_cipher)?;
@@ -140,11 +132,7 @@ impl DumpXml for MemoryProtection {
 }
 
 impl DumpXml for BinaryAttachments {
-    fn dump_xml<E: std::io::Write>(
-        &self,
-        writer: &mut EventWriter<E>,
-        inner_cipher: &mut dyn Cipher,
-    ) -> Result<(), xml::writer::Error> {
+    fn dump_xml<E: std::io::Write>(&self, writer: &mut EventWriter<E>, inner_cipher: &mut dyn Cipher) -> Result<(), xml::writer::Error> {
         writer.write(WriterEvent::start_element("Binaries"))?;
 
         for bin in &self.binaries {
@@ -157,11 +145,7 @@ impl DumpXml for BinaryAttachments {
 }
 
 impl DumpXml for BinaryAttachment {
-    fn dump_xml<E: std::io::Write>(
-        &self,
-        writer: &mut EventWriter<E>,
-        _inner_cipher: &mut dyn Cipher,
-    ) -> Result<(), xml::writer::Error> {
+    fn dump_xml<E: std::io::Write>(&self, writer: &mut EventWriter<E>, _inner_cipher: &mut dyn Cipher) -> Result<(), xml::writer::Error> {
         let start_tag = WriterEvent::start_element("Binary");
 
         let start_tag = if let Some(ref id) = self.identifier {
@@ -194,11 +178,7 @@ impl DumpXml for BinaryAttachment {
 }
 
 impl DumpXml for CustomIcons {
-    fn dump_xml<E: std::io::Write>(
-        &self,
-        writer: &mut EventWriter<E>,
-        inner_cipher: &mut dyn Cipher,
-    ) -> Result<(), xml::writer::Error> {
+    fn dump_xml<E: std::io::Write>(&self, writer: &mut EventWriter<E>, inner_cipher: &mut dyn Cipher) -> Result<(), xml::writer::Error> {
         writer.write(WriterEvent::start_element("CustomIcons"))?;
 
         for icon in &self.icons {
@@ -211,11 +191,7 @@ impl DumpXml for CustomIcons {
 }
 
 impl DumpXml for Icon {
-    fn dump_xml<E: std::io::Write>(
-        &self,
-        writer: &mut EventWriter<E>,
-        inner_cipher: &mut dyn Cipher,
-    ) -> Result<(), xml::writer::Error> {
+    fn dump_xml<E: std::io::Write>(&self, writer: &mut EventWriter<E>, inner_cipher: &mut dyn Cipher) -> Result<(), xml::writer::Error> {
         writer.write(WriterEvent::start_element("Icon"))?;
 
         SimpleTag("UUID", &self.uuid).dump_xml(writer, inner_cipher)?;

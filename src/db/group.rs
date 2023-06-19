@@ -1,6 +1,6 @@
 use crate::{
     db::{entry::Entry, node::*, CustomData, Times},
-    rc_refcell, Result,
+    rc_refcell_node, Result,
 };
 use uuid::Uuid;
 
@@ -104,7 +104,19 @@ pub struct Group {
 
 impl PartialEq for Group {
     fn eq(&self, other: &Self) -> bool {
-        self.uuid == other.uuid && self.compare_children(other)
+        self.uuid == other.uuid
+            && self.compare_children(other)
+            && self.times == other.times
+            && self.name == other.name
+            && self.notes == other.notes
+            && self.icon_id == other.icon_id
+            && self.custom_icon_uuid == other.custom_icon_uuid
+            && self.is_expanded == other.is_expanded
+            && self.default_autotype_sequence == other.default_autotype_sequence
+            && self.enable_autotype == other.enable_autotype
+            && self.enable_searching == other.enable_searching
+            && self.last_top_visible_entry == other.last_top_visible_entry
+            && self.custom_data == other.custom_data
     }
 }
 
@@ -113,11 +125,15 @@ impl Eq for Group {}
 impl Node for Group {
     fn duplicate(&self) -> NodePtr {
         let mut new_group = self.clone();
-        new_group.children = Vec::with_capacity(self.children.len());
-        for child in self.children.iter() {
-            new_group.children.push(child.borrow().duplicate());
-        }
-        rc_refcell!(new_group)
+        new_group.children = self
+            .children
+            .iter()
+            .map(|child| {
+                let child = child.borrow().duplicate();
+                child
+            })
+            .collect();
+        rc_refcell_node!(new_group)
     }
 
     fn get_uuid(&self) -> Uuid {
@@ -128,24 +144,36 @@ impl Node for Group {
         Some(&self.name)
     }
 
+    fn set_title(&mut self, title: Option<&str>) {
+        self.name = title.unwrap_or_default().to_string();
+    }
+
     fn get_notes(&self) -> Option<&str> {
         self.notes.as_deref()
+    }
+
+    fn set_notes(&mut self, notes: Option<&str>) {
+        self.notes = notes.map(|s| s.to_string());
     }
 
     fn get_icon_id(&self) -> Option<usize> {
         self.icon_id
     }
 
-    fn get_custom_icon_uuid(&self) -> Option<&Uuid> {
-        self.custom_icon_uuid.as_ref()
-    }
-
-    fn get_children(&self) -> Option<Vec<NodePtr>> {
-        Some(self.children.clone())
+    fn get_custom_icon_uuid(&self) -> Option<Uuid> {
+        self.custom_icon_uuid
     }
 
     fn get_times(&self) -> &Times {
         &self.times
+    }
+
+    fn get_time(&self, key: &str) -> Option<&chrono::NaiveDateTime> {
+        self.times.get(key)
+    }
+
+    fn get_expiry_time(&self) -> Option<&chrono::NaiveDateTime> {
+        self.times.get_expiry()
     }
 }
 
@@ -159,28 +187,29 @@ impl Group {
         }
     }
 
+    pub fn get_children(&self) -> Vec<NodePtr> {
+        self.children.clone()
+    }
+
     fn compare_children(&self, other: &Self) -> bool {
         if self.children.len() != other.children.len() {
             return false;
         }
-        self.children
-            .iter()
-            .zip(other.children.iter())
-            .all(|(a, b)| {
-                if let (Some(a), Some(b)) = (
-                    a.borrow().as_any().downcast_ref::<Group>(),
-                    b.borrow().as_any().downcast_ref::<Group>(),
-                ) {
-                    a == b
-                } else if let (Some(a), Some(b)) = (
-                    a.borrow().as_any().downcast_ref::<Entry>(),
-                    b.borrow().as_any().downcast_ref::<Entry>(),
-                ) {
-                    a == b
-                } else {
-                    false
-                }
-            })
+        self.children.iter().zip(other.children.iter()).all(|(a, b)| {
+            if let (Some(a), Some(b)) = (
+                a.borrow().as_any().downcast_ref::<Group>(),
+                b.borrow().as_any().downcast_ref::<Group>(),
+            ) {
+                a == b
+            } else if let (Some(a), Some(b)) = (
+                a.borrow().as_any().downcast_ref::<Entry>(),
+                b.borrow().as_any().downcast_ref::<Entry>(),
+            ) {
+                a == b
+            } else {
+                false
+            }
+        })
     }
 
     pub fn set_name(&mut self, name: &str) {
@@ -213,37 +242,18 @@ impl Group {
             Some(root.clone())
         } else if path.len() == 1 {
             let head = path[0];
-            root.borrow().get_children().and_then(|c| {
-                c.into_iter()
-                    .find(|n| n.borrow().get_title().map(|t| t == head).unwrap_or(false))
-            })
+            group_get_children(root).and_then(|c| c.into_iter().find(|n| n.borrow().get_title().map(|t| t == head).unwrap_or(false)))
         } else {
             let head = path[0];
             let tail = &path[1..path.len()];
-            let head_group = root.borrow().get_children().and_then(|c| {
+            let head_group = group_get_children(root).and_then(|c| {
                 c.into_iter().find(|n| {
-                    n.borrow().as_any().downcast_ref::<Group>().is_some()
-                        && n.borrow().get_title().map(|t| t == head).unwrap_or(false)
+                    n.borrow().as_any().downcast_ref::<Group>().is_some() && n.borrow().get_title().map(|t| t == head).unwrap_or(false)
                 })
             })?;
 
             Self::get(&head_group, tail)
         }
-    }
-
-    /// Get a timestamp field by name
-    ///
-    /// Returning the chrono::NaiveDateTime which does not include timezone
-    /// or UTC offset because KeePass clients typically store timestamps
-    /// relative to the local time on the machine writing the data without
-    /// including accurate UTC offset or timezone information.
-    pub fn get_time(&self, key: &str) -> Option<&chrono::NaiveDateTime> {
-        self.times.get(key)
-    }
-
-    /// Convenience method for getting the time that the group expires
-    pub fn get_expiry_time(&self) -> Option<&chrono::NaiveDateTime> {
-        self.times.get_expiry()
     }
 
     pub fn entries(&self) -> Vec<NodePtr> {
@@ -266,46 +276,19 @@ impl Group {
         response
     }
 
-    fn replace_entry(&mut self, entry: &NodePtr) -> Option<()> {
-        let mut target_entry = None;
+    fn replace_entry(root: &NodePtr, entry: &NodePtr) -> Option<()> {
         let uuid = entry.borrow().get_uuid();
-        for node in self.get_children()?.iter() {
-            let tmp = NodeIterator::new(node)
-                .filter(|n| node_is_entry(n))
-                .find(|n| n.borrow().get_uuid() == uuid);
-            if tmp.is_some() {
-                target_entry = tmp;
-                break;
-            }
-        }
-
-        let entry = entry.borrow();
-        let entry = entry.as_any().downcast_ref::<Entry>()?;
-        target_entry
-            .as_ref()?
-            .borrow_mut()
-            .as_any_mut()
-            .downcast_mut::<Entry>()?
-            .replace_with(entry);
-
-        Some(())
+        let target_entry = search_node_by_uuid_with_specific_type::<Entry>(root, uuid);
+        Entry::entry_replaced_with(target_entry.as_ref()?, entry)
     }
 
     pub(crate) fn has_group(root: &NodePtr, uuid: Uuid) -> bool {
-        root.borrow()
-            .get_children()
-            .map(|c| {
-                c.into_iter()
-                    .any(|n| n.borrow().get_uuid() == uuid && node_is_group(&n))
-            })
+        group_get_children(root)
+            .map(|c| c.into_iter().any(|n| n.borrow().get_uuid() == uuid && node_is_group(&n)))
             .unwrap_or(false)
     }
 
-    pub(crate) fn get_group_mut(
-        root: &NodePtr,
-        location: &NodeLocation,
-        create_groups: bool,
-    ) -> Result<NodePtr> {
+    pub(crate) fn get_group_mut(root: &NodePtr, location: &NodeLocation, create_groups: bool) -> Result<NodePtr> {
         if location.is_empty() {
             return Err("Empty location.".into());
         }
@@ -321,25 +304,25 @@ impl Group {
         let mut next_location_uuid = next_location.uuid;
 
         if !Self::has_group(root, next_location_uuid) && create_groups {
-            let mut current_group: Option<Group> = None;
+            let mut current_group: Option<NodePtr> = None;
             for i in (0..(remaining_location.len())).rev() {
-                let mut new_group = Group::new(&remaining_location[i].name);
+                let new_group = rc_refcell_node!(Group::new(&remaining_location[i].name));
                 if let Some(current_group) = current_group {
-                    new_group.add_child(rc_refcell!(current_group));
+                    group_add_child(&new_group, current_group)?;
                 }
                 current_group = Some(new_group);
             }
 
             if let Some(current_group) = current_group {
-                next_location_uuid = current_group.uuid;
-                node_add_child(root, rc_refcell!(current_group)).ok_or("Add child failed")?;
+                next_location_uuid = current_group.borrow().get_uuid();
+                group_add_child(root, current_group)?;
             } else {
                 return Err("Could not create group.".into());
             }
         }
 
         let mut target = None;
-        for node in root.borrow().get_children().ok_or("No children.")? {
+        for node in group_get_children(root).ok_or("No children.")? {
             if node_is_group(&node) && node.borrow().get_uuid() == next_location_uuid {
                 target = Some(node);
                 break;
@@ -352,21 +335,13 @@ impl Group {
         Err("The group was not found.".into())
     }
 
-    pub(crate) fn insert_entry(
-        root: &NodePtr,
-        entry: NodePtr,
-        location: &NodeLocation,
-    ) -> Result<()> {
+    pub(crate) fn insert_entry(root: &NodePtr, entry: NodePtr, location: &NodeLocation) -> Result<()> {
         let group = Self::get_group_mut(root, location, true)?;
-        node_add_child(&group, entry).ok_or("Could not add entry.")?;
+        group_add_child(&group, entry)?;
         Ok(())
     }
 
-    pub(crate) fn remove_entry(
-        root: &NodePtr,
-        uuid: Uuid,
-        location: &NodeLocation,
-    ) -> Result<NodePtr> {
+    pub(crate) fn remove_entry(root: &NodePtr, uuid: Uuid, location: &NodeLocation) -> Result<NodePtr> {
         let group = Self::get_group_mut(root, location, false)?;
 
         let mut removed_entry: Option<NodePtr> = None;
@@ -376,27 +351,25 @@ impl Group {
             uuid,
             group.borrow().get_title().unwrap_or("No title")
         );
-        for node in group.borrow().get_children().unwrap_or(vec![]) {
+        for node in group_get_children(&group).unwrap_or(vec![]) {
             if node_is_entry(&node) {
                 let node_uuid = node.borrow().get_uuid();
                 println!("Saw entry {}", node_uuid);
                 if node_uuid != uuid {
-                    new_nodes.push(node.clone());
+                    new_nodes.push(node.borrow().duplicate());
                     continue;
                 }
-                removed_entry = Some(node.clone());
+                removed_entry = Some(node.borrow().duplicate());
             } else if node_is_group(&node) {
-                new_nodes.push(node.clone());
+                new_nodes.push(node.borrow().duplicate());
             }
         }
 
         if let Some(entry) = removed_entry {
-            group
-                .borrow_mut()
-                .as_any_mut()
-                .downcast_mut::<Group>()
-                .ok_or("Could not downcast group.")?
-                .children = new_nodes;
+            group_reset_children(&group, vec![])?;
+            for node in new_nodes {
+                group_add_child(&group, node)?;
+            }
             Ok(entry)
         } else {
             let title = group.borrow().get_title().unwrap_or("No title").to_string();
@@ -421,23 +394,7 @@ impl Group {
         None
     }
 
-    pub fn find_entry_by_uuid(&self, id: Uuid) -> Option<NodePtr> {
-        self.get_children().and_then(|children| {
-            children.iter().find_map(|node| {
-                if let Some(g) = node.borrow().as_any().downcast_ref::<Group>() {
-                    return g.find_entry_by_uuid(id);
-                }
-                if let Some(e) = node.borrow().as_any().downcast_ref::<Entry>() {
-                    if e.uuid == id {
-                        return Some(node.clone());
-                    }
-                }
-                None
-            })
-        })
-    }
-
-    pub(crate) fn add_entry(&mut self, entry: NodePtr, location: &NodeLocation) {
+    pub(crate) fn add_entry(parent: &NodePtr, entry: NodePtr, location: &NodeLocation) -> crate::Result<()> {
         if location.is_empty() {
             panic!("TODO handle this with a Response.");
         }
@@ -446,34 +403,29 @@ impl Group {
         remaining_location.remove(0);
 
         if remaining_location.is_empty() {
-            self.add_child(entry);
-            return;
+            group_add_child(parent, entry)?;
+            return Ok(());
         }
 
         let next_location = &remaining_location[0];
 
-        println!(
-            "Searching for group {} {:?}",
-            next_location.name, next_location.uuid
-        );
-        for node in &mut self.children {
-            if let Some(g) = node.borrow_mut().as_any_mut().downcast_mut::<Group>() {
-                if g.uuid != next_location.uuid {
+        println!("Searching for group {} {:?}", next_location.name, next_location.uuid);
+        for node in group_get_children(parent).unwrap_or(vec![]) {
+            if node_is_group(&node) {
+                if node.borrow().get_uuid() != next_location.uuid {
                     continue;
                 }
-                g.add_entry(entry, &remaining_location);
-                return;
+                Self::add_entry(&node, entry, &remaining_location)?;
+                return Ok(());
             }
         }
 
         // The group was not found, so we create it.
-        let mut new_group = Group {
-            name: next_location.name.clone(),
-            uuid: next_location.uuid,
-            ..Group::default()
-        };
-        new_group.add_entry(entry, &remaining_location);
-        self.add_child(rc_refcell!(new_group));
+        let new_group = rc_refcell_node!(Group::new(&next_location.name));
+        new_group.borrow_mut().as_any_mut().downcast_mut::<Group>().unwrap().uuid = next_location.uuid;
+        Self::add_entry(&new_group, entry, &remaining_location)?;
+        group_add_child(parent, new_group)?;
+        Ok(())
     }
 
     /// Merge this group with another group
@@ -490,12 +442,7 @@ impl Group {
         // Handle entry relocation.
         for (entry, entry_location) in other_entries.iter() {
             let entry_uuid = entry.borrow().get_uuid();
-            let the_entry = root
-                .borrow()
-                .as_any()
-                .downcast_ref::<Group>()
-                .ok_or("Could not downcast root to group.")?
-                .find_entry_by_uuid(entry_uuid);
+            let the_entry = search_node_by_uuid_with_specific_type::<Entry>(root, entry_uuid);
 
             let existing_entry = match the_entry {
                 Some(e) => e,
@@ -514,113 +461,78 @@ impl Group {
                 None => continue,
             };
 
-            let source_location_changed_time =
-                match entry.borrow().get_times().get_location_changed() {
-                    Some(t) => *t,
-                    None => {
-                        log.warnings.push(format!(
-                            "Entry {} did not have a location updated timestamp",
-                            entry_uuid
-                        ));
-                        Times::epoch()
-                    }
-                };
-            let destination_location_changed =
-                match existing_entry.borrow().get_times().get_location_changed() {
-                    Some(t) => *t,
-                    None => {
-                        log.warnings.push(format!(
-                            "Entry {} did not have a location updated timestamp",
-                            entry_uuid
-                        ));
-                        Times::now()
-                    }
-                };
+            let source_location_changed_time = match entry.borrow().get_times().get_location_changed() {
+                Some(t) => *t,
+                None => {
+                    log.warnings
+                        .push(format!("Entry {} did not have a location updated timestamp", entry_uuid));
+                    Times::epoch()
+                }
+            };
+            let destination_location_changed = match existing_entry.borrow().get_times().get_location_changed() {
+                Some(t) => *t,
+                None => {
+                    log.warnings
+                        .push(format!("Entry {} did not have a location updated timestamp", entry_uuid));
+                    Times::now()
+                }
+            };
             if source_location_changed_time > destination_location_changed {
                 log.events.push(MergeEvent {
                     event_type: MergeEventType::EntryLocationUpdated,
                     node_uuid: entry_uuid,
                 });
                 let _ = Group::remove_entry(root, entry_uuid, &existing_entry_location)?;
-                Group::insert_entry(root, entry.clone(), entry_location)?;
+                Group::insert_entry(root, entry.borrow().duplicate(), entry_location)?;
             }
         }
 
         // Handle entry updates
         for (entry, entry_location) in other_entries.iter() {
             let entry_uuid = entry.borrow().get_uuid();
-            let the_entry = root
-                .borrow()
-                .as_any()
-                .downcast_ref::<Group>()
-                .ok_or("Could not downcast root to group.")?
-                .find_entry_by_uuid(entry_uuid);
+            let the_entry = search_node_by_uuid_with_specific_type::<Entry>(root, entry_uuid);
             if let Some(existing_entry) = the_entry {
-                if is_nodes_equal(&existing_entry, entry) {
+                if node_is_equals_to(&existing_entry, entry) {
                     continue;
                 }
 
-                let source_last_modification =
-                    match entry.borrow().get_times().get_last_modification() {
-                        Some(t) => *t,
-                        None => {
-                            log.warnings.push(format!(
-                                "Entry {} did not have a last modification timestamp",
-                                entry_uuid
-                            ));
-                            Times::epoch()
-                        }
-                    };
-                let destination_last_modification =
-                    match existing_entry.borrow().get_times().get_last_modification() {
-                        Some(t) => *t,
-                        None => {
-                            log.warnings.push(format!(
-                                "Entry {} did not have a last modification timestamp",
-                                entry_uuid
-                            ));
-                            Times::now()
-                        }
-                    };
+                let source_last_modification = match entry.borrow().get_times().get_last_modification() {
+                    Some(t) => *t,
+                    None => {
+                        log.warnings
+                            .push(format!("Entry {} did not have a last modification timestamp", entry_uuid));
+                        Times::epoch()
+                    }
+                };
+                let destination_last_modification = match existing_entry.borrow().get_times().get_last_modification() {
+                    Some(t) => *t,
+                    None => {
+                        log.warnings
+                            .push(format!("Entry {} did not have a last modification timestamp", entry_uuid));
+                        Times::now()
+                    }
+                };
 
                 if destination_last_modification == source_last_modification {
-                    if !is_nodes_equal(&existing_entry, entry) {
+                    if !node_is_equals_to(&existing_entry, entry) {
                         // This should never happen.
                         // This means that an entry was updated without updating the last modification
                         // timestamp.
-                        return Err(
-                            "Entries have the same modification time but are not the same!".into(),
-                        );
+                        return Err("Entries have the same modification time but are not the same!".into());
                     }
                     continue;
                 }
 
-                let (merged_entry, entry_merge_log) =
-                    if destination_last_modification > source_last_modification {
-                        existing_entry
-                            .borrow_mut()
-                            .as_any_mut()
-                            .downcast_mut::<Entry>()
-                            .ok_or("Could not downcast existing entry to Entry.")?
-                            .merge(entry)?
-                    } else {
-                        entry
-                            .clone()
-                            .borrow_mut()
-                            .as_any_mut()
-                            .downcast_mut::<Entry>()
-                            .ok_or("Could not downcast entry to Entry.")?
-                            .merge(&existing_entry)?
-                    };
-                if is_nodes_equal(&existing_entry, &merged_entry) {
+                let (merged_entry, entry_merge_log) = if destination_last_modification > source_last_modification {
+                    Entry::merge(&existing_entry, entry)?
+                } else {
+                    Entry::merge(entry, &existing_entry)?
+                };
+                if node_is_equals_to(&existing_entry, &merged_entry) {
                     continue;
                 }
 
-                root.borrow_mut()
-                    .as_any_mut()
-                    .downcast_mut::<Group>()
-                    .unwrap()
-                    .replace_entry(&merged_entry);
+                Group::replace_entry(root, &merged_entry).ok_or("Could not replace entry")?;
 
                 log.events.push(MergeEvent {
                     event_type: MergeEventType::EntryUpdated,
@@ -628,11 +540,7 @@ impl Group {
                 });
                 log = log.merge_with(&entry_merge_log);
             } else {
-                root.borrow_mut()
-                    .as_any_mut()
-                    .downcast_mut::<Group>()
-                    .ok_or("Could not downcast root to group.")?
-                    .add_entry(entry.clone(), entry_location);
+                Self::add_entry(root, entry.borrow().duplicate(), entry_location)?;
                 // TODO should we update the time info for the entry?
                 log.events.push(MergeEvent {
                     event_type: MergeEventType::EntryCreated,
@@ -647,10 +555,7 @@ impl Group {
 
     // Recursively get all the entries in the group, along with their
     // location.
-    pub(crate) fn get_all_entries(
-        &self,
-        current_location: &NodeLocation,
-    ) -> Vec<(NodePtr, NodeLocation)> {
+    pub(crate) fn get_all_entries(&self, current_location: &NodeLocation) -> Vec<(NodePtr, NodeLocation)> {
         let mut response: Vec<(NodePtr, NodeLocation)> = vec![];
         let mut new_location = current_location.clone();
         new_location.push(GroupRef::new(self.uuid, &self.name));
@@ -669,34 +574,31 @@ impl Group {
 
 #[cfg(test)]
 mod group_tests {
-    use crate::{db::NodePtr, rc_refcell};
-
     use super::{Entry, Group, GroupRef, Node, Times};
+    use crate::{
+        db::{entry::entry_set_field_and_commit, *},
+        rc_refcell_node,
+    };
     use std::{thread, time};
 
     #[test]
     fn test_merge_idempotence() {
-        let mut destination_group = Group::new("group1");
-        let mut entry = Entry::new();
-        let _entry_uuid = entry.uuid.clone();
-        entry.set_field_and_commit("Title", "entry1");
-        destination_group.add_child(rc_refcell!(entry));
-
-        let mut destination_group: NodePtr = rc_refcell!(destination_group);
+        let destination_group = rc_refcell_node!(Group::new("group1"));
+        let entry = rc_refcell_node!(Entry::new());
+        let _entry_uuid = entry.borrow().get_uuid();
+        entry_set_field_and_commit(&entry, "Title", "entry1").unwrap();
+        group_add_child(&destination_group, entry).unwrap();
 
         let source_group = destination_group.borrow().duplicate();
 
         let sg2: NodePtr = source_group.clone();
-        let merge_result = Group::merge(&mut destination_group, &sg2).unwrap();
+        let merge_result = Group::merge(&destination_group, &sg2).unwrap();
         assert_eq!(merge_result.warnings.len(), 0);
         assert_eq!(merge_result.events.len(), 0);
 
         {
             let mut destination_group = destination_group.borrow_mut();
-            let destination_group = destination_group
-                .as_any_mut()
-                .downcast_mut::<Group>()
-                .unwrap();
+            let destination_group = destination_group.as_any_mut().downcast_mut::<Group>().unwrap();
             assert_eq!(destination_group.children.len(), 1);
             // The 2 groups should be exactly the same after merging, since
             // nothing was performed during the merge.
@@ -704,71 +606,45 @@ mod group_tests {
             let source_group = source_group.as_any().downcast_ref::<Group>().unwrap();
             assert_eq!(destination_group, source_group);
 
-            let entry = &mut destination_group.entries()[0];
-            let mut entry = entry.borrow_mut();
-            if let Some(entry) = entry.as_any_mut().downcast_mut::<Entry>() {
-                entry.set_field_and_commit("Title", "entry1_updated");
-            }
+            let entry = destination_group.entries()[0].clone();
+            entry_set_field_and_commit(&entry, "Title", "entry1_updated").unwrap();
         }
-        let merge_result = Group::merge(&mut destination_group, &sg2).unwrap();
+        let merge_result = Group::merge(&destination_group, &sg2).unwrap();
         assert_eq!(merge_result.warnings.len(), 0);
         assert_eq!(merge_result.events.len(), 0);
 
         let destination_group_just_after_merge = destination_group.borrow().duplicate();
-        let merge_result = Group::merge(&mut destination_group, &sg2).unwrap();
+        let merge_result = Group::merge(&destination_group, &sg2).unwrap();
         assert_eq!(merge_result.warnings.len(), 0);
         assert_eq!(merge_result.events.len(), 0);
 
         // Merging twice in a row, even if the first merge updated the destination group,
         // should not create more changes.
-        {
-            let destination_group_just_after_merge = destination_group_just_after_merge.borrow();
-            let destination_group_just_after_merge = destination_group_just_after_merge
-                .as_any()
-                .downcast_ref::<Group>()
-                .unwrap();
-            let destination_group = destination_group.borrow();
-            let destination_group = destination_group.as_any().downcast_ref::<Group>().unwrap();
-            assert_eq!(destination_group_just_after_merge, destination_group);
-        }
+        assert!(node_is_equals_to(&destination_group_just_after_merge, &destination_group));
     }
 
     #[test]
     fn test_merge_add_new_entry() {
-        let destination_group = Group::new("group1");
-        let mut source_group = Group::new("group1");
+        let destination_group = rc_refcell_node!(Group::new("group1"));
+        let source_group = rc_refcell_node!(Group::new("group1"));
 
-        let mut entry = Entry::new();
-        let entry_uuid = entry.uuid.clone();
-        entry.set_field_and_commit("Title", "entry1");
-        source_group.add_child(rc_refcell!(entry));
+        let entry = rc_refcell_node!(Entry::new());
+        let entry_uuid = entry.borrow().get_uuid();
+        entry_set_field_and_commit(&entry, "Title", "entry1").unwrap();
+        group_add_child(&source_group, entry).unwrap();
 
-        let mut destination_group: NodePtr = rc_refcell!(destination_group);
-        let source_group: NodePtr = rc_refcell!(source_group);
-        let merge_result = Group::merge(&mut destination_group, &source_group).unwrap();
+        let merge_result = Group::merge(&destination_group, &source_group).unwrap();
         assert_eq!(merge_result.warnings.len(), 0);
         assert_eq!(merge_result.events.len(), 1);
         {
-            let destination_group = destination_group.borrow();
-            let destination_group = destination_group.as_any().downcast_ref::<Group>().unwrap();
-            assert_eq!(destination_group.children.len(), 1);
-            let new_entry = destination_group.find_entry_by_uuid(entry_uuid);
+            assert_eq!(group_get_children(&destination_group).unwrap().len(), 1);
+            let new_entry = search_node_by_uuid_with_specific_type::<Entry>(&destination_group, entry_uuid);
             assert!(new_entry.is_some());
-            assert_eq!(
-                new_entry
-                    .unwrap()
-                    .borrow()
-                    .as_any()
-                    .downcast_ref::<Entry>()
-                    .unwrap()
-                    .get_title()
-                    .unwrap(),
-                "entry1".to_string()
-            );
+            assert_eq!(new_entry.unwrap().borrow().get_title().unwrap(), "entry1");
         }
 
         // Merging the same group again should not create a duplicate entry.
-        let merge_result = Group::merge(&mut destination_group, &source_group).unwrap();
+        let merge_result = Group::merge(&destination_group, &source_group).unwrap();
         assert_eq!(merge_result.warnings.len(), 0);
         assert_eq!(merge_result.events.len(), 0);
         {
@@ -780,30 +656,18 @@ mod group_tests {
 
     #[test]
     fn test_merge_add_new_non_root_entry() {
-        let mut destination_group = Group::new("group1");
-        let destination_sub_group = Group::new("subgroup1");
-        destination_group.add_child(rc_refcell!(destination_sub_group));
+        let destination_group = rc_refcell_node!(Group::new("group1"));
+        let destination_sub_group = rc_refcell_node!(Group::new("subgroup1"));
 
-        let source_group = destination_group.duplicate();
-        let source_sub_group = source_group
-            .borrow()
-            .as_any()
-            .downcast_ref::<Group>()
-            .unwrap()
-            .groups()[0]
-            .clone();
+        group_add_child(&destination_group, destination_sub_group).unwrap();
 
-        let mut entry = Entry::new();
-        let _entry_uuid = entry.uuid;
-        entry.set_field_and_commit("Title", "entry1");
-        source_sub_group
-            .borrow_mut()
-            .as_any_mut()
-            .downcast_mut::<Group>()
-            .unwrap()
-            .add_child(rc_refcell!(entry));
+        let source_group = destination_group.borrow().duplicate();
+        let source_sub_group = source_group.borrow().as_any().downcast_ref::<Group>().unwrap().groups()[0].clone();
 
-        let destination_group: NodePtr = rc_refcell!(destination_group);
+        let entry: NodePtr = rc_refcell_node!(Entry::new());
+        let _entry_uuid = entry.borrow().get_uuid();
+        entry_set_field_and_commit(&entry, "Title", "entry1").unwrap();
+        group_add_child(&source_sub_group, entry).unwrap();
 
         let merge_result = Group::merge(&destination_group, &source_group).unwrap();
         assert_eq!(merge_result.warnings.len(), 0);
@@ -822,20 +686,18 @@ mod group_tests {
 
     #[test]
     fn test_merge_add_new_entry_new_group() {
-        let destination_group = Group::new("group1");
-        let mut _destination_sub_group = Group::new("subgroup1");
-        let mut source_group = Group::new("group1");
-        let mut source_sub_group = Group::new("subgroup1");
+        let destination_group = rc_refcell_node!(Group::new("group1"));
+        let _destination_sub_group = rc_refcell_node!(Group::new("subgroup1"));
+        let source_group = rc_refcell_node!(Group::new("group1"));
+        let source_sub_group = rc_refcell_node!(Group::new("subgroup1"));
 
-        let mut entry = Entry::new();
-        let _entry_uuid = entry.uuid.clone();
-        entry.set_field_and_commit("Title", "entry1");
-        source_sub_group.children.push(rc_refcell!(entry));
-        source_group.children.push(rc_refcell!(source_sub_group));
+        let entry = rc_refcell_node!(Entry::new());
+        let _entry_uuid = entry.borrow().get_uuid();
+        entry_set_field_and_commit(&entry, "Title", "entry1").unwrap();
+        group_add_child(&source_sub_group, entry).unwrap();
+        group_add_child(&source_group, source_sub_group).unwrap();
 
-        let mut destination_group: NodePtr = rc_refcell!(destination_group);
-        let source_group: NodePtr = rc_refcell!(source_group);
-        let merge_result = Group::merge(&mut destination_group, &source_group).unwrap();
+        let merge_result = Group::merge(&destination_group, &source_group).unwrap();
         assert_eq!(merge_result.warnings.len(), 0);
         assert_eq!(merge_result.events.len(), 1);
 
@@ -851,128 +713,127 @@ mod group_tests {
 
     #[test]
     fn test_merge_entry_relocation_existing_group() {
-        let mut entry = Entry::new();
-        let entry_uuid = entry.uuid.clone();
-        entry.set_field_and_commit("Title", "entry1");
-        let mut destination_group = Group::new("group1");
-        let mut destination_sub_group1 = Group::new("subgroup1");
-        let destination_sub_group2 = Group::new("subgroup2");
-        destination_sub_group1.add_child(rc_refcell!(entry.clone()));
-        destination_group.add_child(rc_refcell!(destination_sub_group1.clone()));
-        destination_group.add_child(rc_refcell!(destination_sub_group2.clone()));
+        let entry = rc_refcell_node!(Entry::new());
+        let entry_uuid = entry.borrow().get_uuid();
+        entry_set_field_and_commit(&entry, "Title", "entry1").unwrap();
 
-        let destination_group_uuid = destination_group.uuid;
-        let destination_sub_group1_uuid = destination_sub_group1.uuid;
+        let destination_group = rc_refcell_node!(Group::new("group1"));
+        let destination_sub_group1 = rc_refcell_node!(Group::new("subgroup1"));
+        let destination_sub_group2 = rc_refcell_node!(Group::new("subgroup2"));
+        let destination_sub_group2_uuid = destination_sub_group2.borrow().get_uuid();
+        group_add_child(&destination_sub_group1, entry).unwrap();
+        group_add_child(&destination_group, destination_sub_group1.borrow().duplicate()).unwrap();
+        group_add_child(&destination_group, destination_sub_group2.borrow().duplicate()).unwrap();
 
-        let mut destination_group: NodePtr = rc_refcell!(destination_group);
-        let mut source_group = destination_group.borrow().duplicate();
-
-        assert_eq!(
+        let source_group = destination_group.borrow().duplicate();
+        assert!(
             source_group
                 .borrow()
                 .as_any()
                 .downcast_ref::<Group>()
                 .unwrap()
                 .get_all_entries(&vec![])
-                .len(),
-            1
+                .len()
+                == 1
         );
+
+        let destination_group_uuid = destination_group.borrow().get_uuid();
+        let destination_sub_group1_uuid = destination_sub_group1.borrow().get_uuid();
 
         let location = vec![
             GroupRef::new(destination_group_uuid, ""),
             GroupRef::new(destination_sub_group1_uuid, ""),
         ];
         let removed_entry = Group::remove_entry(&source_group, entry_uuid, &location).unwrap();
-        {
-            removed_entry
-                .borrow_mut()
-                .as_any_mut()
-                .downcast_mut::<Entry>()
-                .unwrap()
-                .times
-                .set_location_changed(Times::now());
-        }
-        assert_eq!(
+
+        removed_entry
+            .borrow_mut()
+            .as_any_mut()
+            .downcast_mut::<Entry>()
+            .unwrap()
+            .times
+            .set_location_changed(Times::now());
+        assert!(
             source_group
                 .borrow()
                 .as_any()
                 .downcast_ref::<Group>()
                 .unwrap()
                 .get_all_entries(&vec![])
-                .len(),
-            0
+                .len()
+                == 0
         );
-
         // FIXME we should not have to update the history here. We should
         // have a better compare function in the merge function instead.
-        {
-            removed_entry
-                .borrow_mut()
-                .as_any_mut()
-                .downcast_mut::<Entry>()
-                .unwrap()
-                .update_history();
-        }
+        removed_entry
+            .borrow_mut()
+            .as_any_mut()
+            .downcast_mut::<Entry>()
+            .unwrap()
+            .update_history();
 
         let location = vec![
             GroupRef::new(destination_group_uuid, ""),
-            GroupRef::new(destination_sub_group2.uuid.clone(), ""),
+            GroupRef::new(destination_sub_group2_uuid, ""),
         ];
-        Group::insert_entry(&mut source_group, removed_entry, &location).unwrap();
 
-        // let source_group: NodePtr = rc_refcell!(source_group.clone());
-        let merge_result = Group::merge(&mut destination_group, &source_group).unwrap();
-        assert_eq!(merge_result.warnings.len(), 0);
-        assert_eq!(merge_result.events.len(), 1);
-
-        {
-            let destination_group = destination_group.borrow();
-            let destination_group = destination_group.as_any().downcast_ref::<Group>().unwrap();
-            let destination_entries = destination_group.get_all_entries(&vec![]);
-            assert_eq!(destination_entries.len(), 1);
-            let (_, moved_entry_location) = destination_entries.get(0).unwrap();
-            assert_eq!(moved_entry_location.len(), 2);
-            assert_eq!(moved_entry_location[0].name, "group1".to_string());
-            assert_eq!(moved_entry_location[1].name, "subgroup2".to_string());
-        }
-    }
-
-    #[test]
-    fn test_merge_entry_relocation_new_group() {
-        let (destination_group, source_group) = {
-            let mut entry = Entry::new();
-            let _entry_uuid = entry.uuid.clone();
-            entry.set_field_and_commit("Title", "entry1");
-            let mut destination_group = Group::new("group1");
-            let mut destination_sub_group = Group::new("subgroup1");
-            destination_sub_group.add_child(rc_refcell!(entry.clone()));
-            destination_group.add_child(rc_refcell!(destination_sub_group));
-
-            let source_group = destination_group.duplicate();
-            let mut source_group = source_group.borrow_mut();
-            let source_group = source_group.as_any_mut().downcast_mut::<Group>().unwrap();
-            let mut source_sub_group = Group::new("subgroup2");
-            thread::sleep(time::Duration::from_secs(1));
-            entry.times.set_location_changed(Times::now());
-            // FIXME we should not have to update the history here. We should
-            // have a better compare function in the merge function instead.
-            entry.update_history();
-            source_sub_group.add_child(rc_refcell!(entry.clone()));
-            source_group.children = vec![];
-            source_group.add_child(rc_refcell!(source_sub_group));
-            let destination_group: NodePtr = rc_refcell!(destination_group);
-            let source_group: NodePtr = rc_refcell!(source_group.clone());
-            (destination_group, source_group)
-        };
+        Group::insert_entry(&source_group, removed_entry, &location).unwrap();
 
         let merge_result = Group::merge(&destination_group, &source_group).unwrap();
         assert_eq!(merge_result.warnings.len(), 0);
         assert_eq!(merge_result.events.len(), 1);
 
-        let destination_group = destination_group.borrow();
-        let destination_group = destination_group.as_any().downcast_ref::<Group>().unwrap();
+        let destination_entries = destination_group
+            .borrow()
+            .as_any()
+            .downcast_ref::<Group>()
+            .unwrap()
+            .get_all_entries(&vec![]);
+        assert_eq!(destination_entries.len(), 1);
+        let (_moved_entry, moved_entry_location) = destination_entries.get(0).unwrap();
+        assert_eq!(moved_entry_location.len(), 2);
+        assert_eq!(moved_entry_location[0].name, "group1".to_string());
+        assert_eq!(moved_entry_location[1].name, "subgroup2".to_string());
+    }
 
-        let destination_entries = destination_group.get_all_entries(&vec![]);
+    #[test]
+    fn test_merge_entry_relocation_new_group() {
+        let entry = rc_refcell_node!(Entry::new());
+        let _entry_uuid = entry.borrow().get_uuid();
+        entry_set_field_and_commit(&entry, "Title", "entry1").unwrap();
+
+        let destination_group = rc_refcell_node!(Group::new("group1"));
+        let destination_sub_group = rc_refcell_node!(Group::new("subgroup1"));
+        group_add_child(&destination_sub_group, entry.borrow().duplicate()).unwrap();
+        group_add_child(&destination_group, destination_sub_group).unwrap();
+
+        let source_group = destination_group.borrow().duplicate();
+        let source_sub_group = rc_refcell_node!(Group::new("subgroup2"));
+        thread::sleep(time::Duration::from_secs(1));
+        entry
+            .borrow_mut()
+            .as_any_mut()
+            .downcast_mut::<Entry>()
+            .unwrap()
+            .times
+            .set_location_changed(Times::now());
+        // FIXME we should not have to update the history here. We should
+        // have a better compare function in the merge function instead.
+        entry.borrow_mut().as_any_mut().downcast_mut::<Entry>().unwrap().update_history();
+        group_add_child(&source_sub_group, entry).unwrap();
+        group_reset_children(&source_group, vec![]).unwrap();
+        group_add_child(&source_group, source_sub_group).unwrap();
+
+        let merge_result = Group::merge(&destination_group, &source_group).unwrap();
+        assert_eq!(merge_result.warnings.len(), 0);
+        assert_eq!(merge_result.events.len(), 1);
+
+        let destination_entries = destination_group
+            .borrow()
+            .as_any()
+            .downcast_ref::<Group>()
+            .unwrap()
+            .get_all_entries(&vec![]);
         assert_eq!(destination_entries.len(), 1);
         let (_, created_entry_location) = destination_entries.get(0).unwrap();
         assert_eq!(created_entry_location.len(), 2);
@@ -982,143 +843,78 @@ mod group_tests {
 
     #[test]
     fn test_update_in_destination_no_conflict() {
-        let mut destination_group = Group::new("group1");
+        let destination_group = rc_refcell_node!(Group::new("group1"));
 
-        let mut entry = Entry::new();
-        let _entry_uuid = entry.uuid.clone();
-        entry.set_field_and_commit("Title", "entry1");
+        let entry = rc_refcell_node!(Entry::new());
+        let _entry_uuid = entry.borrow().get_uuid();
+        entry_set_field_and_commit(&entry, "Title", "entry1").unwrap();
 
-        destination_group.add_child(rc_refcell!(entry));
+        group_add_child(&destination_group, entry).unwrap();
 
-        let source_group = destination_group.duplicate();
+        let source_group = destination_group.borrow().duplicate();
 
-        let entry = &mut destination_group.entries()[0];
-        if let Some(entry) = entry.borrow_mut().as_any_mut().downcast_mut::<Entry>() {
-            entry.set_field_and_commit("Title", "entry1_updated");
-        }
+        let entry = destination_group.borrow().as_any().downcast_ref::<Group>().unwrap().entries()[0].clone();
+        entry_set_field_and_commit(&entry, "Title", "entry1_updated").unwrap();
 
-        let mut destination_group: NodePtr = rc_refcell!(destination_group);
-
-        let merge_result = Group::merge(&mut destination_group, &source_group).unwrap();
+        let merge_result = Group::merge(&destination_group, &source_group).unwrap();
         assert_eq!(merge_result.warnings.len(), 0);
         assert_eq!(merge_result.events.len(), 0);
 
-        let destination_group = destination_group.borrow();
-        let destination_group = destination_group.as_any().downcast_ref::<Group>().unwrap();
-
-        let entry = &destination_group.entries()[0];
-        let entry = entry.borrow();
-        let entry = entry.as_any().downcast_ref::<Entry>().unwrap();
-        assert_eq!(entry.get_title(), Some("entry1_updated"));
+        let entry = destination_group.borrow().as_any().downcast_ref::<Group>().unwrap().entries()[0].clone();
+        assert_eq!(entry.borrow().get_title(), Some("entry1_updated"));
     }
 
     #[test]
     fn test_update_in_source_no_conflict() {
-        let mut destination_group = Group::new("group1");
+        let destination_group = rc_refcell_node!(Group::new("group1"));
 
-        let mut entry = Entry::new();
-        let _entry_uuid = entry.uuid.clone();
-        entry.set_field_and_commit("Title", "entry1");
-        destination_group.add_child(rc_refcell!(entry));
+        let entry = rc_refcell_node!(Entry::new());
+        let _entry_uuid = entry.borrow().get_uuid();
+        entry_set_field_and_commit(&entry, "Title", "entry1").unwrap();
+        group_add_child(&destination_group, entry).unwrap();
 
-        let source_group = destination_group.duplicate();
+        let source_group = destination_group.borrow().duplicate();
 
-        let entry = source_group
-            .borrow()
-            .as_any()
-            .downcast_ref::<Group>()
-            .unwrap()
-            .entries()[0]
-            .clone();
-        entry
-            .borrow_mut()
-            .as_any_mut()
-            .downcast_mut::<Entry>()
-            .unwrap()
-            .set_field_and_commit("Title", "entry1_updated");
-
-        let destination_group: NodePtr = rc_refcell!(destination_group);
+        let entry = source_group.borrow().as_any().downcast_ref::<Group>().unwrap().entries()[0].clone();
+        entry_set_field_and_commit(&entry, "Title", "entry1_updated").unwrap();
 
         let merge_result = Group::merge(&destination_group, &source_group).unwrap();
         assert_eq!(merge_result.warnings.len(), 0);
         assert_eq!(merge_result.events.len(), 1);
 
-        let entry = destination_group
-            .borrow()
-            .as_any()
-            .downcast_ref::<Group>()
-            .unwrap()
-            .entries()[0]
-            .clone();
+        let entry = destination_group.borrow().as_any().downcast_ref::<Group>().unwrap().entries()[0].clone();
         assert_eq!(entry.borrow().get_title(), Some("entry1_updated"));
     }
 
     #[test]
     fn test_update_with_conflicts() {
-        let mut destination_group = Group::new("group1");
+        let destination_group = rc_refcell_node!(Group::new("group1"));
 
-        let mut entry = Entry::new();
-        let _entry_uuid = entry.uuid;
-        entry.set_field_and_commit("Title", "entry1");
-        destination_group.add_child(rc_refcell!(entry));
+        let entry = rc_refcell_node!(Entry::new());
+        let _entry_uuid = entry.borrow().get_uuid();
+        entry_set_field_and_commit(&entry, "Title", "entry1").unwrap();
+        group_add_child(&destination_group, entry).unwrap();
 
-        let source_group = destination_group.duplicate();
+        let source_group = destination_group.borrow().duplicate();
 
-        let entry = destination_group.entries()[0].clone();
-        entry
-            .borrow_mut()
-            .as_any_mut()
-            .downcast_mut::<Entry>()
-            .unwrap()
-            .set_field_and_commit("Title", "entry1_updated_from_destination");
+        let entry = destination_group.borrow().as_any().downcast_ref::<Group>().unwrap().entries()[0].clone();
+        entry_set_field_and_commit(&entry, "Title", "entry1_updated_from_destination").unwrap();
 
-        let entry = source_group
-            .borrow()
-            .as_any()
-            .downcast_ref::<Group>()
-            .unwrap()
-            .entries()[0]
-            .clone();
-        entry
-            .borrow_mut()
-            .as_any_mut()
-            .downcast_mut::<Entry>()
-            .unwrap()
-            .set_field_and_commit("Title", "entry1_updated_from_source");
-
-        let destination_group: NodePtr = rc_refcell!(destination_group);
+        let entry = source_group.borrow().as_any().downcast_ref::<Group>().unwrap().entries()[0].clone();
+        entry_set_field_and_commit(&entry, "Title", "entry1_updated_from_source").unwrap();
 
         let merge_result = Group::merge(&destination_group, &source_group).unwrap();
         assert_eq!(merge_result.warnings.len(), 0);
         assert_eq!(merge_result.events.len(), 1);
 
-        let entry = destination_group
-            .borrow()
-            .as_any()
-            .downcast_ref::<Group>()
-            .unwrap()
-            .entries()[0]
-            .clone();
-        assert_eq!(
-            entry.borrow().get_title(),
-            Some("entry1_updated_from_source")
-        );
+        let entry = destination_group.borrow().as_any().downcast_ref::<Group>().unwrap().entries()[0].clone();
+        assert_eq!(entry.borrow().get_title(), Some("entry1_updated_from_source"));
 
-        let merged_history = entry
-            .borrow()
-            .as_any()
-            .downcast_ref::<Entry>()
-            .unwrap()
-            .history
-            .clone()
-            .unwrap();
+        let merged_history = entry.borrow().as_any().downcast_ref::<Entry>().unwrap().history.clone().unwrap();
         assert!(merged_history.is_ordered());
         assert_eq!(merged_history.entries.len(), 3);
         let merged_entry = &merged_history.entries[1];
-        assert_eq!(
-            merged_entry.get_title(),
-            Some("entry1_updated_from_destination")
-        );
+        assert_eq!(merged_entry.get_title(), Some("entry1_updated_from_destination"));
 
         // Merging again should not result in any additional change.
         let destination_group_dup = destination_group.borrow().duplicate();

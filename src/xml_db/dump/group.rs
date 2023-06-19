@@ -6,11 +6,7 @@ use crate::{
 use xml::writer::{EventWriter, XmlEvent as WriterEvent};
 
 impl DumpXml for Group {
-    fn dump_xml<E: std::io::Write>(
-        &self,
-        writer: &mut EventWriter<E>,
-        inner_cipher: &mut dyn Cipher,
-    ) -> Result<(), xml::writer::Error> {
+    fn dump_xml<E: std::io::Write>(&self, writer: &mut EventWriter<E>, inner_cipher: &mut dyn Cipher) -> Result<(), xml::writer::Error> {
         writer.write(WriterEvent::start_element("Group"))?;
 
         SimpleTag("Name", &self.name).dump_xml(writer, inner_cipher)?;
@@ -60,11 +56,7 @@ impl DumpXml for Group {
 }
 
 impl DumpXml for NodePtr {
-    fn dump_xml<E: std::io::Write>(
-        &self,
-        writer: &mut EventWriter<E>,
-        inner_cipher: &mut dyn Cipher,
-    ) -> Result<(), xml::writer::Error> {
+    fn dump_xml<E: std::io::Write>(&self, writer: &mut EventWriter<E>, inner_cipher: &mut dyn Cipher) -> Result<(), xml::writer::Error> {
         if let Some(g) = self.borrow().as_any().downcast_ref::<Group>() {
             g.dump_xml(writer, inner_cipher)
         } else if let Some(e) = self.borrow().as_any().downcast_ref::<Entry>() {
