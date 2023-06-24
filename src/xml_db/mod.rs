@@ -115,6 +115,7 @@ mod tests {
         assert_eq!(group_get_children(&decrypted_db.root).unwrap().len(), 1);
 
         let decrypted_entry = &group_get_children(&decrypted_db.root).unwrap()[0];
+        // decrypted_entry.borrow_mut().set_parent(None);
         assert!(node_is_equals_to(decrypted_entry, &entry));
     }
 

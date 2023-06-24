@@ -10,7 +10,7 @@ use std::{collections::HashMap, thread, time};
 use uuid::Uuid;
 
 /// A database entry containing several key-value fields.
-#[derive(Debug, Default, Eq, PartialEq, Clone)]
+#[derive(Debug, Default, Clone)]
 #[cfg_attr(feature = "serialization", derive(serde::Serialize))]
 pub struct Entry {
     pub uuid: Uuid,
@@ -32,11 +32,35 @@ pub struct Entry {
     pub quality_check: Option<bool>,
 
     pub history: Option<History>,
+
+    pub parent: Option<Uuid>,
 }
+
+impl PartialEq for Entry {
+    fn eq(&self, other: &Self) -> bool {
+        self.uuid == other.uuid
+            && self.fields == other.fields
+            && self.autotype == other.autotype
+            && self.tags == other.tags
+            && self.times == other.times
+            && self.custom_data == other.custom_data
+            && self.icon_id == other.icon_id
+            && self.custom_icon_uuid == other.custom_icon_uuid
+            && self.foreground_color == other.foreground_color
+            && self.background_color == other.background_color
+            && self.override_url == other.override_url
+            && self.quality_check == other.quality_check
+            && self.history == other.history
+        // && self.parent == other.parent
+    }
+}
+
+impl Eq for Entry {}
 
 impl Node for Entry {
     fn duplicate(&self) -> NodePtr {
         let mut _tmp = self.clone();
+        _tmp.parent = None;
         rc_refcell_node!(_tmp)
     }
 
@@ -77,6 +101,14 @@ impl Node for Entry {
 
     fn get_expiry_time(&self) -> Option<&chrono::NaiveDateTime> {
         self.times.get_expiry()
+    }
+
+    fn get_parent(&self) -> Option<Uuid> {
+        self.parent
+    }
+
+    fn set_parent(&mut self, parent: Option<Uuid>) {
+        self.parent = parent;
     }
 }
 
@@ -164,6 +196,7 @@ impl Entry {
                 entry.override_url = other.override_url.clone();
                 entry.quality_check = other.quality_check;
                 entry.history = other.history.clone();
+                // entry.parent = other.parent;
                 success = true;
             }
         }

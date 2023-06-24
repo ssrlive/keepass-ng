@@ -61,12 +61,12 @@ impl FromXml for Group {
                         out.last_top_visible_entry = SimpleTag::<Option<Uuid>>::from_xml(iterator, inner_cipher)?.value;
                     }
                     "Entry" => {
-                        let entry = Entry::from_xml(iterator, inner_cipher)?;
-                        out.children.push(rc_refcell_node!(entry));
+                        let entry = rc_refcell_node!(Entry::from_xml(iterator, inner_cipher)?);
+                        out.children.push(entry);
                     }
                     "Group" => {
-                        let group = Group::from_xml(iterator, inner_cipher)?;
-                        out.children.push(rc_refcell_node!(group));
+                        let group = rc_refcell_node!(Group::from_xml(iterator, inner_cipher)?);
+                        out.children.push(group);
                     }
                     "CustomData" => {
                         out.custom_data = CustomData::from_xml(iterator, inner_cipher)?;
@@ -84,6 +84,10 @@ impl FromXml for Group {
                 }
             }
         }
+
+        out.children.iter().for_each(|child| {
+            child.borrow_mut().set_parent(Some(out.uuid));
+        });
 
         // no need to check for the correct closing tag - checked by XmlReader
         let _close_tag = iterator.next().ok_or(XmlParseError::Eof)?;

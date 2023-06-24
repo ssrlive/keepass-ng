@@ -100,6 +100,8 @@ pub struct Group {
     // TODO figure out what that is supposed to mean. According to the KeePass sourcecode, it has
     // something to do with restoring selected items when re-opening a database.
     pub last_top_visible_entry: Option<Uuid>,
+
+    pub parent: Option<Uuid>,
 }
 
 impl PartialEq for Group {
@@ -117,6 +119,7 @@ impl PartialEq for Group {
             && self.enable_searching == other.enable_searching
             && self.last_top_visible_entry == other.last_top_visible_entry
             && self.custom_data == other.custom_data
+        // && self.parent == other.parent
     }
 }
 
@@ -125,11 +128,13 @@ impl Eq for Group {}
 impl Node for Group {
     fn duplicate(&self) -> NodePtr {
         let mut new_group = self.clone();
+        new_group.parent = None;
         new_group.children = self
             .children
             .iter()
             .map(|child| {
                 let child = child.borrow().duplicate();
+                child.borrow_mut().set_parent(Some(new_group.uuid));
                 child
             })
             .collect();
@@ -175,6 +180,14 @@ impl Node for Group {
     fn get_expiry_time(&self) -> Option<&chrono::NaiveDateTime> {
         self.times.get_expiry()
     }
+
+    fn get_parent(&self) -> Option<Uuid> {
+        self.parent
+    }
+
+    fn set_parent(&mut self, parent: Option<Uuid>) {
+        self.parent = parent;
+    }
 }
 
 impl Group {
@@ -217,6 +230,7 @@ impl Group {
     }
 
     pub fn add_child(&mut self, child: NodePtr) {
+        child.borrow_mut().set_parent(Some(self.get_uuid()));
         self.children.push(child);
     }
 
@@ -528,6 +542,7 @@ impl Group {
                 } else {
                     Entry::merge(entry, &existing_entry)?
                 };
+                // merged_entry.borrow_mut().set_parent(existing_entry.borrow().get_parent());
                 if node_is_equals_to(&existing_entry, &merged_entry) {
                     continue;
                 }

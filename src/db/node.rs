@@ -37,6 +37,10 @@ pub fn group_add_child(parent: &NodePtr, child: NodePtr) -> Result<()> {
 }
 
 pub fn group_reset_children(parent: &NodePtr, children: Vec<NodePtr>) -> Result<()> {
+    let uuid = parent.borrow().get_uuid();
+    children.iter().for_each(|c| {
+        c.borrow_mut().set_parent(Some(uuid));
+    });
     parent
         .borrow_mut()
         .as_any_mut()
@@ -100,6 +104,8 @@ pub trait Node: as_any::AsAny + std::fmt::Debug + erased_serde::Serialize {
     /// Convenience method for getting the time that the entry expires.
     /// This value is usually only meaningful/useful when expires == true
     fn get_expiry_time(&self) -> Option<&chrono::NaiveDateTime>;
+    fn get_parent(&self) -> Option<Uuid>;
+    fn set_parent(&mut self, parent: Option<Uuid>);
 }
 
 #[cfg(feature = "serialization")]
@@ -118,6 +124,8 @@ pub trait Node: as_any::AsAny + std::fmt::Debug {
     fn get_times(&self) -> &Times;
     fn get_time(&self, key: &str) -> Option<&chrono::NaiveDateTime>;
     fn get_expiry_time(&self) -> Option<&chrono::NaiveDateTime>;
+    fn get_parent(&self) -> Option<Uuid>;
+    fn set_parent(&mut self, parent: Option<Uuid>);
 }
 
 pub struct NodeIterator {
