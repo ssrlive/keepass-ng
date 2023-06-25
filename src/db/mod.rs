@@ -134,8 +134,71 @@ impl Database {
             header_attachments: Vec::new(),
             root: rc_refcell_node!(Group::new("Root")),
             deleted_objects: DeletedObjects::default(),
-            meta: Meta::default(),
+            meta: Meta::new(),
         }
+    }
+
+    pub fn node_get_parents(&self, node: &NodePtr) -> Vec<Uuid> {
+        let mut parents = Vec::new();
+        let mut parent_uuid = node.borrow().get_parent();
+        while let Some(uuid) = parent_uuid {
+            parents.push(uuid);
+            let parent_node = search_node_by_uuid_with_specific_type::<Group>(&self.root, uuid);
+            parent_uuid = parent_node.and_then(|node| node.borrow().get_parent());
+        }
+        parents
+    }
+
+    pub fn set_recycle_bin_enabled(&mut self, enabled: bool) {
+        self.meta.recyclebin_enabled = Some(enabled);
+    }
+
+    pub fn node_is_recycle_bin(&self, node: &NodePtr) -> bool {
+        let uuid = node.borrow().get_uuid();
+        node_is_group(node) && self.get_recycle_bin().map_or(false, |bin| bin.borrow().get_uuid() == uuid)
+    }
+
+    pub fn node_is_in_recycle_bin(&self, node: &NodePtr) -> bool {
+        self.get_recycle_bin()
+            .map(|bin| bin.borrow().get_uuid())
+            .map_or(false, |uuid| self.node_get_parents(node).contains(&uuid))
+    }
+
+    pub fn get_recycle_bin(&self) -> Option<NodePtr> {
+        let enable = self.meta.recyclebin_enabled?;
+        if !enable {
+            return None;
+        }
+        let uuid = self.meta.recyclebin_uuid?;
+        group_get_children(&self.root).and_then(|children| {
+            children
+                .into_iter()
+                .find(|child| child.borrow().get_uuid() == uuid && node_is_group(child))
+        })
+    }
+
+    pub fn create_recycle_bin(&mut self) -> crate::Result<NodePtr> {
+        use crate::error::Error;
+        let enable = self.meta.recyclebin_enabled.ok_or(Error::RecycleBinDisabled)?;
+        if !enable {
+            return Err(Error::RecycleBinDisabled);
+        }
+        if self.get_recycle_bin().is_some() {
+            return Err(Error::RecycleBinAlreadyExists);
+        }
+        let recycle_bin = rc_refcell_node!(Group::new("Recycle Bin"));
+        self.meta.recyclebin_uuid = Some(recycle_bin.borrow().get_uuid());
+        group_add_child(&self.root, recycle_bin.clone())?;
+        Ok(recycle_bin)
+    }
+
+    pub fn remove_node_by_uuid(&mut self, uuid: Uuid) -> crate::Result<NodePtr> {
+        let node = group_remove_node_by_uuid(&self.root, uuid)?;
+        self.deleted_objects.add(uuid);
+        let recycle_bin = self.get_recycle_bin().ok_or("").or_else(|_| self.create_recycle_bin())?;
+        group_add_child(&recycle_bin, node.clone())?;
+        self.meta.set_recyclebin_changed();
+        Ok(node)
     }
 }
 
