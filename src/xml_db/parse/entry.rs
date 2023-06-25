@@ -37,7 +37,7 @@ impl FromXml for Entry {
                     }
                     "Tags" => {
                         if let Some(tags) = SimpleTag::<Option<String>>::from_xml(iterator, inner_cipher)?.value {
-                            out.tags = tags.split(|c| c == ';' || c == ',').map(|x| x.to_owned()).collect();
+                            out.tags = tags.split(|c| c == ';' || c == ',').map(std::borrow::ToOwned::to_owned).collect();
                         }
                     }
                     "String" => {
@@ -123,7 +123,7 @@ impl FromXml for StringField {
             });
         }
 
-        let mut out = Self::default();
+        let mut out = StringField::default();
 
         while let Some(event) = iterator.peek() {
             match event {
@@ -134,7 +134,7 @@ impl FromXml for StringField {
                     "Value" => {
                         let value = Value::from_xml(iterator, inner_cipher)?;
                         if !value.is_empty() {
-                            out.value = Some(value)
+                            out.value = Some(value);
                         }
                     }
                     _ => {
@@ -220,8 +220,7 @@ impl FromXml for Value {
             if tag == "Value" {
                 let protected: bool = attributes
                     .get("Protected")
-                    .map(|v| v.to_lowercase().parse::<bool>())
-                    .unwrap_or(Ok(false))?;
+                    .map_or(Ok(false), |v| v.to_lowercase().parse::<bool>())?;
 
                 let content = Option::<String>::from_xml(iterator, inner_cipher)?.unwrap_or(String::new());
 
@@ -322,7 +321,7 @@ impl FromXml for AutoTypeAssociation {
             });
         }
 
-        let mut out = Self::default();
+        let mut out = AutoTypeAssociation::default();
 
         while let Some(event) = iterator.peek() {
             match event {

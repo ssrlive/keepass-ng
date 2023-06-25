@@ -56,7 +56,7 @@ mod file_read_tests {
         let mut total_entries = 0;
         for node in NodeIterator::new(&db.root) {
             if let Some(g) = node.borrow().as_any().downcast_ref::<Group>() {
-                println!("Saw group '{0}'", g.name);
+                println!("Saw group '{0}'", g.get_title().unwrap());
                 total_groups += 1;
             } else if let Some(e) = node.borrow().as_any().downcast_ref::<Entry>() {
                 let title = e.get_title().unwrap_or("(no title)");
@@ -90,7 +90,7 @@ mod file_read_tests {
         let mut total_entries = 0;
         for node in NodeIterator::new(&db.root) {
             if let Some(g) = node.borrow().as_any().downcast_ref::<Group>() {
-                println!("Saw group '{0}'", g.name);
+                println!("Saw group '{0}'", g.get_title().unwrap());
                 total_groups += 1;
             } else if let Some(e) = node.borrow().as_any().downcast_ref::<Entry>() {
                 let title = e.get_title().unwrap_or("(no title)");
@@ -251,7 +251,7 @@ mod file_read_tests {
         let mut total_entries = 0;
         for node in NodeIterator::new(&db.root) {
             if let Some(g) = node.borrow().as_any().downcast_ref::<Group>() {
-                println!("Saw group '{0}'", g.name);
+                println!("Saw group '{0}'", g.get_title().unwrap_or("(no title)"));
                 total_groups += 1;
             } else if let Some(e) = node.borrow().as_any().downcast_ref::<Entry>() {
                 let title = e.get_title().unwrap_or("(no title)");
@@ -283,7 +283,7 @@ mod file_read_tests {
         let mut total_entries = 0;
         for node in NodeIterator::new(&db.root) {
             if let Some(g) = node.borrow().as_any().downcast_ref::<Group>() {
-                println!("Saw group '{0}'", g.name);
+                println!("Saw group '{0}'", g.get_title().unwrap_or("(no title)"));
                 total_groups += 1;
             } else if let Some(e) = node.borrow().as_any().downcast_ref::<Entry>() {
                 let title = e.get_title().unwrap_or("(no title)");
@@ -314,10 +314,9 @@ mod file_read_tests {
         assert_eq!(db.meta.recyclebin_uuid, Some(uuid!("563171fe-6598-42dc-8003-f98dde32e872")));
 
         let recycle_group: Vec<NodePtr> = NodeIterator::new(&db.root)
-            .into_iter()
             .filter(|child| {
                 if let Some(g) = child.borrow().as_any().downcast_ref::<Group>() {
-                    Some(&g.uuid) == db.meta.recyclebin_uuid.as_ref()
+                    Some(&g.get_uuid()) == db.meta.recyclebin_uuid.as_ref()
                 } else {
                     false
                 }
@@ -327,7 +326,7 @@ mod file_read_tests {
         assert_eq!(recycle_group.len(), 1);
         let group = &recycle_group[0];
         if let Some(g) = group.borrow().as_any().downcast_ref::<Group>() {
-            assert_eq!(g.name, "Recycle Bin");
+            assert_eq!(g.get_title().unwrap(), "Recycle Bin");
         } else {
             panic!("It should've matched a Group!");
         }

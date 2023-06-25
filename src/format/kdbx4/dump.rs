@@ -19,7 +19,7 @@ use crate::{
     variant_dictionary::VariantDictionary,
 };
 
-/// Dump a KeePass database using the key elements
+/// Dump a `KeePass` database using the key elements
 #[allow(dead_code)]
 pub fn dump_kdbx4(db: &Database, key_elements: &[Vec<u8>], writer: &mut dyn Write) -> Result<(), DatabaseSaveError> {
     if !matches!(db.config.version, DatabaseVersion::KDB4(_)) {
@@ -51,7 +51,7 @@ pub fn dump_kdbx4(db: &Database, key_elements: &[Vec<u8>], writer: &mut dyn Writ
     }
     .dump(&mut header_data)?;
 
-    let header_sha256 = crypt::calculate_sha256(&[&header_data])?;
+    let header_sha256 = crypt::calculate_sha256(&[&header_data]);
 
     // write out header and header hash
     _ = writer.write(&header_data)?;
@@ -59,19 +59,19 @@ pub fn dump_kdbx4(db: &Database, key_elements: &[Vec<u8>], writer: &mut dyn Writ
 
     // derive master key from composite key, transform_seed, transform_rounds and master_seed
     let key_elements: Vec<&[u8]> = key_elements.iter().map(|v| &v[..]).collect();
-    let composite_key = crypt::calculate_sha256(&key_elements)?;
+    let composite_key = crypt::calculate_sha256(&key_elements);
     let transformed_key = kdf.transform_key(&composite_key)?;
-    let master_key = crypt::calculate_sha256(&[&master_seed, &transformed_key])?;
+    let master_key = crypt::calculate_sha256(&[&master_seed, &transformed_key]);
 
     // verify credentials
-    let hmac_key = crypt::calculate_sha512(&[&master_seed, &transformed_key, &hmac_block_stream::HMAC_KEY_END])?;
-    let header_hmac_key = hmac_block_stream::get_hmac_block_key(u64::max_value(), &hmac_key)?;
+    let hmac_key = crypt::calculate_sha512(&[&master_seed, &transformed_key, &hmac_block_stream::HMAC_KEY_END]);
+    let header_hmac_key = hmac_block_stream::get_hmac_block_key(u64::max_value(), &hmac_key);
     let header_hmac = crypt::calculate_hmac(&[&header_data], &header_hmac_key)?;
 
     _ = writer.write(&header_hmac)?;
 
     // Initialize inner encryptor from inner header params
-    let mut inner_cipher = db.config.inner_cipher_config.get_cipher(&inner_random_stream_key)?;
+    let mut inner_cipher = db.config.inner_cipher_config.get_cipher(&inner_random_stream_key);
 
     // dump inner header into buffer
     let mut payload = Vec::new();
@@ -149,6 +149,7 @@ impl KDBX4InnerHeader {
 
         for attachment in header_attachments {
             writer.write_u8(INNER_HEADER_BINARY_ATTACHMENTS)?;
+            #[allow(clippy::cast_possible_truncation)]
             writer.write_u32::<LittleEndian>((attachment.content.len() + 1) as u32)?;
             attachment.dump(writer)?;
         }

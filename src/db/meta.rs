@@ -84,6 +84,27 @@ pub struct Meta {
     pub custom_data: CustomData,
 }
 
+impl Meta {
+    /// Create a new Meta object
+    pub fn new() -> Self {
+        Self {
+            recyclebin_enabled: Some(true),
+            ..Meta::default()
+        }
+    }
+
+    /// Set recycle bin enabled
+    pub fn set_recyclebin_enabled(&mut self, enabled: bool) {
+        self.recyclebin_enabled = Some(enabled);
+    }
+
+    /// Set recycle bin changed time
+    pub fn set_recyclebin_changed(&mut self) {
+        let time = chrono::Local::now().naive_local();
+        self.recyclebin_changed = Some(time);
+    }
+}
+
 /// Database memory protection settings
 #[derive(Debug, PartialEq, Eq, Clone)]
 #[cfg_attr(feature = "serialization", derive(serde::Serialize))]

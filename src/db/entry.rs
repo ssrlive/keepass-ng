@@ -1,7 +1,11 @@
 #[cfg(feature = "totp")]
 use crate::db::otp::{TOTPError, TOTP};
 use crate::{
-    db::{group::MergeLog, node::*, Color, CustomData, Times},
+    db::{
+        group::MergeLog,
+        node::{Node, NodePtr},
+        Color, CustomData, Times,
+    },
     rc_refcell_node,
 };
 use chrono::NaiveDateTime;
@@ -13,27 +17,27 @@ use uuid::Uuid;
 #[derive(Debug, Default, Clone)]
 #[cfg_attr(feature = "serialization", derive(serde::Serialize))]
 pub struct Entry {
-    pub uuid: Uuid,
-    pub fields: HashMap<String, Value>,
-    pub autotype: Option<AutoType>,
-    pub tags: Vec<String>,
+    pub(crate) uuid: Uuid,
+    pub(crate) fields: HashMap<String, Value>,
+    pub(crate) autotype: Option<AutoType>,
+    pub(crate) tags: Vec<String>,
 
-    pub times: Times,
+    pub(crate) times: Times,
 
-    pub custom_data: CustomData,
+    pub(crate) custom_data: CustomData,
 
-    pub icon_id: Option<usize>,
-    pub custom_icon_uuid: Option<Uuid>,
+    pub(crate) icon_id: Option<usize>,
+    pub(crate) custom_icon_uuid: Option<Uuid>,
 
-    pub foreground_color: Option<Color>,
-    pub background_color: Option<Color>,
+    pub(crate) foreground_color: Option<Color>,
+    pub(crate) background_color: Option<Color>,
 
-    pub override_url: Option<String>,
-    pub quality_check: Option<bool>,
+    pub(crate) override_url: Option<String>,
+    pub(crate) quality_check: Option<bool>,
 
-    pub history: Option<History>,
+    pub(crate) history: Option<History>,
 
-    pub parent: Option<Uuid>,
+    pub(crate) parent: Option<Uuid>,
 }
 
 impl PartialEq for Entry {
@@ -59,14 +63,19 @@ impl Eq for Entry {}
 
 impl Node for Entry {
     fn duplicate(&self) -> NodePtr {
-        let mut _tmp = self.clone();
-        _tmp.parent = None;
-        rc_refcell_node!(_tmp)
+        let mut tmp = self.clone();
+        tmp.parent = None;
+        rc_refcell_node!(tmp)
     }
 
     fn get_uuid(&self) -> Uuid {
         self.uuid
     }
+
+    fn set_uuid(&mut self, uuid: Uuid) {
+        self.uuid = uuid;
+    }
+
     fn get_title(&self) -> Option<&str> {
         self.get("Title")
     }
@@ -95,12 +104,8 @@ impl Node for Entry {
         &self.times
     }
 
-    fn get_time(&self, key: &str) -> Option<&chrono::NaiveDateTime> {
-        self.times.get(key)
-    }
-
-    fn get_expiry_time(&self) -> Option<&chrono::NaiveDateTime> {
-        self.times.get_expiry()
+    fn get_times_mut(&mut self) -> &mut Times {
+        &mut self.times
     }
 
     fn get_parent(&self) -> Option<Uuid> {
@@ -211,10 +216,9 @@ impl<'a> Entry {
     /// Get a field by name, taking care of unprotecting Protected values automatically
     pub fn get(&'a self, key: &str) -> Option<&'a str> {
         match self.fields.get(key) {
-            Some(&Value::Bytes(_)) => None,
+            None | Some(&Value::Bytes(_)) => None,
             Some(Value::Protected(pv)) => std::str::from_utf8(pv.unsecure()).ok(),
             Some(Value::Unprotected(uv)) => Some(uv),
-            None => None,
         }
     }
 
@@ -237,7 +241,25 @@ impl<'a> Entry {
         self.get("otp")
     }
 
-    /// Convenience method for getting the value of the 'UserName' field
+    pub fn get_autotype(&self) -> Option<&AutoType> {
+        self.autotype.as_ref()
+    }
+
+    pub fn set_autotype(&mut self, autotype: Option<AutoType>) {
+        self.autotype = autotype;
+    }
+
+    /// Convenience method for getting tags
+    /// Returns a Vec of tags
+    pub fn get_tags(&self) -> &Vec<String> {
+        self.tags.as_ref()
+    }
+
+    pub fn get_tags_mut(&mut self) -> &mut Vec<String> {
+        self.tags.as_mut()
+    }
+
+    /// Convenience method for getting the value of the `UserName` field
     pub fn get_username(&'a self) -> Option<&'a str> {
         self.get("UserName")
     }
@@ -247,12 +269,21 @@ impl<'a> Entry {
     }
 
     /// Convenience method for getting the value of the 'Password' field
-    pub fn get_password(&'a self) -> Option<&'a str> {
+    pub fn get_password(&self) -> Option<&str> {
         self.get("Password")
     }
 
+    pub fn set_password(&mut self, password: Option<&str>) {
+        if let Some(password) = password {
+            self.fields
+                .insert("Password".to_string(), Value::Protected(password.as_bytes().into()));
+        } else {
+            self.fields.remove("Password");
+        }
+    }
+
     /// Convenience method for getting the value of the 'URL' field
-    pub fn get_url(&'a self) -> Option<&'a str> {
+    pub fn get_url(&self) -> Option<&str> {
         self.get("URL")
     }
 
@@ -275,14 +306,16 @@ impl<'a> Entry {
             return false;
         }
 
-        self.times.set_last_modification(Times::now());
+        self.times.set_last_modification(Some(Times::now()));
 
         let mut new_history_entry = self.clone();
-        new_history_entry.history.take().unwrap();
+        new_history_entry.history = None;
 
         // TODO should we validate that the history is enabled?
         // TODO should we validate the maximum size of the history?
-        self.history.as_mut().unwrap().add_entry(new_history_entry);
+        if let Some(h) = self.history.as_mut() {
+            h.add_entry(new_history_entry);
+        }
 
         true
     }
@@ -296,11 +329,11 @@ impl<'a> Entry {
             }
 
             let mut sanitized_entry = self.clone();
-            sanitized_entry.times.set_last_modification(NaiveDateTime::default());
+            sanitized_entry.times.set_last_modification(Some(NaiveDateTime::default()));
             sanitized_entry.history.take();
 
             let mut last_history_entry = history.entries.get(0).unwrap().clone();
-            last_history_entry.times.set_last_modification(NaiveDateTime::default());
+            last_history_entry.times.set_last_modification(Some(NaiveDateTime::default()));
             last_history_entry.history.take();
 
             if sanitized_entry.eq(&last_history_entry) {
@@ -343,7 +376,7 @@ impl serde::Serialize for Value {
     }
 }
 
-/// An AutoType setting associated with an Entry
+/// An `AutoType` setting associated with an Entry
 #[derive(Debug, Default, Eq, PartialEq, Clone)]
 #[cfg_attr(feature = "serialization", derive(serde::Serialize))]
 pub struct AutoType {
@@ -352,7 +385,7 @@ pub struct AutoType {
     pub associations: Vec<AutoTypeAssociation>,
 }
 
-/// A window association associated with an AutoType setting
+/// A window association associated with an `AutoType` setting
 #[derive(Debug, Default, Eq, PartialEq, Clone)]
 #[cfg_attr(feature = "serialization", derive(serde::Serialize))]
 pub struct AutoTypeAssociation {
@@ -373,7 +406,7 @@ impl History {
         if entry.history.is_some() {
             // Remove the history from the new history entry to avoid having
             // an exponential number of history entries.
-            entry.history.take().unwrap();
+            entry.history = None;
         }
         self.entries.insert(0, entry);
     }
@@ -385,7 +418,7 @@ impl History {
     // Determines if the entries of the history are
     // ordered by last modification time.
     pub(crate) fn is_ordered(&self) -> bool {
-        let mut last_modification_time: Option<&NaiveDateTime> = None;
+        let mut last_modification_time: Option<NaiveDateTime> = None;
         for entry in &self.entries {
             if last_modification_time.is_none() {
                 last_modification_time = entry.times.get_last_modification();
@@ -408,22 +441,22 @@ impl History {
 
         for history_entry in &self.entries {
             let modification_time = history_entry.times.get_last_modification().unwrap();
-            if new_history_entries.contains_key(modification_time) {
+            if new_history_entries.contains_key(&modification_time) {
                 return Err("This should never happen.".to_string());
             }
-            new_history_entries.insert(*modification_time, history_entry.clone());
+            new_history_entries.insert(modification_time, history_entry.clone());
         }
 
         for history_entry in &other.entries {
             let modification_time = history_entry.times.get_last_modification().unwrap();
-            let existing_history_entry = new_history_entries.get(modification_time);
+            let existing_history_entry = new_history_entries.get(&modification_time);
             if let Some(existing_history_entry) = existing_history_entry {
                 if !existing_history_entry.eq(history_entry) {
                     log.warnings
                         .push("History entries have the same modification timestamp but were not the same.".to_string());
                 }
             } else {
-                new_history_entries.insert(*modification_time, history_entry.clone());
+                new_history_entries.insert(modification_time, history_entry.clone());
             }
         }
 
@@ -472,13 +505,13 @@ mod entry_tests {
 
         assert_eq!(entry.get("a-bytes"), None);
 
-        assert_eq!(entry.fields["a-bytes"].is_empty(), false);
+        assert!(!entry.fields["a-bytes"].is_empty());
     }
 
     #[test]
     fn update_history() {
         let mut entry = Entry::new();
-        let mut last_modification_time = entry.times.get_last_modification().unwrap().clone();
+        let mut last_modification_time = entry.times.get_last_modification().unwrap();
 
         entry.fields.insert("Username".to_string(), Value::Unprotected("user".to_string()));
         // Making sure to wait 1 sec before update the history, to make
@@ -488,8 +521,8 @@ mod entry_tests {
         assert!(entry.update_history());
         assert!(entry.history.is_some());
         assert_eq!(entry.history.as_ref().unwrap().entries.len(), 1);
-        assert_ne!(entry.times.get_last_modification().unwrap(), &last_modification_time);
-        last_modification_time = entry.times.get_last_modification().unwrap().clone();
+        assert_ne!(entry.times.get_last_modification().unwrap(), last_modification_time);
+        last_modification_time = entry.times.get_last_modification().unwrap();
         thread::sleep(time::Duration::from_secs(1));
 
         // Updating the history without making any changes
@@ -497,35 +530,35 @@ mod entry_tests {
         assert!(!entry.update_history());
         assert!(entry.history.is_some());
         assert_eq!(entry.history.as_ref().unwrap().entries.len(), 1);
-        assert_eq!(entry.times.get_last_modification().unwrap(), &last_modification_time);
+        assert_eq!(entry.times.get_last_modification().unwrap(), last_modification_time);
 
         entry.set_title(Some("first title"));
 
         assert!(entry.update_history());
         assert!(entry.history.is_some());
         assert_eq!(entry.history.as_ref().unwrap().entries.len(), 2);
-        assert_ne!(entry.times.get_last_modification().unwrap(), &last_modification_time);
-        last_modification_time = entry.times.get_last_modification().unwrap().clone();
+        assert_ne!(entry.times.get_last_modification().unwrap(), last_modification_time);
+        last_modification_time = entry.times.get_last_modification().unwrap();
         thread::sleep(time::Duration::from_secs(1));
 
         assert!(!entry.update_history());
         assert!(entry.history.is_some());
         assert_eq!(entry.history.as_ref().unwrap().entries.len(), 2);
-        assert_eq!(entry.times.get_last_modification().unwrap(), &last_modification_time);
+        assert_eq!(entry.times.get_last_modification().unwrap(), last_modification_time);
 
         entry.set_title(Some("second title"));
 
         assert!(entry.update_history());
         assert!(entry.history.is_some());
         assert_eq!(entry.history.as_ref().unwrap().entries.len(), 3);
-        assert_ne!(entry.times.get_last_modification().unwrap(), &last_modification_time);
-        last_modification_time = entry.times.get_last_modification().unwrap().clone();
+        assert_ne!(entry.times.get_last_modification().unwrap(), last_modification_time);
+        last_modification_time = entry.times.get_last_modification().unwrap();
         thread::sleep(time::Duration::from_secs(1));
 
         assert!(!entry.update_history());
         assert!(entry.history.is_some());
         assert_eq!(entry.history.as_ref().unwrap().entries.len(), 3);
-        assert_eq!(entry.times.get_last_modification().unwrap(), &last_modification_time);
+        assert_eq!(entry.times.get_last_modification().unwrap(), last_modification_time);
 
         let last_history_entry = entry.history.as_ref().unwrap().entries.get(0).unwrap();
         assert_eq!(last_history_entry.get_title().unwrap(), "second title");

@@ -76,8 +76,8 @@ pub enum OuterCipherConfig {
 impl OuterCipherConfig {
     pub(crate) fn get_cipher(&self, key: &[u8], iv: &[u8]) -> Result<Box<dyn ciphers::Cipher>, CryptographyError> {
         match self {
-            OuterCipherConfig::AES256 => Ok(Box::new(ciphers::AES256Cipher::new(key, iv)?)),
-            OuterCipherConfig::Twofish => Ok(Box::new(ciphers::TwofishCipher::new(key, iv)?)),
+            OuterCipherConfig::AES256 => Ok(Box::new(ciphers::AES256Cipher::new(key, iv))),
+            OuterCipherConfig::Twofish => Ok(Box::new(ciphers::TwofishCipher::new(key, iv))),
             OuterCipherConfig::ChaCha20 => Ok(Box::new(ciphers::ChaCha20Cipher::new_key_iv(key, iv)?)),
         }
     }
@@ -124,11 +124,11 @@ pub enum InnerCipherConfig {
 }
 
 impl InnerCipherConfig {
-    pub(crate) fn get_cipher(&self, key: &[u8]) -> Result<Box<dyn ciphers::Cipher>, CryptographyError> {
+    pub(crate) fn get_cipher(&self, key: &[u8]) -> Box<dyn ciphers::Cipher> {
         match self {
-            InnerCipherConfig::Plain => Ok(Box::new(ciphers::PlainCipher::new(key)?)),
-            InnerCipherConfig::Salsa20 => Ok(Box::new(ciphers::Salsa20Cipher::new(key)?)),
-            InnerCipherConfig::ChaCha20 => Ok(Box::new(ciphers::ChaCha20Cipher::new(key)?)),
+            InnerCipherConfig::Plain => Box::new(ciphers::PlainCipher::new(key)),
+            InnerCipherConfig::Salsa20 => Box::new(ciphers::Salsa20Cipher::new(key)),
+            InnerCipherConfig::ChaCha20 => Box::new(ciphers::ChaCha20Cipher::new(key)),
         }
     }
 

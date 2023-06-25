@@ -33,7 +33,7 @@ pub(crate) fn dump(db: &Database, inner_cipher: &mut dyn Cipher, writer: &mut dy
     Ok(())
 }
 
-/// A trait that denotes an inner KeePass database object can be stored into an XML database.
+/// A trait that denotes an inner `KeePass` database object can be stored into an XML database.
 ///
 /// Using an `xml::writer::EventWriter` and an inner cipher, emit a series of `XmlEvent`s to the
 /// writer to build up the XML document.
@@ -55,13 +55,13 @@ impl DumpXml for bool {
 
 impl DumpXml for usize {
     fn dump_xml<E: std::io::Write>(&self, writer: &mut EventWriter<E>, _inner_cipher: &mut dyn Cipher) -> Result<(), xml::writer::Error> {
-        writer.write(WriterEvent::characters(&format!("{}", self)))
+        writer.write(WriterEvent::characters(&format!("{self}")))
     }
 }
 
 impl DumpXml for isize {
     fn dump_xml<E: std::io::Write>(&self, writer: &mut EventWriter<E>, _inner_cipher: &mut dyn Cipher) -> Result<(), xml::writer::Error> {
-        writer.write(WriterEvent::characters(&format!("{}", self)))
+        writer.write(WriterEvent::characters(&format!("{self}")))
     }
 }
 

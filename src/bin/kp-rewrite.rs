@@ -1,4 +1,4 @@
-/// utility to parse a KeePass database, and then write it out again, to see if anything is lost.
+/// utility to parse a `KeePass` database, and then write it out again, to see if anything is lost.
 use std::fs::File;
 
 use anyhow::Result;

@@ -99,7 +99,7 @@ impl VariantDictionary {
                     writer.write_u8(BOOL_TYPE_ID)?;
                     writer.write_with_len(field_name.as_bytes())?;
                     writer.write_u32::<LittleEndian>(1)?;
-                    writer.write_u8(if *value { 1 } else { 0 })?;
+                    writer.write_u8(u8::from(*value))?;
                 }
                 VariantDictionaryValue::Int32(value) => {
                     writer.write_u8(I32_TYPE_ID)?;

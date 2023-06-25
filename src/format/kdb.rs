@@ -51,14 +51,14 @@ fn from_utf8(data: &[u8]) -> String {
 }
 
 fn ensure_length(field_type: u16, field_size: u32, expected_field_size: u32) -> Result<(), DatabaseIntegrityError> {
-    if field_size != expected_field_size {
+    if field_size == expected_field_size {
+        Ok(())
+    } else {
         Err(DatabaseIntegrityError::InvalidKDBFieldLength {
             field_type,
             field_size,
             expected_field_size,
         })
-    } else {
-        Ok(())
     }
 }
 
@@ -118,18 +118,14 @@ fn parse_groups(root: &NodePtr, header_num_groups: u32, data: &mut &[u8]) -> Res
                 // Creation/LastMod/LastAccess/Expire
                 ensure_length(field_type, field_size, 5)?;
             }
-            0x0007 => {
-                //ImageId
+            0x0007 | 0x0009 => {
+                // ImageId or Flags
                 ensure_length(field_type, field_size, 4)?;
             }
             0x0008 => {
                 // Level
                 ensure_length(field_type, field_size, 2)?;
                 level = Some(LittleEndian::read_u16(field_value));
-            }
-            0x0009 => {
-                // Flags
-                ensure_length(field_type, field_size, 4)?;
             }
             0xffff => {
                 ensure_length(field_type, field_size, 0)?;
@@ -147,6 +143,7 @@ fn parse_groups(root: &NodePtr, header_num_groups: u32, data: &mut &[u8]) -> Res
                     branch.push(group);
                 } else {
                     // Level is beyond the current depth, missing intermediate levels?
+                    #[allow(clippy::cast_possible_truncation)]
                     return Err(DatabaseIntegrityError::InvalidKDBGroupLevel {
                         group_level: level as u16,
                         current_level: branch.len() as u16,
@@ -176,7 +173,7 @@ fn parse_groups(root: &NodePtr, header_num_groups: u32, data: &mut &[u8]) -> Res
     Ok(gid_map)
 }
 
-fn parse_entries(root: &NodePtr, gid_map: GidMap, header_num_entries: u32, data: &mut &[u8]) -> Result<(), DatabaseIntegrityError> {
+fn parse_entries(root: &NodePtr, gid_map: &GidMap, header_num_entries: u32, data: &mut &[u8]) -> Result<(), DatabaseIntegrityError> {
     // Loop over entry TLVs
     let mut entry = Entry::new(); // the current entry
     let mut gid: Option<u32> = None; // the current entry's group id
@@ -230,7 +227,7 @@ fn parse_entries(root: &NodePtr, gid_map: GidMap, header_num_entries: u32, data:
                     .get(&group_id)
                     .ok_or(DatabaseIntegrityError::InvalidKDBGroupId { group_id })?
                     .iter()
-                    .map(|v| v.as_str())
+                    .map(std::string::String::as_str)
                     .collect();
 
                 if let Some(group) = Group::get(root, group_path.as_slice()) {
@@ -262,13 +259,14 @@ fn parse_db(header: &KDBHeader, data: &[u8]) -> Result<NodePtr, DatabaseIntegrit
 
     let gid_map = parse_groups(&root, header.num_groups, &mut pos)?;
 
-    parse_entries(&root, gid_map, header.num_entries, &mut pos)?;
+    parse_entries(&root, &gid_map, header.num_entries, &mut pos)?;
 
     Ok(root)
 }
 
 pub(crate) fn parse_kdb(data: &[u8], key_elements: &[Vec<u8>]) -> Result<Database, DatabaseOpenError> {
     let header = parse_header(data)?;
+    #[allow(clippy::cast_possible_truncation)]
     let version = DatabaseVersion::KDB(header.subversion as u16);
 
     // Rest of file after header is payload
@@ -280,17 +278,17 @@ pub(crate) fn parse_kdb(data: &[u8], key_elements: &[Vec<u8>]) -> Result<Databas
         let key_element: [u8; 32] = key_elements[0].try_into().unwrap();
         GenericArray::from(key_element) // single pass of SHA256, already done before the call to parse()
     } else {
-        calculate_sha256(&key_elements)? // second pass of SHA256
+        calculate_sha256(&key_elements) // second pass of SHA256
     };
 
     // KDF is always AES
     let kdf_config = KdfConfig::Aes {
-        rounds: header.transform_rounds as u64,
+        rounds: u64::from(header.transform_rounds),
     };
 
     let transformed_key = kdf_config.get_kdf_seeded(&header.transform_seed).transform_key(&composite_key)?;
 
-    let master_key = calculate_sha256(&[&header.master_seed, &transformed_key])?;
+    let master_key = calculate_sha256(&[&header.master_seed, &transformed_key]);
 
     let outer_cipher_config = if header.flags & 2 != 0 {
         OuterCipherConfig::AES256
@@ -308,7 +306,7 @@ pub(crate) fn parse_kdb(data: &[u8], key_elements: &[Vec<u8>]) -> Result<Databas
     let payload = &payload_padded[..payload_padded.len() - padlen];
 
     // Check if we decrypted correctly
-    let hash = calculate_sha256(&[payload])?;
+    let hash = calculate_sha256(&[payload]);
     if header.contents_hash != hash.as_slice() {
         return Err(DatabaseKeyError::IncorrectKey.into());
     }
@@ -328,6 +326,6 @@ pub(crate) fn parse_kdb(data: &[u8], key_elements: &[Vec<u8>]) -> Result<Databas
         header_attachments: Vec::default(),
         root: root_group,
         deleted_objects: DeletedObjects::default(),
-        meta: Meta::default(),
+        meta: Meta::new(),
     })
 }

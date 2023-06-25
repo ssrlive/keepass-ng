@@ -24,7 +24,7 @@ pub(crate) fn read_hmac_block_stream(data: &[u8], key: &GenericArray<u8, U64>) -
         let block = &data[(pos + 36)..(pos + 36 + size)];
 
         // verify block hmac
-        let hmac_block_key = get_hmac_block_key(block_index, key)?;
+        let hmac_block_key = get_hmac_block_key(block_index, key);
         let mut block_index_buf = [0u8; 8];
         LittleEndian::write_u64(&mut block_index_buf, block_index);
 
@@ -60,10 +60,11 @@ pub(crate) fn write_hmac_block_stream(data: &[u8], key: &GenericArray<u8, U64>) 
 
         let mut size_bytes: Vec<u8> = vec![];
         size_bytes.resize(4, 0);
+        #[allow(clippy::cast_possible_truncation)]
         LittleEndian::write_u32(&mut size_bytes, size as u32);
 
         // Generate block hmac
-        let hmac_block_key = get_hmac_block_key(block_index, key)?;
+        let hmac_block_key = get_hmac_block_key(block_index, key);
         let mut block_index_buf = [0u8; 8];
         LittleEndian::write_u64(&mut block_index_buf, block_index);
 
@@ -78,7 +79,7 @@ pub(crate) fn write_hmac_block_stream(data: &[u8], key: &GenericArray<u8, U64>) 
     }
 
     // the end of the HMAC block stream should be an empty block, but with a valid HMAC
-    let hmac_block_key = get_hmac_block_key(block_index, key)?;
+    let hmac_block_key = get_hmac_block_key(block_index, key);
     let mut block_index_buf = [0u8; 8];
     LittleEndian::write_u64(&mut block_index_buf, block_index);
 
@@ -91,7 +92,7 @@ pub(crate) fn write_hmac_block_stream(data: &[u8], key: &GenericArray<u8, U64>) 
     Ok(out)
 }
 
-pub(crate) fn get_hmac_block_key(block_index: u64, key: &GenericArray<u8, U64>) -> Result<GenericArray<u8, U64>, CryptographyError> {
+pub(crate) fn get_hmac_block_key(block_index: u64, key: &GenericArray<u8, U64>) -> GenericArray<u8, U64> {
     let mut buf = [0u8; 8];
     LittleEndian::write_u64(&mut buf, block_index);
     crate::crypt::calculate_sha512(&[&buf, key])

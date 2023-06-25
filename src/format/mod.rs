@@ -11,12 +11,12 @@ use crate::error::DatabaseIntegrityError;
 
 const KDBX_IDENTIFIER: [u8; 4] = [0x03, 0xd9, 0xa2, 0x9a];
 
-/// Identifier for KeePass 1 format.
-pub const KEEPASS_1_ID: u32 = 0xb54bfb65;
-/// Identifier for KeePass 2 pre-release format.
-pub const KEEPASS_2_ID: u32 = 0xb54bfb66;
-/// Identifier for the latest KeePass formats.
-pub const KEEPASS_LATEST_ID: u32 = 0xb54bfb67;
+/// Identifier for `KeePass` 1 format.
+pub const KEEPASS_1_ID: u32 = 0xb54b_fb65;
+/// Identifier for `KeePass` 2 pre-release format.
+pub const KEEPASS_2_ID: u32 = 0xb54b_fb66;
+/// Identifier for the latest `KeePass` formats.
+pub const KEEPASS_LATEST_ID: u32 = 0xb54b_fb67;
 
 pub const KDBX3_MAJOR_VERSION: u16 = 3;
 pub const KDBX4_MAJOR_VERSION: u16 = 4;
@@ -41,9 +41,9 @@ impl DatabaseVersion {
             return Err(DatabaseIntegrityError::InvalidKDBXIdentifier);
         }
 
-        let version = data.get(4..8).map(LittleEndian::read_u32).unwrap_or(0);
-        let file_minor_version = data.get(8..10).map(LittleEndian::read_u16).unwrap_or(0);
-        let file_major_version = data.get(10..12).map(LittleEndian::read_u16).unwrap_or(0);
+        let version = data.get(4..8).map_or(0, LittleEndian::read_u32);
+        let file_minor_version = data.get(8..10).map_or(0, LittleEndian::read_u16);
+        let file_major_version = data.get(10..12).map_or(0, LittleEndian::read_u16);
 
         let response = match version {
             KEEPASS_1_ID => DatabaseVersion::KDB(file_minor_version),
@@ -53,8 +53,8 @@ impl DatabaseVersion {
             _ => {
                 return Err(DatabaseIntegrityError::InvalidKDBXVersion {
                     version,
-                    file_major_version: file_major_version as u32,
-                    file_minor_version: file_minor_version as u32,
+                    file_major_version: u32::from(file_major_version),
+                    file_minor_version: u32::from(file_minor_version),
                 })
             }
         };
@@ -85,8 +85,8 @@ impl ToString for DatabaseVersion {
         match self {
             DatabaseVersion::KDB(_) => "KDB".to_string(),
             DatabaseVersion::KDB2(_) => "KDBX2".to_string(),
-            DatabaseVersion::KDB3(minor_version) => format!("KDBX3.{}", minor_version),
-            DatabaseVersion::KDB4(minor_version) => format!("KDBX4.{}", minor_version),
+            DatabaseVersion::KDB3(minor_version) => format!("KDBX3.{minor_version}"),
+            DatabaseVersion::KDB4(minor_version) => format!("KDBX4.{minor_version}"),
         }
     }
 }

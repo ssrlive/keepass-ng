@@ -24,13 +24,12 @@ mod entry_tests {
             assert_eq!(e.get_url(), Some("http://keepass.info/"));
             assert_eq!(e.get("custom attribute"), Some("data for custom attribute"));
             assert_eq!(e.get("URL"), Some("http://keepass.info/"));
-            assert_eq!(e.times.expires, false);
+            assert!(!e.get_times().get_expires());
 
             let et = chrono::NaiveDateTime::parse_from_str("2016-01-06 09:43:01", "%Y-%m-%d %H:%M:%S").unwrap();
-            assert_eq!(e.get_expiry_time(), Some(&et));
-            assert_eq!(e.get_time("ExpiryTime"), Some(&et));
+            assert_eq!(e.get_times().get_expiry_time(), Some(et));
 
-            if let Some(ref at) = e.autotype {
+            if let Some(at) = e.get_autotype() {
                 if let Some(ref s) = at.sequence {
                     assert_eq!(s, "{USERNAME}{TAB}{TAB}{PASSWORD}{ENTER}");
                 } else {
@@ -51,8 +50,8 @@ mod entry_tests {
             assert_eq!(e.get_username(), Some("jdoe"));
             assert_eq!(e.get_password(), Some("nWuu5AtqsxqNhnYgLwoB"));
             assert_eq!(e.get_url(), None);
-            assert_eq!(e.times.expires, false);
-            if let Some(t) = e.get_time("ExpiryTime") {
+            assert!(!e.get_times().get_expires());
+            if let Some(t) = e.get_times().get_expiry_time() {
                 assert_eq!(format!("{}", t), "2016-01-28 12:25:36");
             } else {
                 panic!("Expected an ExpiryTime");
@@ -80,9 +79,9 @@ mod entry_tests {
             assert_eq!(e.get_username(), Some("ghj"));
             assert_eq!(e.get_password(), Some("klmno"));
             assert_eq!(e.get_url(), Some("https://example.com"));
-            assert_eq!(e.tags, vec!["keepass-rs".to_string(), "test".to_string()]);
-            assert_eq!(e.times.expires, true);
-            if let Some(t) = e.get_time("ExpiryTime") {
+            assert_eq!(e.get_tags(), &vec!["keepass-rs".to_string(), "test".to_string()]);
+            assert!(e.get_times().get_expires());
+            if let Some(t) = e.get_times().get_expiry_time() {
                 assert_eq!(format!("{}", t), "2021-04-10 16:53:18");
             } else {
                 panic!("Expected an ExpiryTime");

@@ -16,25 +16,22 @@ use crate::{
     xml_db::get_epoch_baseline,
 };
 
-/// Parse a KeePass timestamp string
-pub fn parse_xml_timestamp(t: &str) -> Result<chrono::NaiveDateTime, XmlParseError> {
-    match chrono::NaiveDateTime::parse_from_str(t, "%Y-%m-%dT%H:%M:%SZ") {
-        // Prior to KDBX4 file format, timestamps were stored as ISO 8601 strings
-        Ok(ndt) => Ok(ndt),
-        // If we don't have a valid ISO 8601 string, assume we have found a Base64 encoded int.
-        _ => {
-            let v = base64_engine::STANDARD.decode(t)?;
+/// Parse a `KeePass` timestamp string
+pub fn xml_timestamp(t: &str) -> Result<chrono::NaiveDateTime, XmlParseError> {
+    if let Ok(ndt) = chrono::NaiveDateTime::parse_from_str(t, "%Y-%m-%dT%H:%M:%SZ") {
+        Ok(ndt)
+    } else {
+        let v = base64_engine::STANDARD.decode(t)?;
 
-            // Cast the decoded base64 Vec into the array expected by i64::from_le_bytes
-            let mut a: [u8; 8] = [0, 0, 0, 0, 0, 0, 0, 0];
-            a.copy_from_slice(&v[0..8]);
-            let ndt = get_epoch_baseline() + chrono::Duration::seconds(i64::from_le_bytes(a));
-            Ok(ndt)
-        }
+        // Cast the decoded base64 Vec into the array expected by i64::from_le_bytes
+        let mut a: [u8; 8] = [0, 0, 0, 0, 0, 0, 0, 0];
+        a.copy_from_slice(&v[0..8]);
+        let ndt = get_epoch_baseline() + chrono::Duration::seconds(i64::from_le_bytes(a));
+        Ok(ndt)
     }
 }
 
-/// Trait that denotes that a KeePass object can be parsed from a stream of `SimpleXmlEvent`.
+/// Trait that denotes that a `KeePass` object can be parsed from a stream of `SimpleXmlEvent`.
 ///
 /// The parser implementation should consume everything from the start tag of an object to the end
 /// tag, both inclusive, and use the `Peekable::peek` method to decide when to call into
@@ -48,7 +45,7 @@ pub(crate) trait FromXml {
     ) -> Result<Self::Parses, XmlParseError>;
 }
 
-/// Helper type to flatten out the Result<XmlEvent> types returned by the EventReader, since many
+/// Helper type to flatten out the Result<XmlEvent> types returned by the `EventReader`, since many
 /// of the parsers need to do a lot of destructuring
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[must_use]
@@ -95,8 +92,8 @@ pub(crate) fn parse_from_bytes<P: FromXml>(xml: &[u8], inner_cipher: &mut dyn Ci
 /// Helper trait for converting `SimpleXmlEvent::Characters` into types that can be parsed from
 /// strings.
 ///
-/// Note that we cannot use FromStr here since we need to be able to customize the code for some of
-/// the types to account for how they are represented in the XML documents (e.g. bool, NaiveDateTime)
+/// Note that we cannot use `FromStr` here since we need to be able to customize the code for some of
+/// the types to account for how they are represented in the XML documents (e.g. bool, `NaiveDateTime`)
 trait FromXmlCharacters: Sized {
     fn from_xml_characters(s: &str) -> Result<Self, XmlParseError>;
 }
@@ -164,7 +161,7 @@ impl FromXmlCharacters for String {
 
 impl FromXmlCharacters for NaiveDateTime {
     fn from_xml_characters(s: &str) -> Result<Self, XmlParseError> {
-        parse_xml_timestamp(s)
+        xml_timestamp(s)
     }
 }
 
@@ -239,7 +236,7 @@ impl FromXml for KeePassXml {
             });
         }
 
-        let mut out = Self::default();
+        let mut out = KeePassXml::default();
 
         while let Some(event) = iterator.peek() {
             match event {
@@ -344,7 +341,7 @@ impl FromXml for Root {
             });
         }
 
-        let mut out = Self::default();
+        let mut out = Root::default();
 
         while let Some(event) = iterator.peek() {
             match event {
@@ -394,7 +391,7 @@ impl FromXml for DeletedObjects {
             });
         }
 
-        let mut out = Self::default();
+        let mut out = DeletedObjects::default();
 
         while let Some(event) = iterator.peek() {
             match event {
@@ -442,7 +439,7 @@ impl FromXml for DeletedObject {
             });
         }
 
-        let mut out = Self::default();
+        let mut out = DeletedObject::default();
 
         while let Some(event) = iterator.peek() {
             match event {
@@ -492,7 +489,7 @@ impl FromXml for CustomData {
             });
         }
 
-        let mut out = Self::default();
+        let mut out = CustomData::default();
 
         while let Some(event) = iterator.peek() {
             match event {
@@ -546,7 +543,7 @@ impl FromXml for CustomDataItemDenormalized {
             });
         }
 
-        let mut out = Self::default();
+        let mut out = CustomDataItemDenormalized::default();
 
         while let Some(event) = iterator.peek() {
             match event {
@@ -644,7 +641,7 @@ mod parse_test {
     fn test_custom_xml_fields() -> Result<(), XmlParseError> {
         let xml = include_bytes!("../../../tests/resources/inner_xml_with_custom_fields.xml");
 
-        let mut inner_cipher = InnerCipherConfig::Plain.get_cipher(&[]).unwrap();
+        let mut inner_cipher = InnerCipherConfig::Plain.get_cipher(&[]);
 
         let _database_content = parse(&xml[..], &mut *inner_cipher)?;
 
@@ -679,7 +676,7 @@ mod parse_test {
         // bool tag
         let value = parse_test_xml::<SimpleTag<bool>>("<TestTag attribute=\"SomeValue\">True</TestTag>")?;
         assert_eq!(value.name, "TestTag");
-        assert_eq!(value.value, true);
+        assert!(value.value);
 
         // usize tag
         let value = parse_test_xml::<SimpleTag<usize>>("<TestTag attribute=\"SomeValue\">42</TestTag>")?;
@@ -839,8 +836,8 @@ mod parse_test {
 
     #[test]
     fn test_ignore_subfield() -> Result<(), XmlParseError> {
-        let _value = parse_test_xml::<IgnoreSubfield>("<TestTag>SomeData</TestTag>")?;
-        let _value = parse_test_xml::<IgnoreSubfield>("<TestTag>SomeData<More-Content></More-Content></TestTag>")?;
+        parse_test_xml::<IgnoreSubfield>("<TestTag>SomeData</TestTag>")?;
+        parse_test_xml::<IgnoreSubfield>("<TestTag>SomeData<More-Content></More-Content></TestTag>")?;
 
         let value = parse_test_xml::<IgnoreSubfield>("<Item></TestTag>");
         assert!(matches!(value, Err(XmlParseError::Xml(_))));
@@ -953,7 +950,7 @@ mod parse_test {
         let value = parse_test_xml::<AutoType>(
             "<AutoType><Enabled>True</Enabled><DefaultSequence>ASDF</DefaultSequence><DataTransferObfuscation>42</DataTransferObfuscation></AutoType>",
         )?;
-        assert_eq!(value.enabled, true);
+        assert!(value.enabled);
         assert_eq!(value.sequence, Some("ASDF".to_string()));
         assert_eq!(value.associations.len(), 0);
 

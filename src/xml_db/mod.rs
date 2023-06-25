@@ -37,8 +37,7 @@ mod tests {
             password += &std::char::from_u32(random_char as u32).unwrap().to_string();
         }
 
-        let key_elements = DatabaseKey::new().with_password(&password).get_key_elements().unwrap();
-        key_elements
+        DatabaseKey::new().with_password(&password).get_key_elements().unwrap()
     }
 
     #[test]
@@ -53,15 +52,15 @@ mod tests {
         );
         entry.tags.push("test".to_string());
         entry.tags.push("keepass-rs".to_string());
-        entry.times.expires = true;
-        entry.times.usage_count = 42;
-        entry.times.set_creation(NaiveDateTime::default());
-        entry.times.set_expiry(NaiveDateTime::default());
-        entry.times.set_last_access(NaiveDateTime::default());
-        entry.times.set_location_changed(Times::now());
-        entry.times.set_last_modification(Times::now());
+        entry.times.set_expires(true);
+        entry.times.set_usage_count(42);
+        entry.times.set_creation(Some(NaiveDateTime::default()));
+        entry.times.set_expiry_time(Some(NaiveDateTime::default()));
+        entry.times.set_last_access(Some(NaiveDateTime::default()));
+        entry.times.set_location_changed(Some(Times::now()));
+        entry.times.set_last_modification(Some(Times::now()));
 
-        entry.autotype = Some(AutoType {
+        entry.set_autotype(Some(AutoType {
             enabled: true,
             sequence: Some("Autotype-sequence".to_string()),
             associations: vec![
@@ -74,7 +73,7 @@ mod tests {
                     sequence: None,
                 },
             ],
-        });
+        }));
 
         entry.custom_data.items.insert(
             "CDI-key".to_string(),
@@ -133,13 +132,13 @@ mod tests {
             subgroup.notes = Some("I am a subgroup".to_string());
             subgroup.icon_id = Some(42);
             subgroup.custom_icon_uuid = Some(uuid!("11111111111111111111111111111111"));
-            subgroup.times.expires = true;
-            subgroup.times.usage_count = 100;
-            subgroup.times.set_creation(NaiveDateTime::default());
-            subgroup.times.set_expiry(NaiveDateTime::default());
-            subgroup.times.set_last_access(NaiveDateTime::default());
-            subgroup.times.set_location_changed(Times::now());
-            subgroup.times.set_last_modification(Times::now());
+            subgroup.times.set_expires(true);
+            subgroup.times.set_usage_count(100);
+            subgroup.times.set_creation(Some(NaiveDateTime::default()));
+            subgroup.times.set_expiry_time(Some(NaiveDateTime::default()));
+            subgroup.times.set_last_access(Some(NaiveDateTime::default()));
+            subgroup.times.set_location_changed(Some(Times::now()));
+            subgroup.times.set_last_modification(Some(Times::now()));
             subgroup.is_expanded = true;
             subgroup.default_autotype_sequence = Some("{UP}{UP}{DOWN}{DOWN}{LEFT}{RIGHT}{LEFT}{RIGHT}BA".to_string());
             subgroup.enable_autotype = Some("yes".to_string());

@@ -30,11 +30,11 @@ pub(crate) struct AES256Cipher {
 }
 
 impl AES256Cipher {
-    pub(crate) fn new(key: &[u8], iv: &[u8]) -> Result<Self, CryptographyError> {
-        Ok(AES256Cipher {
+    pub(crate) fn new(key: &[u8], iv: &[u8]) -> Self {
+        AES256Cipher {
             key: Vec::from(key),
             iv: Vec::from(iv),
-        })
+        }
     }
 }
 
@@ -75,11 +75,11 @@ pub(crate) struct TwofishCipher {
 }
 
 impl TwofishCipher {
-    pub(crate) fn new(key: &[u8], iv: &[u8]) -> Result<Self, CryptographyError> {
-        Ok(TwofishCipher {
+    pub(crate) fn new(key: &[u8], iv: &[u8]) -> Self {
+        TwofishCipher {
             key: Vec::from(key),
             iv: Vec::from(iv),
-        })
+        }
     }
 }
 
@@ -114,13 +114,13 @@ pub(crate) struct Salsa20Cipher {
 }
 
 impl Salsa20Cipher {
-    pub(crate) fn new(key: &[u8]) -> Result<Self, CryptographyError> {
+    pub(crate) fn new(key: &[u8]) -> Self {
         let key = GenericArray::from_slice(key);
         let iv = GenericArray::from([0xE8, 0x30, 0x09, 0x4B, 0x97, 0x20, 0x5D, 0x2A]);
 
-        Ok(Salsa20Cipher {
+        Salsa20Cipher {
             cipher: Salsa20::new(key, &iv),
-        })
+        }
     }
 }
 
@@ -152,15 +152,15 @@ pub(crate) struct ChaCha20Cipher {
 
 impl ChaCha20Cipher {
     /// Create as an inner cipher by splitting up a SHA512 hash
-    pub(crate) fn new(key: &[u8]) -> Result<Self, CryptographyError> {
-        let iv = crate::crypt::calculate_sha512(&[key])?;
+    pub(crate) fn new(key: &[u8]) -> Self {
+        let iv = crate::crypt::calculate_sha512(&[key]);
 
         let key = GenericArray::from_slice(&iv[0..32]);
         let nonce = GenericArray::from_slice(&iv[32..44]);
 
-        Ok(ChaCha20Cipher {
+        ChaCha20Cipher {
             cipher: chacha20::ChaCha20::new(key, nonce),
-        })
+        }
     }
 
     /// Create as an outer cipher by separately-specified key and iv
@@ -194,8 +194,8 @@ impl Cipher for ChaCha20Cipher {
 
 pub(crate) struct PlainCipher;
 impl PlainCipher {
-    pub(crate) fn new(_: &[u8]) -> Result<Self, CryptographyError> {
-        Ok(PlainCipher)
+    pub(crate) fn new(_: &[u8]) -> Self {
+        PlainCipher
     }
 }
 impl Cipher for PlainCipher {

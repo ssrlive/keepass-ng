@@ -16,6 +16,7 @@ use super::IgnoreSubfield;
 impl FromXml for Meta {
     type Parses = Self;
 
+    #[allow(clippy::too_many_lines)]
     fn from_xml<I: Iterator<Item = crate::xml_db::parse::SimpleXmlEvent>>(
         iterator: &mut std::iter::Peekable<I>,
         inner_cipher: &mut dyn crate::crypt::ciphers::Cipher,
@@ -28,7 +29,7 @@ impl FromXml for Meta {
             });
         }
 
-        let mut out = Self::default();
+        let mut out = Meta::new();
 
         while let Some(event) = iterator.peek() {
             match event {
@@ -149,7 +150,7 @@ impl FromXml for MemoryProtection {
             });
         }
 
-        let mut out = Self::default();
+        let mut out = MemoryProtection::default();
 
         while let Some(event) = iterator.peek() {
             match event {
@@ -205,7 +206,7 @@ impl FromXml for BinaryAttachments {
             });
         }
 
-        let mut out = Self::default();
+        let mut out = BinaryAttachments::default();
 
         while let Some(event) = iterator.peek() {
             match event {
@@ -244,7 +245,7 @@ impl FromXml for BinaryAttachment {
     ) -> Result<Self::Parses, XmlParseError> {
         let open_tag = iterator.next().ok_or(XmlParseError::Eof)?;
 
-        let mut out = Self::default();
+        let mut out = BinaryAttachment::default();
         let (identifier, compressed) = if let SimpleXmlEvent::Start(ref name, ref attributes) = open_tag {
             if name != "Binary" {
                 return Err(XmlParseError::BadEvent {
@@ -253,12 +254,9 @@ impl FromXml for BinaryAttachment {
                 });
             }
 
-            let identifier = attributes.get("ID").map(|s| s.to_string());
+            let identifier = attributes.get("ID").map(std::string::ToString::to_string);
 
-            let compressed = attributes
-                .get("Compressed")
-                .map(|v| v.to_lowercase().parse())
-                .unwrap_or(Ok(false))?;
+            let compressed = attributes.get("Compressed").map_or(Ok(false), |v| v.to_lowercase().parse())?;
 
             (identifier, compressed)
         } else {
@@ -301,7 +299,7 @@ impl FromXml for CustomIcons {
             });
         }
 
-        let mut out = Self::default();
+        let mut out = CustomIcons::default();
 
         while let Some(event) = iterator.peek() {
             match event {
@@ -346,7 +344,7 @@ impl FromXml for Icon {
             });
         }
 
-        let mut out = Self::default();
+        let mut out = Icon::default();
 
         while let Some(event) = iterator.peek() {
             match event {

@@ -1,4 +1,4 @@
-/// utility to get the version of a KeePass database.
+/// utility to get the version of a `KeePass` database.
 use std::fs::File;
 
 use anyhow::Result;

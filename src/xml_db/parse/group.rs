@@ -1,5 +1,5 @@
 use crate::{
-    db::{node::*, CustomData, Entry, Group, Times},
+    db::{node::NodePtr, CustomData, Entry, Group, Times},
     rc_refcell_node,
     xml_db::parse::{FromXml, SimpleTag, SimpleXmlEvent, XmlParseError},
 };

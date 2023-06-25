@@ -5,7 +5,7 @@ use byteorder::{ByteOrder, LittleEndian};
 use crate::{
     config::{CompressionConfig, DatabaseConfig, InnerCipherConfig, KdfConfig, OuterCipherConfig},
     crypt::{self, ciphers::Cipher},
-    db::{node::*, Database, HeaderAttachment},
+    db::{node::NodePtr, Database, HeaderAttachment},
     error::{DatabaseIntegrityError, DatabaseKeyError, DatabaseOpenError},
     format::{
         kdbx4::{
@@ -30,7 +30,7 @@ impl From<&[u8]> for HeaderAttachment {
     }
 }
 
-/// Open, decrypt and parse a KeePass database from a source and key elements
+/// Open, decrypt and parse a `KeePass` database from a source and key elements
 pub(crate) fn parse_kdbx4(data: &[u8], key_elements: &[Vec<u8>]) -> Result<Database, DatabaseOpenError> {
     let (config, header_attachments, mut inner_decryptor, xml) = decrypt_kdbx4(data, key_elements)?;
 
@@ -47,7 +47,7 @@ pub(crate) fn parse_kdbx4(data: &[u8], key_elements: &[Vec<u8>]) -> Result<Datab
     Ok(db)
 }
 
-/// Open and decrypt a KeePass KDBX4 database from a source and key elements
+/// Open and decrypt a `KeePass` KDBX4 database from a source and key elements
 #[allow(clippy::type_complexity)]
 pub(crate) fn decrypt_kdbx4(
     data: &[u8],
@@ -68,21 +68,21 @@ pub(crate) fn decrypt_kdbx4(
 
     // derive master key from composite key, transform_seed, transform_rounds and master_seed
     let key_elements: Vec<&[u8]> = key_elements.iter().map(|v| &v[..]).collect();
-    let composite_key = crypt::calculate_sha256(&key_elements)?;
+    let composite_key = crypt::calculate_sha256(&key_elements);
     let transformed_key = outer_header
         .kdf_config
         .get_kdf_seeded(&outer_header.kdf_seed)
         .transform_key(&composite_key)?;
-    let master_key = crypt::calculate_sha256(&[outer_header.master_seed.as_ref(), &transformed_key])?;
+    let master_key = crypt::calculate_sha256(&[outer_header.master_seed.as_ref(), &transformed_key]);
 
     // verify header
-    if header_sha256 != crypt::calculate_sha256(&[&data[0..inner_header_start]])?.as_slice() {
+    if header_sha256 != crypt::calculate_sha256(&[&data[0..inner_header_start]]).as_slice() {
         return Err(DatabaseIntegrityError::HeaderHashMismatch.into());
     }
 
     // verify credentials
-    let hmac_key = crypt::calculate_sha512(&[&outer_header.master_seed, &transformed_key, &hmac_block_stream::HMAC_KEY_END])?;
-    let header_hmac_key = hmac_block_stream::get_hmac_block_key(u64::max_value(), &hmac_key)?;
+    let hmac_key = crypt::calculate_sha512(&[&outer_header.master_seed, &transformed_key, &hmac_block_stream::HMAC_KEY_END]);
+    let header_hmac_key = hmac_block_stream::get_hmac_block_key(u64::max_value(), &hmac_key);
     if header_hmac != crypt::calculate_hmac(&[header_data], &header_hmac_key)?.as_slice() {
         return Err(DatabaseKeyError::IncorrectKey.into());
     }
@@ -105,7 +105,7 @@ pub(crate) fn decrypt_kdbx4(
     let xml = &payload[body_start..];
 
     // initialize the inner decryptor
-    let inner_decryptor = inner_header.inner_random_stream.get_cipher(&inner_header.inner_random_stream_key)?;
+    let inner_decryptor = inner_header.inner_random_stream.get_cipher(&inner_header.inner_random_stream_key);
 
     let config = DatabaseConfig {
         version: outer_header.version,
@@ -172,7 +172,7 @@ fn parse_outer_header(data: &[u8]) -> Result<(KDBX4OuterHeader, usize), Database
                 let vd = VariantDictionary::parse(entry_buffer)?;
                 let (kconf, kseed) = vd.try_into()?;
                 kdf_config = Some(kconf);
-                kdf_seed = Some(kseed)
+                kdf_seed = Some(kseed);
             }
 
             _ => {

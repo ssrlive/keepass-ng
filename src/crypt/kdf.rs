@@ -46,6 +46,7 @@ pub struct Argon2Kdf {
 
 impl Kdf for Argon2Kdf {
     fn transform_key(&self, composite_key: &GenericArray<u8, U32>) -> Result<GenericArray<u8, U32>, CryptographyError> {
+        #[allow(clippy::cast_possible_truncation)]
         let config = argon2::Config {
             ad: &[],
             hash_length: 32,

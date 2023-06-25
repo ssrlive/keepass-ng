@@ -23,7 +23,7 @@ pub fn node_is_entry(entry: &NodePtr) -> bool {
 }
 
 pub fn group_get_children(group: &NodePtr) -> Option<Vec<NodePtr>> {
-    group.borrow().as_any().downcast_ref::<Group>().map(|g| g.get_children())
+    group.borrow().as_any().downcast_ref::<Group>().map(Group::get_children)
 }
 
 pub fn group_add_child(parent: &NodePtr, child: NodePtr) -> Result<()> {
@@ -38,9 +38,9 @@ pub fn group_add_child(parent: &NodePtr, child: NodePtr) -> Result<()> {
 
 pub fn group_reset_children(parent: &NodePtr, children: Vec<NodePtr>) -> Result<()> {
     let uuid = parent.borrow().get_uuid();
-    children.iter().for_each(|c| {
+    for c in &children {
         c.borrow_mut().set_parent(Some(uuid));
-    });
+    }
     parent
         .borrow_mut()
         .as_any_mut()
@@ -48,6 +48,25 @@ pub fn group_reset_children(parent: &NodePtr, children: Vec<NodePtr>) -> Result<
         .ok_or("parent is not a group")?
         .children = children;
     Ok(())
+}
+
+pub fn group_remove_node_by_uuid(root: &NodePtr, uuid: Uuid) -> crate::Result<NodePtr> {
+    let root_uuid = root.borrow().get_uuid();
+    if root_uuid == uuid {
+        return Err("Cannot remove root node".into());
+    }
+
+    let node = search_node_by_uuid(root, uuid).ok_or("Node not found")?;
+    let parent_uuid = node.borrow().get_parent().ok_or("Node has no parent")?;
+    let err = format!("Parent \"{parent_uuid}\" not found");
+    let parent = search_node_by_uuid_with_specific_type::<Group>(root, parent_uuid).ok_or(err)?;
+    if let Some(parent) = parent.borrow_mut().as_any_mut().downcast_mut::<Group>() {
+        let err = format!("Node \"{uuid}\" not found in parent");
+        let index = parent.children.iter().position(|c| c.borrow().get_uuid() == uuid).ok_or(err)?;
+        parent.children.remove(index);
+    }
+
+    Ok(node)
 }
 
 pub fn node_is_equals_to(node: &NodePtr, other: &NodePtr) -> bool {
@@ -68,42 +87,40 @@ pub fn node_is_equals_to(node: &NodePtr, other: &NodePtr) -> bool {
     false
 }
 
-pub fn search_node_by_uuid(root: &NodePtr, id: Uuid) -> Option<NodePtr> {
-    NodeIterator::new(root).find(|n| n.borrow().get_uuid() == id)
+pub fn search_node_by_uuid(root: &NodePtr, uuid: Uuid) -> Option<NodePtr> {
+    NodeIterator::new(root).find(|n| n.borrow().get_uuid() == uuid)
 }
 
-pub fn search_node_by_uuid_with_specific_type<'a, T>(root: &'a NodePtr, id: Uuid) -> Option<NodePtr>
+pub fn search_node_by_uuid_with_specific_type<'a, T>(root: &'a NodePtr, uuid: Uuid) -> Option<NodePtr>
 where
     T: 'a + 'static,
 {
     NodeIterator::new(root)
         .filter(|n| n.borrow().as_any().downcast_ref::<T>().is_some())
-        .find(|n| n.borrow().get_uuid() == id)
+        .find(|n| n.borrow().get_uuid() == uuid)
 }
 
 #[cfg(feature = "serialization")]
 pub trait Node: as_any::AsAny + std::fmt::Debug + erased_serde::Serialize {
     fn duplicate(&self) -> NodePtr;
     fn get_uuid(&self) -> Uuid;
+    fn set_uuid(&mut self, uuid: Uuid);
     fn get_title(&self) -> Option<&str>;
     fn set_title(&mut self, title: Option<&str>);
     fn get_notes(&self) -> Option<&str>;
     fn set_notes(&mut self, notes: Option<&str>);
     fn get_icon_id(&self) -> Option<usize>;
     fn get_custom_icon_uuid(&self) -> Option<Uuid>;
-    fn get_times(&self) -> &Times;
 
     /// Get a timestamp field by name
     ///
-    /// Returning the chrono::NaiveDateTime which does not include timezone
-    /// or UTC offset because KeePass clients typically store timestamps
+    /// Returning the `NaiveDateTime` which does not include timezone
+    /// or UTC offset because `KeePass` clients typically store timestamps
     /// relative to the local time on the machine writing the data without
     /// including accurate UTC offset or timezone information.
-    fn get_time(&self, key: &str) -> Option<&chrono::NaiveDateTime>;
+    fn get_times(&self) -> &Times;
+    fn get_times_mut(&mut self) -> &mut Times;
 
-    /// Convenience method for getting the time that the entry expires.
-    /// This value is usually only meaningful/useful when expires == true
-    fn get_expiry_time(&self) -> Option<&chrono::NaiveDateTime>;
     fn get_parent(&self) -> Option<Uuid>;
     fn set_parent(&mut self, parent: Option<Uuid>);
 }
@@ -115,6 +132,7 @@ erased_serde::serialize_trait_object!(Node);
 pub trait Node: as_any::AsAny + std::fmt::Debug {
     fn duplicate(&self) -> NodePtr;
     fn get_uuid(&self) -> Uuid;
+    fn set_uuid(&mut self, uuid: Uuid);
     fn get_title(&self) -> Option<&str>;
     fn set_title(&mut self, title: Option<&str>);
     fn get_notes(&self) -> Option<&str>;

@@ -87,13 +87,7 @@ mod kdbx4_tests {
 
         let decrypted_db = parse_kdbx4(&encrypted_db, &key_elements).unwrap();
 
-        let len = (&decrypted_db.root)
-            .borrow()
-            .as_any()
-            .downcast_ref::<Group>()
-            .unwrap()
-            .children
-            .len();
+        let len = decrypted_db.root.borrow().as_any().downcast_ref::<Group>().unwrap().children.len();
         assert_eq!(len, 3);
     }
 
@@ -171,13 +165,7 @@ mod kdbx4_tests {
 
         let decrypted_db = parse_kdbx4(&encrypted_db, &key_elements).unwrap();
 
-        let len = (&decrypted_db.root)
-            .borrow()
-            .as_any()
-            .downcast_ref::<Group>()
-            .unwrap()
-            .children
-            .len();
+        let len = decrypted_db.root.borrow().as_any().downcast_ref::<Group>().unwrap().children.len();
         assert_eq!(len, 1);
 
         let header_attachments = &decrypted_db.header_attachments;

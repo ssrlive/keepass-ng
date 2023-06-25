@@ -77,9 +77,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     if let Some(entry) = entry.borrow_mut().as_any_mut().downcast_mut::<Entry>() {
         entry.set_title(Some("Demo entry"));
         entry.set_username(Some("jdoe"));
-        entry
-            .fields
-            .insert("Password".to_string(), Value::Protected("hunter2".as_bytes().into()));
+        entry.set_password(Some("hunter2"));
     }
 
     let group = rc_refcell_node!(Group::new("Demo group"));

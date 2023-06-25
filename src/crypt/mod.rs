@@ -23,22 +23,22 @@ pub(crate) fn calculate_hmac(elements: &[&[u8]], key: &[u8]) -> Result<GenericAr
     Ok(result.into_bytes())
 }
 
-pub(crate) fn calculate_sha256(elements: &[&[u8]]) -> Result<GenericArray<u8, U32>, CryptographyError> {
+pub(crate) fn calculate_sha256(elements: &[&[u8]]) -> GenericArray<u8, U32> {
     let mut digest = Sha256::new();
 
     for element in elements {
         digest.update(element);
     }
 
-    Ok(digest.finalize())
+    digest.finalize()
 }
 
-pub(crate) fn calculate_sha512(elements: &[&[u8]]) -> Result<GenericArray<u8, U64>, CryptographyError> {
+pub(crate) fn calculate_sha512(elements: &[&[u8]]) -> GenericArray<u8, U64> {
     let mut digest = Sha512::new();
 
     for element in elements {
         digest.update(element);
     }
 
-    Ok(digest.finalize())
+    digest.finalize()
 }

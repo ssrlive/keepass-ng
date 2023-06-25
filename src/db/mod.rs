@@ -1,4 +1,4 @@
-//! Types for representing data contained in a KeePass database
+//! Types for representing data contained in a `KeePass` database
 
 pub(crate) mod entry;
 pub(crate) mod group;
@@ -34,7 +34,7 @@ use crate::{
     rc_refcell_node,
 };
 
-/// A decrypted KeePass database
+/// A decrypted `KeePass` database
 #[derive(Debug)]
 #[cfg_attr(feature = "serialization", derive(serde::Serialize))]
 pub struct Database {
@@ -67,7 +67,7 @@ impl PartialEq for Database {
 impl Eq for Database {}
 
 impl Database {
-    /// Parse a database from a std::io::Read
+    /// Parse a database from a `std::io::Read`
     pub fn open(source: &mut dyn std::io::Read, key: DatabaseKey) -> Result<Database, DatabaseOpenError> {
         let key_elements = key.get_key_elements()?;
 
@@ -84,7 +84,7 @@ impl Database {
         }
     }
 
-    /// Save a database to a std::io::Write
+    /// Save a database to a `std::io::Write`
     #[cfg(feature = "save_kdbx4")]
     pub fn save(&self, destination: &mut dyn std::io::Write, key: DatabaseKey) -> Result<(), crate::error::DatabaseSaveError> {
         use crate::error::DatabaseSaveError;
@@ -207,16 +207,16 @@ impl Database {
 #[cfg_attr(feature = "serialization", derive(serde::Serialize))]
 pub struct Times {
     /// Does this node expire
-    pub expires: bool,
+    pub(crate) expires: bool,
 
     /// Number of usages
-    pub usage_count: usize,
+    pub(crate) usage_count: usize,
 
     /// Using chrono::NaiveDateTime which does not include timezone
     /// or UTC offset because KeePass clients typically store timestamps
     /// relative to the local time on the machine writing the data without
     /// including accurate UTC offset or timezone information.
-    pub times: HashMap<String, NaiveDateTime>,
+    pub(crate) times: HashMap<String, NaiveDateTime>,
 }
 
 pub const EXPIRY_TIME_TAG_NAME: &str = "ExpiryTime";
@@ -226,48 +226,74 @@ pub const LAST_ACCESS_TIME_TAG_NAME: &str = "LastAccessTime";
 pub const LOCATION_CHANGED_TAG_NAME: &str = "LocationChanged";
 
 impl Times {
-    fn get(&self, key: &str) -> Option<&NaiveDateTime> {
-        self.times.get(key)
+    fn get(&self, key: &str) -> Option<NaiveDateTime> {
+        self.times.get(key).cloned()
     }
 
-    pub fn get_expiry(&self) -> Option<&NaiveDateTime> {
-        self.times.get(EXPIRY_TIME_TAG_NAME)
+    fn set(&mut self, key: &str, time: Option<NaiveDateTime>) {
+        if let Some(time) = time {
+            self.times.insert(key.to_string(), time);
+        } else {
+            self.times.remove(key);
+        }
     }
 
-    pub fn set_expiry(&mut self, time: NaiveDateTime) {
-        self.times.insert(EXPIRY_TIME_TAG_NAME.to_string(), time);
+    pub fn get_expires(&self) -> bool {
+        self.expires
     }
 
-    pub fn get_last_modification(&self) -> Option<&NaiveDateTime> {
-        self.times.get(LAST_MODIFICATION_TIME_TAG_NAME)
+    pub fn set_expires(&mut self, expires: bool) {
+        self.expires = expires;
     }
 
-    pub fn set_last_modification(&mut self, time: NaiveDateTime) {
-        self.times.insert(LAST_MODIFICATION_TIME_TAG_NAME.to_string(), time);
+    pub fn get_usage_count(&self) -> usize {
+        self.usage_count
     }
 
-    pub fn get_creation(&self) -> Option<&NaiveDateTime> {
-        self.times.get(CREATION_TIME_TAG_NAME)
+    pub fn set_usage_count(&mut self, usage_count: usize) {
+        self.usage_count = usage_count;
     }
 
-    pub fn set_creation(&mut self, time: NaiveDateTime) {
-        self.times.insert(CREATION_TIME_TAG_NAME.to_string(), time);
+    /// Convenience method for getting the time that the entry expires.
+    /// This value is usually only meaningful/useful when expires == true
+    pub fn get_expiry_time(&self) -> Option<NaiveDateTime> {
+        self.get(EXPIRY_TIME_TAG_NAME)
     }
 
-    pub fn get_last_access(&self) -> Option<&NaiveDateTime> {
-        self.times.get(LAST_ACCESS_TIME_TAG_NAME)
+    pub fn set_expiry_time(&mut self, time: Option<NaiveDateTime>) {
+        self.set(EXPIRY_TIME_TAG_NAME, time);
     }
 
-    pub fn set_last_access(&mut self, time: NaiveDateTime) {
-        self.times.insert(LAST_ACCESS_TIME_TAG_NAME.to_string(), time);
+    pub fn get_last_modification(&self) -> Option<NaiveDateTime> {
+        self.get(LAST_MODIFICATION_TIME_TAG_NAME)
     }
 
-    pub fn get_location_changed(&self) -> Option<&NaiveDateTime> {
-        self.times.get(LOCATION_CHANGED_TAG_NAME)
+    pub fn set_last_modification(&mut self, time: Option<NaiveDateTime>) {
+        self.set(LAST_MODIFICATION_TIME_TAG_NAME, time);
     }
 
-    pub fn set_location_changed(&mut self, time: NaiveDateTime) {
-        self.times.insert(LOCATION_CHANGED_TAG_NAME.to_string(), time);
+    pub fn get_creation(&self) -> Option<NaiveDateTime> {
+        self.get(CREATION_TIME_TAG_NAME)
+    }
+
+    pub fn set_creation(&mut self, time: Option<NaiveDateTime>) {
+        self.set(CREATION_TIME_TAG_NAME, time);
+    }
+
+    pub fn get_last_access(&self) -> Option<NaiveDateTime> {
+        self.get(LAST_ACCESS_TIME_TAG_NAME)
+    }
+
+    pub fn set_last_access(&mut self, time: Option<NaiveDateTime>) {
+        self.set(LAST_ACCESS_TIME_TAG_NAME, time);
+    }
+
+    pub fn get_location_changed(&self) -> Option<NaiveDateTime> {
+        self.get(LOCATION_CHANGED_TAG_NAME)
+    }
+
+    pub fn set_location_changed(&mut self, time: Option<NaiveDateTime>) {
+        self.set(LOCATION_CHANGED_TAG_NAME, time);
     }
 
     // Returns the current time, without the nanoseconds since
@@ -283,13 +309,13 @@ impl Times {
 
     pub fn new() -> Times {
         let mut response = Times::default();
-        let now = Times::now();
+        let now = Some(Times::now());
         response.set_creation(now);
         response.set_last_modification(now);
         response.set_last_access(now);
         response.set_location_changed(now);
-        response.set_expiry(now);
-        response.expires = false;
+        response.set_expiry_time(now);
+        response.set_expires(false);
         response
     }
 }
@@ -332,6 +358,13 @@ pub struct DeletedObjects {
     pub objects: Vec<DeletedObject>,
 }
 
+impl DeletedObjects {
+    pub fn add(&mut self, uuid: Uuid) {
+        let deletion_time = Times::now();
+        self.objects.push(DeletedObject { uuid, deletion_time });
+    }
+}
+
 /// A reference to a deleted element
 #[derive(Debug, Default, PartialEq, Eq, Clone)]
 #[cfg_attr(feature = "serialization", derive(serde::Serialize))]
@@ -361,16 +394,16 @@ impl serde::Serialize for Color {
 impl FromStr for Color {
     type Err = ParseColorError;
 
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        if !s.starts_with('#') || s.len() != 7 {
-            return Err(ParseColorError(s.to_string()));
+    fn from_str(str: &str) -> Result<Self, Self::Err> {
+        if !str.starts_with('#') || str.len() != 7 {
+            return Err(ParseColorError(str.to_string()));
         }
 
-        let v = u64::from_str_radix(s.trim_start_matches('#'), 16).map_err(|_e| ParseColorError(s.to_string()))?;
+        let var = u64::from_str_radix(str.trim_start_matches('#'), 16).map_err(|_e| ParseColorError(str.to_string()))?;
 
-        let r = ((v >> 16) & 0xff) as u8;
-        let g = ((v >> 8) & 0xff) as u8;
-        let b = (v & 0xff) as u8;
+        let r = ((var >> 16) & 0xff) as u8;
+        let g = ((var >> 8) & 0xff) as u8;
+        let b = (var & 0xff) as u8;
 
         Ok(Self { r, g, b })
     }
@@ -421,7 +454,7 @@ mod database_tests {
 
         db.save(&mut buffer, key.clone())?;
 
-        let db_loaded = Database::open(&mut buffer.as_slice(), key.clone())?;
+        let db_loaded = Database::open(&mut buffer.as_slice(), key)?;
 
         assert_eq!(db, db_loaded);
         Ok(())

@@ -8,6 +8,12 @@ pub enum Error {
     #[error("std::io::Error {0}")]
     Io(#[from] std::io::Error),
 
+    #[error("DatabaseError::RecycleBinDisabled")]
+    RecycleBinDisabled,
+
+    #[error("DatabaseError::RecycleBinAlreadyExists")]
+    RecycleBinAlreadyExists,
+
     #[error("DatabaseOpenError {0}")]
     DatabaseOpenError(#[from] DatabaseOpenError),
 
@@ -309,7 +315,7 @@ pub enum BlockStreamError {
     BlockHashMismatch { block_index: u64 },
 }
 
-/// Errors while parsing a VariantDictionary
+/// Errors while parsing a `VariantDictionary`
 #[derive(Debug, thiserror::Error)]
 pub enum VariantDictionaryError {
     #[error("Invalid variant dictionary version: {}", version)]
@@ -328,7 +334,7 @@ pub enum VariantDictionaryError {
     NotTerminated,
 }
 
-/// Errors while parsing the XML document inside of a KeePass database
+/// Errors while parsing the XML document inside of a `KeePass` database
 #[derive(Debug, thiserror::Error)]
 pub enum XmlParseError {
     #[error(transparent)]
@@ -379,7 +385,10 @@ pub struct ParseColorError(pub String);
 // move error type conversions to a module and exclude them from coverage counting.
 #[cfg(not(tarpaulin_include))]
 mod conversions {
-    use super::*;
+    use super::{
+        BlockStreamError, CompressionConfigError, CryptographyError, DatabaseIntegrityError, DatabaseOpenError, InnerCipherConfigError,
+        KdfConfigError, OuterCipherConfigError, VariantDictionaryError, XmlParseError,
+    };
 
     impl From<CryptographyError> for DatabaseOpenError {
         fn from(e: CryptographyError) -> Self {

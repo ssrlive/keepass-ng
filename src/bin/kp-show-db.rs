@@ -1,4 +1,4 @@
-/// utility to show a parsed KeePass database
+/// utility to show a parsed `KeePass` database
 use std::fs::File;
 
 use anyhow::Result;
@@ -35,7 +35,7 @@ pub fn main() -> Result<()> {
 
     let db = Database::open(&mut source, key)?;
 
-    println!("{:#?}", db);
+    println!("{db:#?}");
 
     Ok(())
 }

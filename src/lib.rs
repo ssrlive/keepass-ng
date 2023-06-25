@@ -15,9 +15,11 @@ pub(crate) mod xml_db;
 
 pub use self::{
     config::DatabaseConfig,
+    db::group::Group,
     db::node::*,
     db::Database,
     error::{Error, Result},
     key::DatabaseKey,
 };
+pub use chrono::NaiveDateTime;
 pub use uuid::Uuid;

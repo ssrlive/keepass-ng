@@ -59,49 +59,49 @@ pub(crate) type NodeLocation = Vec<GroupRef>;
 #[cfg_attr(feature = "serialization", derive(serde::Serialize))]
 pub struct Group {
     /// The unique identifier of the group
-    pub uuid: Uuid,
+    pub(crate) uuid: Uuid,
 
     /// The name of the group
-    pub name: String,
+    pub(crate) name: String,
 
     /// Notes for the group
-    pub notes: Option<String>,
+    pub(crate) notes: Option<String>,
 
     /// ID of the group's icon
-    pub icon_id: Option<usize>,
+    pub(crate) icon_id: Option<usize>,
 
     /// UUID for a custom group icon
-    pub custom_icon_uuid: Option<Uuid>,
+    pub(crate) custom_icon_uuid: Option<Uuid>,
 
     /// The list of child nodes (Groups or Entries)
-    pub children: Vec<NodePtr>,
+    pub(crate) children: Vec<NodePtr>,
 
     /// The list of time fields for this group
-    pub times: Times,
+    pub(crate) times: Times,
 
     // Custom Data
-    pub custom_data: CustomData,
+    pub(crate) custom_data: CustomData,
 
     /// Whether the group is expanded in the user interface
-    pub is_expanded: bool,
+    pub(crate) is_expanded: bool,
 
     /// Default autotype sequence
-    pub default_autotype_sequence: Option<String>,
+    pub(crate) default_autotype_sequence: Option<String>,
 
     /// Whether autotype is enabled
     // TODO: in example XML files, this is "null" - what should the type be?
-    pub enable_autotype: Option<String>,
+    pub(crate) enable_autotype: Option<String>,
 
     /// Whether searching is enabled
     // TODO: in example XML files, this is "null" - what should the type be?
-    pub enable_searching: Option<String>,
+    pub(crate) enable_searching: Option<String>,
 
     /// UUID for the last top visible entry
     // TODO figure out what that is supposed to mean. According to the KeePass sourcecode, it has
     // something to do with restoring selected items when re-opening a database.
-    pub last_top_visible_entry: Option<Uuid>,
+    pub(crate) last_top_visible_entry: Option<Uuid>,
 
-    pub parent: Option<Uuid>,
+    pub(crate) parent: Option<Uuid>,
 }
 
 impl PartialEq for Group {
@@ -145,6 +145,10 @@ impl Node for Group {
         self.uuid
     }
 
+    fn set_uuid(&mut self, uuid: Uuid) {
+        self.uuid = uuid;
+    }
+
     fn get_title(&self) -> Option<&str> {
         Some(&self.name)
     }
@@ -158,7 +162,7 @@ impl Node for Group {
     }
 
     fn set_notes(&mut self, notes: Option<&str>) {
-        self.notes = notes.map(|s| s.to_string());
+        self.notes = notes.map(std::string::ToString::to_string);
     }
 
     fn get_icon_id(&self) -> Option<usize> {
@@ -173,12 +177,8 @@ impl Node for Group {
         &self.times
     }
 
-    fn get_time(&self, key: &str) -> Option<&chrono::NaiveDateTime> {
-        self.times.get(key)
-    }
-
-    fn get_expiry_time(&self) -> Option<&chrono::NaiveDateTime> {
-        self.times.get_expiry()
+    fn get_times_mut(&mut self) -> &mut Times {
+        &mut self.times
     }
 
     fn get_parent(&self) -> Option<Uuid> {
@@ -256,14 +256,13 @@ impl Group {
             Some(root.clone())
         } else if path.len() == 1 {
             let head = path[0];
-            group_get_children(root).and_then(|c| c.into_iter().find(|n| n.borrow().get_title().map(|t| t == head).unwrap_or(false)))
+            group_get_children(root).and_then(|c| c.into_iter().find(|n| n.borrow().get_title().map_or(false, |t| t == head)))
         } else {
             let head = path[0];
             let tail = &path[1..path.len()];
             let head_group = group_get_children(root).and_then(|c| {
-                c.into_iter().find(|n| {
-                    n.borrow().as_any().downcast_ref::<Group>().is_some() && n.borrow().get_title().map(|t| t == head).unwrap_or(false)
-                })
+                c.into_iter()
+                    .find(|n| n.borrow().as_any().downcast_ref::<Group>().is_some() && n.borrow().get_title().map_or(false, |t| t == head))
             })?;
 
             Self::get(&head_group, tail)
@@ -297,9 +296,7 @@ impl Group {
     }
 
     pub(crate) fn has_group(root: &NodePtr, uuid: Uuid) -> bool {
-        group_get_children(root)
-            .map(|c| c.into_iter().any(|n| n.borrow().get_uuid() == uuid && node_is_group(&n)))
-            .unwrap_or(false)
+        group_get_children(root).map_or(false, |c| c.into_iter().any(|n| n.borrow().get_uuid() == uuid && node_is_group(&n)))
     }
 
     pub(crate) fn get_group_mut(root: &NodePtr, location: &NodeLocation, create_groups: bool) -> Result<NodePtr> {
@@ -368,7 +365,7 @@ impl Group {
         for node in group_get_children(&group).unwrap_or(vec![]) {
             if node_is_entry(&node) {
                 let node_uuid = node.borrow().get_uuid();
-                println!("Saw entry {}", node_uuid);
+                println!("Saw entry {node_uuid}");
                 if node_uuid != uuid {
                     new_nodes.push(node.borrow().duplicate());
                     continue;
@@ -380,26 +377,23 @@ impl Group {
         }
 
         if let Some(entry) = removed_entry {
-            group_reset_children(&group, vec![])?;
-            for node in new_nodes {
-                group_add_child(&group, node)?;
-            }
+            group_reset_children(&group, new_nodes)?;
             Ok(entry)
         } else {
             let title = group.borrow().get_title().unwrap_or("No title").to_string();
-            Err(format!("Could not find entry {} in group \"{}\".", uuid, title).into())
+            Err(format!("Could not find entry {uuid} in group \"{title}\".").into())
         }
     }
 
-    pub(crate) fn find_entry_location(&self, id: Uuid) -> Option<NodeLocation> {
+    pub(crate) fn find_entry_location(&self, uuid: Uuid) -> Option<NodeLocation> {
         let mut current_location = vec![GroupRef::new(self.uuid, &self.name)];
         for node in &self.children {
             if node_is_entry(node) {
-                if node.borrow().get_uuid() == id {
+                if node.borrow().get_uuid() == uuid {
                     return Some(current_location);
                 }
             } else if let Some(g) = node.borrow().as_any().downcast_ref::<Group>() {
-                if let Some(mut location) = g.find_entry_location(id) {
+                if let Some(mut location) = g.find_entry_location(uuid) {
                     current_location.append(&mut location);
                     return Some(current_location);
                 }
@@ -436,13 +430,14 @@ impl Group {
 
         // The group was not found, so we create it.
         let new_group = rc_refcell_node!(Group::new(&next_location.name));
-        new_group.borrow_mut().as_any_mut().downcast_mut::<Group>().unwrap().uuid = next_location.uuid;
+        new_group.borrow_mut().set_uuid(next_location.uuid);
         Self::add_entry(&new_group, entry, &remaining_location)?;
         group_add_child(parent, new_group)?;
         Ok(())
     }
 
     /// Merge this group with another group
+    #[allow(clippy::too_many_lines)]
     pub fn merge(root: &NodePtr, other_group: &NodePtr) -> Result<MergeLog> {
         let mut log = MergeLog::default();
 
@@ -454,7 +449,7 @@ impl Group {
             .get_all_entries(&vec![]);
 
         // Handle entry relocation.
-        for (entry, entry_location) in other_entries.iter() {
+        for (entry, entry_location) in &other_entries {
             let entry_uuid = entry.borrow().get_uuid();
             let the_entry = search_node_by_uuid_with_specific_type::<Entry>(root, entry_uuid);
 
@@ -475,21 +470,19 @@ impl Group {
                 None => continue,
             };
 
-            let source_location_changed_time = match entry.borrow().get_times().get_location_changed() {
-                Some(t) => *t,
-                None => {
-                    log.warnings
-                        .push(format!("Entry {} did not have a location updated timestamp", entry_uuid));
-                    Times::epoch()
-                }
+            let source_location_changed_time = if let Some(t) = entry.borrow().get_times().get_location_changed() {
+                t
+            } else {
+                log.warnings
+                    .push(format!("Entry {entry_uuid} did not have a location updated timestamp"));
+                Times::epoch()
             };
-            let destination_location_changed = match existing_entry.borrow().get_times().get_location_changed() {
-                Some(t) => *t,
-                None => {
-                    log.warnings
-                        .push(format!("Entry {} did not have a location updated timestamp", entry_uuid));
-                    Times::now()
-                }
+            let destination_location_changed = if let Some(t) = existing_entry.borrow().get_times().get_location_changed() {
+                t
+            } else {
+                log.warnings
+                    .push(format!("Entry {entry_uuid} did not have a location updated timestamp"));
+                Times::now()
             };
             if source_location_changed_time > destination_location_changed {
                 log.events.push(MergeEvent {
@@ -502,7 +495,7 @@ impl Group {
         }
 
         // Handle entry updates
-        for (entry, entry_location) in other_entries.iter() {
+        for (entry, entry_location) in &other_entries {
             let entry_uuid = entry.borrow().get_uuid();
             let the_entry = search_node_by_uuid_with_specific_type::<Entry>(root, entry_uuid);
             if let Some(existing_entry) = the_entry {
@@ -510,21 +503,19 @@ impl Group {
                     continue;
                 }
 
-                let source_last_modification = match entry.borrow().get_times().get_last_modification() {
-                    Some(t) => *t,
-                    None => {
-                        log.warnings
-                            .push(format!("Entry {} did not have a last modification timestamp", entry_uuid));
-                        Times::epoch()
-                    }
+                let source_last_modification = if let Some(t) = entry.borrow().get_times().get_last_modification() {
+                    t
+                } else {
+                    log.warnings
+                        .push(format!("Entry {entry_uuid} did not have a last modification timestamp"));
+                    Times::epoch()
                 };
-                let destination_last_modification = match existing_entry.borrow().get_times().get_last_modification() {
-                    Some(t) => *t,
-                    None => {
-                        log.warnings
-                            .push(format!("Entry {} did not have a last modification timestamp", entry_uuid));
-                        Times::now()
-                    }
+                let destination_last_modification = if let Some(t) = existing_entry.borrow().get_times().get_last_modification() {
+                    t
+                } else {
+                    log.warnings
+                        .push(format!("Entry {entry_uuid} did not have a last modification timestamp"));
+                    Times::now()
                 };
 
                 if destination_last_modification == source_last_modification {
@@ -575,7 +566,7 @@ impl Group {
         let mut new_location = current_location.clone();
         new_location.push(GroupRef::new(self.uuid, &self.name));
 
-        for node in self.children.iter() {
+        for node in &self.children {
             if node_is_entry(node) {
                 response.push((node.clone(), new_location.clone()));
             } else if let Some(g) = node.borrow().as_any().downcast_ref::<Group>() {
@@ -761,23 +752,14 @@ mod group_tests {
         ];
         let removed_entry = Group::remove_entry(&source_group, entry_uuid, &location).unwrap();
 
-        removed_entry
-            .borrow_mut()
-            .as_any_mut()
-            .downcast_mut::<Entry>()
+        removed_entry.borrow_mut().get_times_mut().set_location_changed(Some(Times::now()));
+        assert!(source_group
+            .borrow()
+            .as_any()
+            .downcast_ref::<Group>()
             .unwrap()
-            .times
-            .set_location_changed(Times::now());
-        assert!(
-            source_group
-                .borrow()
-                .as_any()
-                .downcast_ref::<Group>()
-                .unwrap()
-                .get_all_entries(&vec![])
-                .len()
-                == 0
-        );
+            .get_all_entries(&vec![])
+            .is_empty());
         // FIXME we should not have to update the history here. We should
         // have a better compare function in the merge function instead.
         removed_entry
@@ -831,7 +813,7 @@ mod group_tests {
             .downcast_mut::<Entry>()
             .unwrap()
             .times
-            .set_location_changed(Times::now());
+            .set_location_changed(Some(Times::now()));
         // FIXME we should not have to update the history here. We should
         // have a better compare function in the merge function instead.
         entry.borrow_mut().as_any_mut().downcast_mut::<Entry>().unwrap().update_history();

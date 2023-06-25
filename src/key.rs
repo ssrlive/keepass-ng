@@ -42,19 +42,19 @@ fn parse_xml_keyfile(xml: &[u8]) -> Result<Vec<u8>, DatabaseKeyError> {
     Err(DatabaseKeyError::InvalidKeyFile)
 }
 
-fn parse_keyfile(buffer: &[u8]) -> Result<Vec<u8>, DatabaseKeyError> {
+fn parse_keyfile(buffer: &[u8]) -> Vec<u8> {
     // try to parse the buffer as XML, if successful, use that data instead of full file
     if let Ok(v) = parse_xml_keyfile(buffer) {
-        Ok(v)
+        v
     } else if buffer.len() == 32 {
         // legacy binary key format
-        Ok(buffer.to_vec())
+        buffer.to_vec()
     } else {
-        Ok(calculate_sha256(&[buffer])?.as_slice().to_vec())
+        calculate_sha256(&[buffer]).as_slice().to_vec()
     }
 }
 
-/// A KeePass key, which might consist of a password and/or a keyfile
+/// A `KeePass` key, which might consist of a password and/or a keyfile
 #[derive(Debug, Clone, Default)]
 pub struct DatabaseKey {
     password: Option<String>,
@@ -84,11 +84,11 @@ impl DatabaseKey {
         let mut out = Vec::new();
 
         if let Some(p) = self.password {
-            out.push(calculate_sha256(&[p.as_bytes()])?.to_vec());
+            out.push(calculate_sha256(&[p.as_bytes()]).to_vec());
         }
 
         if let Some(ref f) = self.keyfile {
-            out.push(parse_keyfile(f)?);
+            out.push(parse_keyfile(f));
         }
 
         if out.is_empty() {
