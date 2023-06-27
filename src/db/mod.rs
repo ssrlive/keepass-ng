@@ -188,7 +188,8 @@ impl Database {
         }
         let recycle_bin = rc_refcell_node!(Group::new("Recycle Bin"));
         self.meta.recyclebin_uuid = Some(recycle_bin.borrow().get_uuid());
-        group_add_child(&self.root, recycle_bin.clone())?;
+        let count = group_get_children(&self.root).ok_or("")?.len();
+        group_add_child(&self.root, recycle_bin.clone(), count)?;
         Ok(recycle_bin)
     }
 
@@ -196,7 +197,7 @@ impl Database {
         let node = group_remove_node_by_uuid(&self.root, uuid)?;
         self.deleted_objects.add(uuid);
         let recycle_bin = self.get_recycle_bin().ok_or("").or_else(|_| self.create_recycle_bin())?;
-        group_add_child(&recycle_bin, node.clone())?;
+        group_add_child(&recycle_bin, node.clone(), 0)?;
         self.meta.set_recyclebin_changed();
         Ok(node)
     }
@@ -227,7 +228,7 @@ pub const LOCATION_CHANGED_TAG_NAME: &str = "LocationChanged";
 
 impl Times {
     fn get(&self, key: &str) -> Option<NaiveDateTime> {
-        self.times.get(key).cloned()
+        self.times.get(key).copied()
     }
 
     fn set(&mut self, key: &str, time: Option<NaiveDateTime>) {
@@ -440,14 +441,14 @@ mod database_tests {
 
         let db = Database::new(DatabaseConfig::default());
 
-        group_add_child(&db.root, rc_refcell_node!(Entry::new())).unwrap();
-        group_add_child(&db.root, rc_refcell_node!(Entry::new())).unwrap();
-        group_add_child(&db.root, rc_refcell_node!(Entry::new())).unwrap();
+        group_add_child(&db.root, rc_refcell_node!(Entry::new()), 0).unwrap();
+        group_add_child(&db.root, rc_refcell_node!(Entry::new()), 1).unwrap();
+        group_add_child(&db.root, rc_refcell_node!(Entry::new()), 2).unwrap();
 
         let group = rc_refcell_node!(Group::new("my group"));
-        group_add_child(&group, rc_refcell_node!(Entry::new())).unwrap();
-        group_add_child(&group, rc_refcell_node!(Entry::new())).unwrap();
-        group_add_child(&db.root, group).unwrap();
+        group_add_child(&group, rc_refcell_node!(Entry::new()), 0).unwrap();
+        group_add_child(&group, rc_refcell_node!(Entry::new()), 1).unwrap();
+        group_add_child(&db.root, group, 3).unwrap();
 
         let mut buffer = Vec::new();
         let key = DatabaseKey::new().with_password("testing");

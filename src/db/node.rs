@@ -26,13 +26,13 @@ pub fn group_get_children(group: &NodePtr) -> Option<Vec<NodePtr>> {
     group.borrow().as_any().downcast_ref::<Group>().map(Group::get_children)
 }
 
-pub fn group_add_child(parent: &NodePtr, child: NodePtr) -> Result<()> {
+pub fn group_add_child(parent: &NodePtr, child: NodePtr, index: usize) -> Result<()> {
     parent
         .borrow_mut()
         .as_any_mut()
         .downcast_mut::<Group>()
         .ok_or("parent is not a group")?
-        .add_child(child);
+        .add_child(child, index);
     Ok(())
 }
 

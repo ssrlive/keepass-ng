@@ -67,9 +67,9 @@ mod kdbx4_tests {
         let mut db = Database::new(config);
 
         let root_group = rc_refcell_node!(Group::new("Root"));
-        group_add_child(&root_group, rc_refcell_node!(Entry::new())).unwrap();
-        group_add_child(&root_group, rc_refcell_node!(Entry::new())).unwrap();
-        group_add_child(&root_group, rc_refcell_node!(Entry::new())).unwrap();
+        group_add_child(&root_group, rc_refcell_node!(Entry::new()), 0).unwrap();
+        group_add_child(&root_group, rc_refcell_node!(Entry::new()), 1).unwrap();
+        group_add_child(&root_group, rc_refcell_node!(Entry::new()), 2).unwrap();
         db.root = root_group;
 
         let mut password_bytes: Vec<u8> = vec![];
@@ -139,7 +139,7 @@ mod kdbx4_tests {
     #[test]
     pub fn header_attachments() {
         let root_group = rc_refcell_node!(Group::new("Root"));
-        group_add_child(&root_group, rc_refcell_node!(Entry::new())).unwrap();
+        group_add_child(&root_group, rc_refcell_node!(Entry::new()), 0).unwrap();
 
         let mut db = Database::new(DatabaseConfig::default());
 
@@ -156,7 +156,7 @@ mod kdbx4_tests {
 
         let entry = rc_refcell_node!(Entry::new());
         entry.borrow_mut().set_title(Some("Demo entry"));
-        group_add_child(&db.root, entry).unwrap();
+        group_add_child(&db.root, entry, 0).unwrap();
 
         let key_elements = DatabaseKey::new().with_password("test").get_key_elements().unwrap();
 

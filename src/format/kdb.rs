@@ -1,7 +1,7 @@
 use crate::{
     config::{CompressionConfig, DatabaseConfig, InnerCipherConfig, KdfConfig, OuterCipherConfig},
     crypt::calculate_sha256,
-    db::{group_add_child, Database, DeletedObjects, Entry, Group, Meta, NodePtr, Value},
+    db::{group_add_child, group_get_children, Database, DeletedObjects, Entry, Group, Meta, NodePtr, Value},
     error::{DatabaseIntegrityError, DatabaseKeyError, DatabaseOpenError},
     format::DatabaseVersion,
     rc_refcell_node,
@@ -83,7 +83,8 @@ fn collapse_tail_groups(branch: &mut Vec<NodePtr>, level: usize, root: &NodePtr)
             Some(parent) => parent,
             None => root,
         };
-        group_add_child(parent, leaf).ok()?;
+        let count = group_get_children(parent)?.len();
+        group_add_child(parent, leaf, count).ok()?;
     }
     Some(())
 }
@@ -231,7 +232,8 @@ fn parse_entries(root: &NodePtr, gid_map: &GidMap, header_num_entries: u32, data
                     .collect();
 
                 if let Some(group) = Group::get(root, group_path.as_slice()) {
-                    group_add_child(&group, rc_refcell_node!(entry)).map_err(|_| DatabaseIntegrityError::IncompleteKDBGroup)?;
+                    let count = group_get_children(&group).ok_or(DatabaseIntegrityError::IncompleteKDBGroup)?.len();
+                    group_add_child(&group, rc_refcell_node!(entry), count).map_err(|_| DatabaseIntegrityError::IncompleteKDBGroup)?;
                 }
 
                 entry = Entry::new();

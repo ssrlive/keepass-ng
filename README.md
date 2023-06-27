@@ -81,9 +81,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     let group = rc_refcell_node!(Group::new("Demo group"));
-    group_add_child(&group, entry).unwrap();
+    group_add_child(&group, entry, 0).unwrap();
 
-    group_add_child(&db.root, group).unwrap();
+    group_add_child(&db.root, group, 0).unwrap();
 
     #[cfg(feature = "save_kdbx4")]
     db.save(&mut File::create("demo.kdbx")?, DatabaseKey::new().with_password("demopass"))?;

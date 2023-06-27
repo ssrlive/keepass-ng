@@ -100,7 +100,7 @@ mod tests {
         let entry = rc_refcell_node!(entry);
 
         let root_group = rc_refcell_node!(Group::new("Root"));
-        group_add_child(&root_group, entry.borrow().duplicate()).unwrap();
+        group_add_child(&root_group, entry.borrow().duplicate(), 0).unwrap();
 
         let mut db = Database::new(DatabaseConfig::default());
         db.root = root_group;
@@ -125,7 +125,7 @@ mod tests {
         let new_entry_uuid = entry.borrow().get_uuid();
         entry.borrow_mut().set_title(Some("ASDF"));
 
-        group_add_child(&root_group, entry).unwrap();
+        group_add_child(&root_group, entry, 0).unwrap();
 
         let subgroup = rc_refcell_node!(Group::new("Child group"));
         if let Some(subgroup) = subgroup.borrow_mut().as_any_mut().downcast_mut::<Group>() {
@@ -155,7 +155,7 @@ mod tests {
             );
         }
 
-        group_add_child(&root_group, subgroup).unwrap();
+        group_add_child(&root_group, subgroup, 1).unwrap();
 
         let mut db = Database::new(DatabaseConfig::default());
         db.root = root_group.borrow().duplicate();
