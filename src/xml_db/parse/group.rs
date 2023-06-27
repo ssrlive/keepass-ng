@@ -1,11 +1,11 @@
+use super::IgnoreSubfield;
 use crate::{
-    db::{node::NodePtr, CustomData, Entry, Group, Times},
+    db::{iconid::IconId, node::NodePtr, CustomData, Entry, Group, Times},
     rc_refcell_node,
     xml_db::parse::{FromXml, SimpleTag, SimpleXmlEvent, XmlParseError},
 };
+use std::convert::TryFrom;
 use uuid::Uuid;
-
-use super::IgnoreSubfield;
 
 impl FromXml for Group {
     type Parses = Self;
@@ -37,7 +37,9 @@ impl FromXml for Group {
                         out.notes = SimpleTag::<Option<String>>::from_xml(iterator, inner_cipher)?.value;
                     }
                     "IconID" => {
-                        out.icon_id = SimpleTag::<Option<usize>>::from_xml(iterator, inner_cipher)?.value;
+                        out.icon_id = SimpleTag::<Option<usize>>::from_xml(iterator, inner_cipher)?
+                            .value
+                            .map(|v| IconId::try_from(v).unwrap_or(IconId::FOLDER));
                     }
                     "CustomIconUUID" => {
                         out.custom_icon_uuid = SimpleTag::<Option<Uuid>>::from_xml(iterator, inner_cipher)?.value;

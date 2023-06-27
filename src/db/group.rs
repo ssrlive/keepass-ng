@@ -1,5 +1,5 @@
 use crate::{
-    db::{entry::Entry, node::*, CustomData, Times},
+    db::{entry::Entry, node::*, CustomData, IconId, Times},
     rc_refcell_node, Result,
 };
 use uuid::Uuid;
@@ -68,7 +68,7 @@ pub struct Group {
     pub(crate) notes: Option<String>,
 
     /// ID of the group's icon
-    pub(crate) icon_id: Option<usize>,
+    pub(crate) icon_id: Option<IconId>,
 
     /// UUID for a custom group icon
     pub(crate) custom_icon_uuid: Option<Uuid>,
@@ -110,7 +110,7 @@ impl Default for Group {
             uuid: Uuid::new_v4(),
             name: "Default Group".to_string(),
             notes: None,
-            icon_id: None,
+            icon_id: Some(IconId::FOLDER),
             custom_icon_uuid: None,
             children: Vec::new(),
             times: Times::new(),
@@ -186,8 +186,12 @@ impl Node for Group {
         self.notes = notes.map(std::string::ToString::to_string);
     }
 
-    fn get_icon_id(&self) -> Option<usize> {
+    fn get_icon_id(&self) -> Option<IconId> {
         self.icon_id
+    }
+
+    fn set_icon_id(&mut self, icon_id: Option<IconId>) {
+        self.icon_id = icon_id;
     }
 
     fn get_custom_icon_uuid(&self) -> Option<Uuid> {

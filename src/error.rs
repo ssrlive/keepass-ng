@@ -47,6 +47,9 @@ pub enum Error {
     #[error("ParseColorError {0}")]
     ParseColorError(#[from] ParseColorError),
 
+    #[error("ParseIconIdError {}", icon_id)]
+    ParseIconIdError { icon_id: usize },
+
     #[error("&str error: {0}")]
     Str(String),
 

@@ -33,7 +33,7 @@ impl DumpXml for Entry {
         self.times.dump_xml(writer, inner_cipher)?;
 
         if let Some(value) = self.icon_id {
-            SimpleTag("IconID", value).dump_xml(writer, inner_cipher)?;
+            SimpleTag("IconID", usize::from(value)).dump_xml(writer, inner_cipher)?;
         }
 
         if let Some(ref value) = self.custom_icon_uuid {

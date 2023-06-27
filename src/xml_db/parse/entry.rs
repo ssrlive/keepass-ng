@@ -1,16 +1,13 @@
-use std::iter::Peekable;
-
-use base64::{engine::general_purpose as base64_engine, Engine as _};
-use secstr::SecStr;
-use uuid::Uuid;
-
+use super::IgnoreSubfield;
 use crate::{
     crypt::ciphers::Cipher,
-    db::{AutoType, AutoTypeAssociation, Color, Entry, History, Times, Value},
+    db::{iconid::IconId, AutoType, AutoTypeAssociation, Color, Entry, History, Times, Value},
     xml_db::parse::{CustomData, FromXml, SimpleTag, SimpleXmlEvent, XmlParseError},
 };
-
-use super::IgnoreSubfield;
+use base64::{engine::general_purpose as base64_engine, Engine as _};
+use secstr::SecStr;
+use std::{convert::TryFrom, iter::Peekable};
+use uuid::Uuid;
 
 impl FromXml for Entry {
     type Parses = Self;
@@ -61,7 +58,9 @@ impl FromXml for Entry {
                         out.times = Times::from_xml(iterator, inner_cipher)?;
                     }
                     "IconID" => {
-                        out.icon_id = SimpleTag::<Option<usize>>::from_xml(iterator, inner_cipher)?.value;
+                        out.icon_id = SimpleTag::<Option<usize>>::from_xml(iterator, inner_cipher)?
+                            .value
+                            .map(|id| IconId::try_from(id).unwrap_or(IconId::KEY));
                     }
                     "CustomIconUUID" => {
                         out.custom_icon_uuid = SimpleTag::<Option<Uuid>>::from_xml(iterator, inner_cipher)?.value;

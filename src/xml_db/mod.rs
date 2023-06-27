@@ -14,6 +14,7 @@ mod tests {
         db::{
             entry::History,
             group_get_children,
+            iconid::IconId,
             meta::{BinaryAttachments, CustomIcons, Icon, MemoryProtection},
             node::*,
             node_is_equals_to, AutoType, AutoTypeAssociation, BinaryAttachment, CustomData, CustomDataItem, Database, DeletedObject, Entry,
@@ -83,7 +84,7 @@ mod tests {
             },
         );
 
-        entry.icon_id = Some(123);
+        entry.icon_id = Some(IconId::KEY);
         entry.custom_icon_uuid = Some(uuid!("22222222222222222222222222222222"));
 
         entry.foreground_color = Some("#C0FFEE".parse().unwrap());
@@ -130,7 +131,7 @@ mod tests {
         let subgroup = rc_refcell_node!(Group::new("Child group"));
         if let Some(subgroup) = subgroup.borrow_mut().as_any_mut().downcast_mut::<Group>() {
             subgroup.notes = Some("I am a subgroup".to_string());
-            subgroup.icon_id = Some(42);
+            subgroup.icon_id = Some(IconId::FOLDER);
             subgroup.custom_icon_uuid = Some(uuid!("11111111111111111111111111111111"));
             subgroup.times.set_expires(true);
             subgroup.times.set_usage_count(100);

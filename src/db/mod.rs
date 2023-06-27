@@ -2,6 +2,7 @@
 
 pub(crate) mod entry;
 pub(crate) mod group;
+pub(crate) mod iconid;
 pub(crate) mod meta;
 pub(crate) mod node;
 
@@ -23,6 +24,7 @@ pub use crate::db::otp::{TOTPAlgorithm, TOTP};
 
 use crate::{
     config::DatabaseConfig,
+    db::iconid::IconId,
     error::{DatabaseIntegrityError, DatabaseOpenError, ParseColorError},
     format::{
         kdb::parse_kdb,
@@ -187,6 +189,7 @@ impl Database {
             return Err(Error::RecycleBinAlreadyExists);
         }
         let recycle_bin = rc_refcell_node!(Group::new("Recycle Bin"));
+        recycle_bin.borrow_mut().set_icon_id(Some(IconId::RECYCLE_BIN));
         self.meta.recyclebin_uuid = Some(recycle_bin.borrow().get_uuid());
         let count = group_get_children(&self.root).ok_or("")?.len();
         group_add_child(&self.root, recycle_bin.clone(), count)?;

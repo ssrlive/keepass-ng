@@ -4,7 +4,7 @@ use crate::{
     db::{
         group::MergeLog,
         node::{Node, NodePtr},
-        Color, CustomData, Times,
+        Color, CustomData, IconId, Times,
     },
     rc_refcell_node,
 };
@@ -26,7 +26,7 @@ pub struct Entry {
 
     pub(crate) custom_data: CustomData,
 
-    pub(crate) icon_id: Option<usize>,
+    pub(crate) icon_id: Option<IconId>,
     pub(crate) custom_icon_uuid: Option<Uuid>,
 
     pub(crate) foreground_color: Option<Color>,
@@ -49,7 +49,7 @@ impl Default for Entry {
             tags: Vec::new(),
             times: Times::new(),
             custom_data: CustomData::default(),
-            icon_id: None,
+            icon_id: Some(IconId::KEY),
             custom_icon_uuid: None,
             foreground_color: None,
             background_color: None,
@@ -113,8 +113,12 @@ impl Node for Entry {
         self.set_unprotected_field_pair("Notes", notes);
     }
 
-    fn get_icon_id(&self) -> Option<usize> {
+    fn get_icon_id(&self) -> Option<IconId> {
         self.icon_id
+    }
+
+    fn set_icon_id(&mut self, icon_id: Option<IconId>) {
+        self.icon_id = icon_id;
     }
 
     fn get_custom_icon_uuid(&self) -> Option<Uuid> {

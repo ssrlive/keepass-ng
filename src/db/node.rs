@@ -1,5 +1,5 @@
 use crate::{
-    db::{Entry, Group, Times},
+    db::{iconid::IconId, Entry, Group, Times},
     Result,
 };
 use std::collections::VecDeque;
@@ -109,7 +109,8 @@ pub trait Node: as_any::AsAny + std::fmt::Debug + erased_serde::Serialize {
     fn set_title(&mut self, title: Option<&str>);
     fn get_notes(&self) -> Option<&str>;
     fn set_notes(&mut self, notes: Option<&str>);
-    fn get_icon_id(&self) -> Option<usize>;
+    fn get_icon_id(&self) -> Option<IconId>;
+    fn set_icon_id(&mut self, icon_id: Option<IconId>);
     fn get_custom_icon_uuid(&self) -> Option<Uuid>;
 
     /// Get a timestamp field by name
@@ -137,7 +138,8 @@ pub trait Node: as_any::AsAny + std::fmt::Debug {
     fn set_title(&mut self, title: Option<&str>);
     fn get_notes(&self) -> Option<&str>;
     fn set_notes(&mut self, notes: Option<&str>);
-    fn get_icon_id(&self) -> Option<usize>;
+    fn get_icon_id(&self) -> Option<IconId>;
+    fn set_icon_id(&mut self, icon_id: Option<IconId>);
     fn get_custom_icon_uuid(&self) -> Option<Uuid>;
     fn get_times(&self) -> &Times;
     fn get_time(&self, key: &str) -> Option<&chrono::NaiveDateTime>;

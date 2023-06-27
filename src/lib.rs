@@ -15,9 +15,7 @@ pub(crate) mod xml_db;
 
 pub use self::{
     config::DatabaseConfig,
-    db::group::Group,
-    db::node::*,
-    db::Database,
+    db::{group::Group, iconid::IconId, node::*, Database},
     error::{Error, Result},
     key::DatabaseKey,
 };
