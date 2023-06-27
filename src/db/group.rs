@@ -55,7 +55,7 @@ impl GroupRef {
 pub(crate) type NodeLocation = Vec<GroupRef>;
 
 /// A database group with child groups and entries
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Clone)]
 #[cfg_attr(feature = "serialization", derive(serde::Serialize))]
 pub struct Group {
     /// The unique identifier of the group
@@ -102,6 +102,27 @@ pub struct Group {
     pub(crate) last_top_visible_entry: Option<Uuid>,
 
     pub(crate) parent: Option<Uuid>,
+}
+
+impl Default for Group {
+    fn default() -> Self {
+        Self {
+            uuid: Uuid::new_v4(),
+            name: "Default Group".to_string(),
+            notes: None,
+            icon_id: None,
+            custom_icon_uuid: None,
+            children: Vec::new(),
+            times: Times::new(),
+            custom_data: CustomData::default(),
+            is_expanded: false,
+            default_autotype_sequence: None,
+            enable_autotype: None,
+            enable_searching: None,
+            last_top_visible_entry: None,
+            parent: None,
+        }
+    }
 }
 
 impl PartialEq for Group {
@@ -194,8 +215,6 @@ impl Group {
     pub fn new(name: &str) -> Group {
         Group {
             name: name.to_string(),
-            times: Times::new(),
-            uuid: Uuid::new_v4(),
             ..Group::default()
         }
     }
@@ -599,7 +618,7 @@ mod group_tests {
     #[test]
     fn test_merge_idempotence() {
         let destination_group = rc_refcell_node!(Group::new("group1"));
-        let entry = rc_refcell_node!(Entry::new());
+        let entry = rc_refcell_node!(Entry::default());
         let _entry_uuid = entry.borrow().get_uuid();
         entry_set_field_and_commit(&entry, "Title", "entry1").unwrap();
         let count = group_get_children(&destination_group).unwrap().len();
@@ -644,7 +663,7 @@ mod group_tests {
         let destination_group = rc_refcell_node!(Group::new("group1"));
         let source_group = rc_refcell_node!(Group::new("group1"));
 
-        let entry = rc_refcell_node!(Entry::new());
+        let entry = rc_refcell_node!(Entry::default());
         let entry_uuid = entry.borrow().get_uuid();
         entry_set_field_and_commit(&entry, "Title", "entry1").unwrap();
         group_add_child(&source_group, entry, 0).unwrap();
@@ -680,7 +699,7 @@ mod group_tests {
         let source_group = destination_group.borrow().duplicate();
         let source_sub_group = source_group.borrow().as_any().downcast_ref::<Group>().unwrap().groups()[0].clone();
 
-        let entry: NodePtr = rc_refcell_node!(Entry::new());
+        let entry: NodePtr = rc_refcell_node!(Entry::default());
         let _entry_uuid = entry.borrow().get_uuid();
         entry_set_field_and_commit(&entry, "Title", "entry1").unwrap();
         let count = group_get_children(&source_sub_group).unwrap().len();
@@ -708,7 +727,7 @@ mod group_tests {
         let source_group = rc_refcell_node!(Group::new("group1"));
         let source_sub_group = rc_refcell_node!(Group::new("subgroup1"));
 
-        let entry = rc_refcell_node!(Entry::new());
+        let entry = rc_refcell_node!(Entry::default());
         let _entry_uuid = entry.borrow().get_uuid();
         entry_set_field_and_commit(&entry, "Title", "entry1").unwrap();
         group_add_child(&source_sub_group, entry, 0).unwrap();
@@ -730,7 +749,7 @@ mod group_tests {
 
     #[test]
     fn test_merge_entry_relocation_existing_group() {
-        let entry = rc_refcell_node!(Entry::new());
+        let entry = rc_refcell_node!(Entry::default());
         let entry_uuid = entry.borrow().get_uuid();
         entry_set_field_and_commit(&entry, "Title", "entry1").unwrap();
 
@@ -806,7 +825,7 @@ mod group_tests {
 
     #[test]
     fn test_merge_entry_relocation_new_group() {
-        let entry = rc_refcell_node!(Entry::new());
+        let entry = rc_refcell_node!(Entry::default());
         let _entry_uuid = entry.borrow().get_uuid();
         entry_set_field_and_commit(&entry, "Title", "entry1").unwrap();
 
@@ -853,7 +872,7 @@ mod group_tests {
     fn test_update_in_destination_no_conflict() {
         let destination_group = rc_refcell_node!(Group::new("group1"));
 
-        let entry = rc_refcell_node!(Entry::new());
+        let entry = rc_refcell_node!(Entry::default());
         let _entry_uuid = entry.borrow().get_uuid();
         entry_set_field_and_commit(&entry, "Title", "entry1").unwrap();
 
@@ -876,7 +895,7 @@ mod group_tests {
     fn test_update_in_source_no_conflict() {
         let destination_group = rc_refcell_node!(Group::new("group1"));
 
-        let entry = rc_refcell_node!(Entry::new());
+        let entry = rc_refcell_node!(Entry::default());
         let _entry_uuid = entry.borrow().get_uuid();
         entry_set_field_and_commit(&entry, "Title", "entry1").unwrap();
         group_add_child(&destination_group, entry, 0).unwrap();
@@ -898,7 +917,7 @@ mod group_tests {
     fn test_update_with_conflicts() {
         let destination_group = rc_refcell_node!(Group::new("group1"));
 
-        let entry = rc_refcell_node!(Entry::new());
+        let entry = rc_refcell_node!(Entry::default());
         let _entry_uuid = entry.borrow().get_uuid();
         entry_set_field_and_commit(&entry, "Title", "entry1").unwrap();
         group_add_child(&destination_group, entry, 0).unwrap();

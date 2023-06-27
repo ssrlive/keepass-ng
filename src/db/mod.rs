@@ -201,6 +201,17 @@ impl Database {
         self.meta.set_recyclebin_changed();
         Ok(node)
     }
+
+    pub fn create_new_node<T: Node + Default>(&self, parent: Uuid, index: usize) -> crate::Result<NodePtr> {
+        let new_node = rc_refcell_node!(T::default());
+        let parent = search_node_by_uuid_with_specific_type::<Group>(&self.root, parent)
+            .or_else(|| Some(self.root.clone()))
+            .ok_or("No parent node")?;
+        if let Some(parent) = parent.borrow_mut().as_any_mut().downcast_mut::<Group>() {
+            parent.add_child(new_node.clone(), index);
+        };
+        Ok(new_node)
+    }
 }
 
 /// Timestamps for a Group or Entry
@@ -441,13 +452,13 @@ mod database_tests {
 
         let db = Database::new(DatabaseConfig::default());
 
-        group_add_child(&db.root, rc_refcell_node!(Entry::new()), 0).unwrap();
-        group_add_child(&db.root, rc_refcell_node!(Entry::new()), 1).unwrap();
-        group_add_child(&db.root, rc_refcell_node!(Entry::new()), 2).unwrap();
+        group_add_child(&db.root, rc_refcell_node!(Entry::default()), 0).unwrap();
+        group_add_child(&db.root, rc_refcell_node!(Entry::default()), 1).unwrap();
+        group_add_child(&db.root, rc_refcell_node!(Entry::default()), 2).unwrap();
 
         let group = rc_refcell_node!(Group::new("my group"));
-        group_add_child(&group, rc_refcell_node!(Entry::new()), 0).unwrap();
-        group_add_child(&group, rc_refcell_node!(Entry::new()), 1).unwrap();
+        group_add_child(&group, rc_refcell_node!(Entry::default()), 0).unwrap();
+        group_add_child(&group, rc_refcell_node!(Entry::default()), 1).unwrap();
         group_add_child(&db.root, group, 3).unwrap();
 
         let mut buffer = Vec::new();

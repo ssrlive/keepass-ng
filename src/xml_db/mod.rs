@@ -42,7 +42,7 @@ mod tests {
 
     #[test]
     pub fn test_entry() {
-        let mut entry = Entry::new();
+        let mut entry = Entry::default();
 
         entry.set_title(Some("ASDF"));
         entry.fields.insert("UserName".to_string(), Value::Unprotected("ghj".to_string()));
@@ -121,7 +121,7 @@ mod tests {
     #[test]
     pub fn test_group() {
         let root_group = rc_refcell_node!(Group::new("Root"));
-        let entry = rc_refcell_node!(Entry::new());
+        let entry = rc_refcell_node!(Entry::default());
         let new_entry_uuid = entry.borrow().get_uuid();
         entry.borrow_mut().set_title(Some("ASDF"));
 

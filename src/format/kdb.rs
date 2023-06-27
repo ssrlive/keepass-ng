@@ -176,7 +176,7 @@ fn parse_groups(root: &NodePtr, header_num_groups: u32, data: &mut &[u8]) -> Res
 
 fn parse_entries(root: &NodePtr, gid_map: &GidMap, header_num_entries: u32, data: &mut &[u8]) -> Result<(), DatabaseIntegrityError> {
     // Loop over entry TLVs
-    let mut entry = Entry::new(); // the current entry
+    let mut entry = Entry::default(); // the current entry
     let mut gid: Option<u32> = None; // the current entry's group id
     let mut num_entries = 0;
     while num_entries < header_num_entries {
@@ -236,7 +236,7 @@ fn parse_entries(root: &NodePtr, gid_map: &GidMap, header_num_entries: u32, data
                     group_add_child(&group, rc_refcell_node!(entry), count).map_err(|_| DatabaseIntegrityError::IncompleteKDBGroup)?;
                 }
 
-                entry = Entry::new();
+                entry = Entry::default();
                 gid = None;
                 num_entries += 1;
             }

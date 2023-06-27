@@ -27,7 +27,7 @@ impl FromXml for Entry {
             });
         }
 
-        let mut out = Entry::new();
+        let mut out = Entry::default();
 
         while let Some(event) = iterator.peek() {
             match event {

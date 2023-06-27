@@ -14,7 +14,7 @@ use std::{collections::HashMap, thread, time};
 use uuid::Uuid;
 
 /// A database entry containing several key-value fields.
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Clone)]
 #[cfg_attr(feature = "serialization", derive(serde::Serialize))]
 pub struct Entry {
     pub(crate) uuid: Uuid,
@@ -38,6 +38,27 @@ pub struct Entry {
     pub(crate) history: Option<History>,
 
     pub(crate) parent: Option<Uuid>,
+}
+
+impl Default for Entry {
+    fn default() -> Self {
+        Self {
+            uuid: Uuid::new_v4(),
+            fields: HashMap::new(),
+            autotype: None,
+            tags: Vec::new(),
+            times: Times::new(),
+            custom_data: CustomData::default(),
+            icon_id: None,
+            custom_icon_uuid: None,
+            foreground_color: None,
+            background_color: None,
+            override_url: None,
+            quality_check: None,
+            history: None,
+            parent: None,
+        }
+    }
 }
 
 impl PartialEq for Entry {
@@ -129,14 +150,6 @@ pub fn entry_set_field_and_commit(entry: &NodePtr, field_name: &str, field_value
 }
 
 impl Entry {
-    pub fn new() -> Entry {
-        Entry {
-            uuid: Uuid::new_v4(),
-            times: Times::new(),
-            ..Entry::default()
-        }
-    }
-
     pub(crate) fn merge(entry: &NodePtr, other: &NodePtr) -> Result<(NodePtr, MergeLog), String> {
         let mut log = MergeLog::default();
 
@@ -480,15 +493,13 @@ impl History {
 
 #[cfg(test)]
 mod entry_tests {
-    use std::{thread, time};
-
-    use secstr::SecStr;
-
     use super::{Entry, Node, Value};
+    use secstr::SecStr;
+    use std::{thread, time};
 
     #[test]
     fn byte_values() {
-        let mut entry = Entry::new();
+        let mut entry = Entry::default();
         entry.fields.insert("a-bytes".to_string(), Value::Bytes(vec![1, 2, 3]));
 
         entry
@@ -510,7 +521,7 @@ mod entry_tests {
 
     #[test]
     fn update_history() {
-        let mut entry = Entry::new();
+        let mut entry = Entry::default();
         let mut last_modification_time = entry.times.get_last_modification().unwrap();
 
         entry.fields.insert("Username".to_string(), Value::Unprotected("user".to_string()));
@@ -571,7 +582,7 @@ mod entry_tests {
     #[cfg(feature = "totp")]
     #[test]
     fn totp() {
-        let mut entry = Entry::new();
+        let mut entry = Entry::default();
         entry.fields.insert(
             "otp".to_string(),
             Value::Unprotected(

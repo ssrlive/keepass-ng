@@ -73,7 +73,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     db.meta.database_name = Some("Demo database".to_string());
 
-    let entry = rc_refcell_node!(Entry::new());
+    let entry = rc_refcell_node!(Entry::default());
     if let Some(entry) = entry.borrow_mut().as_any_mut().downcast_mut::<Entry>() {
         entry.set_title(Some("Demo entry"));
         entry.set_username(Some("jdoe"));
