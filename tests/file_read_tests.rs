@@ -311,12 +311,13 @@ mod file_read_tests {
         println!("{:?} DB Opened", db);
 
         assert_eq!(db.root.borrow().get_title().unwrap(), "Root");
-        assert_eq!(db.meta.recyclebin_uuid, Some(uuid!("563171fe-6598-42dc-8003-f98dde32e872")));
+        let recycle_bin_uuid = db.get_recycle_bin().unwrap().borrow().get_uuid();
+        assert_eq!(recycle_bin_uuid, uuid!("563171fe-6598-42dc-8003-f98dde32e872"));
 
         let recycle_group: Vec<NodePtr> = NodeIterator::new(&db.root)
             .filter(|child| {
                 if let Some(g) = child.borrow().as_any().downcast_ref::<Group>() {
-                    Some(&g.get_uuid()) == db.meta.recyclebin_uuid.as_ref()
+                    g.get_uuid() == recycle_bin_uuid
                 } else {
                     false
                 }

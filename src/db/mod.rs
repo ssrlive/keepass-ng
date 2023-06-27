@@ -152,7 +152,11 @@ impl Database {
     }
 
     pub fn set_recycle_bin_enabled(&mut self, enabled: bool) {
-        self.meta.recyclebin_enabled = Some(enabled);
+        self.meta.set_recycle_bin_enabled(enabled);
+    }
+
+    pub fn recycle_bin_enabled(&self) -> bool {
+        self.meta.recycle_bin_enabled()
     }
 
     pub fn node_is_recycle_bin(&self, node: &NodePtr) -> bool {
@@ -160,15 +164,19 @@ impl Database {
         node_is_group(node) && self.get_recycle_bin().map_or(false, |bin| bin.borrow().get_uuid() == uuid)
     }
 
-    pub fn node_is_in_recycle_bin(&self, node: &NodePtr) -> bool {
-        self.get_recycle_bin()
-            .map(|bin| bin.borrow().get_uuid())
-            .map_or(false, |uuid| self.node_get_parents(node).contains(&uuid))
+    pub fn node_is_in_recycle_bin(&self, node: Uuid) -> bool {
+        if let Some(node) = search_node_by_uuid(&self.root, node) {
+            let parents = self.node_get_parents(&node);
+            self.get_recycle_bin()
+                .map(|bin| bin.borrow().get_uuid())
+                .map_or(false, |uuid| parents.contains(&uuid))
+        } else {
+            false
+        }
     }
 
     pub fn get_recycle_bin(&self) -> Option<NodePtr> {
-        let enable = self.meta.recyclebin_enabled?;
-        if !enable {
+        if !self.recycle_bin_enabled() {
             return None;
         }
         let uuid = self.meta.recyclebin_uuid?;
@@ -181,8 +189,7 @@ impl Database {
 
     pub fn create_recycle_bin(&mut self) -> crate::Result<NodePtr> {
         use crate::error::Error;
-        let enable = self.meta.recyclebin_enabled.ok_or(Error::RecycleBinDisabled)?;
-        if !enable {
+        if !self.recycle_bin_enabled() {
             return Err(Error::RecycleBinDisabled);
         }
         if self.get_recycle_bin().is_some() {
@@ -197,11 +204,21 @@ impl Database {
     }
 
     pub fn remove_node_by_uuid(&mut self, uuid: Uuid) -> crate::Result<NodePtr> {
+        if !self.recycle_bin_enabled() {
+            let node = group_remove_node_by_uuid(&self.root, uuid)?;
+            self.deleted_objects.add(uuid);
+            return Ok(node);
+        }
+        let node_in_recycle_bin = self.node_is_in_recycle_bin(uuid);
+        let recycle_bin = self.get_recycle_bin().ok_or("").or_else(|_| self.create_recycle_bin())?;
+        let recycle_bin_uuid = recycle_bin.borrow().get_uuid();
+        // This can remove the recycle bin itself, or node in the recycle bin, or node not in the recycle bin
         let node = group_remove_node_by_uuid(&self.root, uuid)?;
         self.deleted_objects.add(uuid);
-        let recycle_bin = self.get_recycle_bin().ok_or("").or_else(|_| self.create_recycle_bin())?;
-        group_add_child(&recycle_bin, node.clone(), 0)?;
-        self.meta.set_recyclebin_changed();
+        if uuid != recycle_bin_uuid && !node_in_recycle_bin {
+            group_add_child(&recycle_bin, node.clone(), 0)?;
+        }
+        self.meta.set_recycle_bin_changed();
         Ok(node)
     }
 
@@ -376,7 +393,11 @@ pub struct DeletedObjects {
 impl DeletedObjects {
     pub fn add(&mut self, uuid: Uuid) {
         let deletion_time = Times::now();
-        self.objects.push(DeletedObject { uuid, deletion_time });
+        if let Some(item) = self.objects.iter_mut().find(|item| item.uuid == uuid) {
+            item.deletion_time = deletion_time;
+        } else {
+            self.objects.push(DeletedObject { uuid, deletion_time });
+        }
     }
 }
 

@@ -48,10 +48,10 @@ pub struct Meta {
     pub custom_icons: CustomIcons,
 
     /// whether the recycle bin is enabled
-    pub recyclebin_enabled: Option<bool>,
+    pub(crate) recyclebin_enabled: Option<bool>,
 
     /// A UUID for the recycle bin group
-    pub recyclebin_uuid: Option<Uuid>,
+    pub(crate) recyclebin_uuid: Option<Uuid>,
 
     /// last time the recycle bin was changed
     pub recyclebin_changed: Option<NaiveDateTime>,
@@ -94,12 +94,17 @@ impl Meta {
     }
 
     /// Set recycle bin enabled
-    pub fn set_recyclebin_enabled(&mut self, enabled: bool) {
+    pub fn set_recycle_bin_enabled(&mut self, enabled: bool) {
         self.recyclebin_enabled = Some(enabled);
+        self.set_recycle_bin_changed();
+    }
+
+    pub fn recycle_bin_enabled(&self) -> bool {
+        self.recyclebin_enabled.unwrap_or(false)
     }
 
     /// Set recycle bin changed time
-    pub fn set_recyclebin_changed(&mut self) {
+    pub fn set_recycle_bin_changed(&mut self) {
         let time = chrono::Local::now().naive_local();
         self.recyclebin_changed = Some(time);
     }
