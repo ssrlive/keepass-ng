@@ -222,7 +222,7 @@ impl Database {
         Ok(node)
     }
 
-    pub fn create_new_node<T: Node + Default>(&self, parent: Uuid, index: usize) -> crate::Result<NodePtr> {
+    fn create_new_node<T: Node + Default>(&self, parent: Uuid, index: usize) -> crate::Result<NodePtr> {
         let new_node = rc_refcell_node!(T::default());
         let parent = search_node_by_uuid_with_specific_type::<Group>(&self.root, parent)
             .or_else(|| Some(self.root.clone()))
@@ -231,6 +231,14 @@ impl Database {
             parent.add_child(new_node.clone(), index);
         };
         Ok(new_node)
+    }
+
+    pub fn create_new_entry(&self, parent: Uuid, index: usize) -> crate::Result<NodePtr> {
+        self.create_new_node::<Entry>(parent, index)
+    }
+
+    pub fn create_new_group(&self, parent: Uuid, index: usize) -> crate::Result<NodePtr> {
+        self.create_new_node::<Group>(parent, index)
     }
 }
 
