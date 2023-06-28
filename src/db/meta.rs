@@ -54,7 +54,7 @@ pub struct Meta {
     pub(crate) recyclebin_uuid: Option<Uuid>,
 
     /// last time the recycle bin was changed
-    pub recyclebin_changed: Option<NaiveDateTime>,
+    pub(crate) recyclebin_changed: Option<NaiveDateTime>,
 
     /// UUID of the group containing entry templates
     pub entry_templates_group: Option<Uuid>,
@@ -101,6 +101,10 @@ impl Meta {
 
     pub fn recycle_bin_enabled(&self) -> bool {
         self.recyclebin_enabled.unwrap_or(false)
+    }
+
+    pub fn recycle_bin_changed(&self) -> Option<NaiveDateTime> {
+        self.recyclebin_changed
     }
 
     /// Set recycle bin changed time
