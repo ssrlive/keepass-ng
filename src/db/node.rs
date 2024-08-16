@@ -166,7 +166,7 @@ impl Iterator for NodeIterator {
     fn next(&mut self) -> Option<Self::Item> {
         let next = self.queue.pop_front()?;
         if let Some(children) = group_get_children(&next) {
-            self.queue.extend(children.into_iter());
+            self.queue.extend(children);
         }
         Some(next)
     }

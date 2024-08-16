@@ -283,7 +283,7 @@ mod variant_dictionary_tests {
         assert!(matches!(res, Err(VariantDictionaryError::NotTerminated)));
 
         let res = VariantDictionary::parse(&hex!("000100"));
-        assert!(matches!(res, Ok(_)));
+        assert!(res.is_ok());
 
         //                                        ver t key_len key   val_len value   termination
         //                                        |   | |       |     |       |       |

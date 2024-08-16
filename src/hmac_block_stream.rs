@@ -58,8 +58,7 @@ pub(crate) fn write_hmac_block_stream(data: &[u8], key: &GenericArray<u8, U64>) 
 
         let block = &data[pos..(pos + size)];
 
-        let mut size_bytes: Vec<u8> = vec![];
-        size_bytes.resize(4, 0);
+        let mut size_bytes: Vec<u8> = vec![0; 4];
         #[allow(clippy::cast_possible_truncation)]
         LittleEndian::write_u32(&mut size_bytes, size as u32);
 

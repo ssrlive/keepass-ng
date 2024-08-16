@@ -490,7 +490,7 @@ mod parse_meta_test {
         assert_eq!(value.data.len(), 0);
 
         let value = parse_test_xml::<Icon>("<Icon><UUID>oaKjpLGywcLR0tPU1dbX2A==</UUID><Data>QmluYXJ5IERhdGE=</Data></Icon>")?;
-        assert_eq!(value.uuid, uuid!("a1a2a3a4b1b2c1c2d1d2d3d4d5d6d7d8"),);
+        assert_eq!(value.uuid, uuid!("a1a2a3a4b1b2c1c2d1d2d3d4d5d6d7d8"));
         assert_eq!(value.data, r"Binary Data".as_bytes());
 
         let value = parse_test_xml::<Icon>("<TestTag>SomeData</TestTag>");

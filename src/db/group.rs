@@ -392,7 +392,7 @@ impl Group {
             uuid,
             group.borrow().get_title().unwrap_or("No title")
         );
-        for node in group_get_children(&group).unwrap_or(vec![]) {
+        for node in group_get_children(&group).unwrap_or_default() {
             if node_is_entry(&node) {
                 let node_uuid = node.borrow().get_uuid();
                 println!("Saw entry {node_uuid}");
@@ -449,7 +449,7 @@ impl Group {
         let next_location = &remaining_location[0];
 
         println!("Searching for group {} {:?}", next_location.name, next_location.uuid);
-        for node in group_get_children(parent).unwrap_or(vec![]) {
+        for node in group_get_children(parent).unwrap_or_default() {
             if node_is_group(&node) {
                 if node.borrow().get_uuid() != next_location.uuid {
                     continue;
@@ -719,7 +719,7 @@ mod group_tests {
             .unwrap()
             .get_all_entries(&vec![]);
         assert_eq!(destination_entries.len(), 1);
-        let (_created_entry, created_entry_location) = destination_entries.get(0).unwrap();
+        let (_created_entry, created_entry_location) = destination_entries.first().unwrap();
         println!("{:?}", created_entry_location);
         assert_eq!(created_entry_location.len(), 2);
     }
@@ -746,7 +746,7 @@ mod group_tests {
             let destination_group = destination_group.as_any().downcast_ref::<Group>().unwrap();
             let destination_entries = destination_group.get_all_entries(&vec![]);
             assert_eq!(destination_entries.len(), 1);
-            let (_, created_entry_location) = destination_entries.get(0).unwrap();
+            let (_, created_entry_location) = destination_entries.first().unwrap();
             assert_eq!(created_entry_location.len(), 2);
         }
     }
@@ -821,7 +821,7 @@ mod group_tests {
             .unwrap()
             .get_all_entries(&vec![]);
         assert_eq!(destination_entries.len(), 1);
-        let (_moved_entry, moved_entry_location) = destination_entries.get(0).unwrap();
+        let (_moved_entry, moved_entry_location) = destination_entries.first().unwrap();
         assert_eq!(moved_entry_location.len(), 2);
         assert_eq!(moved_entry_location[0].name, "group1".to_string());
         assert_eq!(moved_entry_location[1].name, "subgroup2".to_string());
@@ -866,7 +866,7 @@ mod group_tests {
             .unwrap()
             .get_all_entries(&vec![]);
         assert_eq!(destination_entries.len(), 1);
-        let (_, created_entry_location) = destination_entries.get(0).unwrap();
+        let (_, created_entry_location) = destination_entries.first().unwrap();
         assert_eq!(created_entry_location.len(), 2);
         assert_eq!(created_entry_location[0].name, "group1".to_string());
         assert_eq!(created_entry_location[1].name, "subgroup2".to_string());

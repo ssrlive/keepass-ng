@@ -65,7 +65,7 @@ pub fn dump_kdbx4(db: &Database, key_elements: &[Vec<u8>], writer: &mut dyn Writ
 
     // verify credentials
     let hmac_key = crypt::calculate_sha512(&[&master_seed, &transformed_key, &hmac_block_stream::HMAC_KEY_END]);
-    let header_hmac_key = hmac_block_stream::get_hmac_block_key(u64::max_value(), &hmac_key);
+    let header_hmac_key = hmac_block_stream::get_hmac_block_key(u64::MAX, &hmac_key);
     let header_hmac = crypt::calculate_hmac(&[&header_data], &header_hmac_key)?;
 
     _ = writer.write(&header_hmac)?;

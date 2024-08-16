@@ -914,7 +914,7 @@ mod parse_test {
         assert!(matches!(value, Err(XmlParseError::BadEvent { .. })));
 
         let value = parse_test_xml::<StringField>("<String><StrangeTag>Data</StrangeTag></String>");
-        assert!(matches!(value, Ok(_)));
+        assert!(value.is_ok());
 
         Ok(())
     }
@@ -945,7 +945,7 @@ mod parse_test {
         assert!(matches!(value, Err(XmlParseError::BadEvent { .. })));
 
         let value = parse_test_xml::<AutoType>("<AutoType></AutoType>");
-        assert!(matches!(value, Ok(_)));
+        assert!(value.is_ok());
 
         let value = parse_test_xml::<AutoType>(
             "<AutoType><Enabled>True</Enabled><DefaultSequence>ASDF</DefaultSequence><DataTransferObfuscation>42</DataTransferObfuscation></AutoType>",
@@ -961,7 +961,7 @@ mod parse_test {
         assert!(matches!(value, Err(XmlParseError::BadEvent { .. })));
 
         let value = parse_test_xml::<AutoType>("<AutoType><StrangeTag>Data</StrangeTag></AutoType>");
-        assert!(matches!(value, Ok(_)));
+        assert!(value.is_ok());
 
         Ok(())
     }
@@ -972,7 +972,7 @@ mod parse_test {
         assert!(matches!(value, Err(XmlParseError::BadEvent { .. })));
 
         let value = parse_test_xml::<AutoTypeAssociation>("<Association></Association>");
-        assert!(matches!(value, Ok(_)));
+        assert!(value.is_ok());
 
         let value = parse_test_xml::<AutoTypeAssociation>(
             "<Association><Window>MyApp</Window><KeystrokeSequence>ASDF</KeystrokeSequence></Association>",
@@ -987,7 +987,7 @@ mod parse_test {
         assert!(matches!(value, Err(XmlParseError::BadEvent { .. })));
 
         let value = parse_test_xml::<AutoTypeAssociation>("<Association><StrangeTag>Data</StrangeTag></Association>");
-        assert!(matches!(value, Ok(_)));
+        assert!(value.is_ok());
 
         Ok(())
     }
@@ -998,7 +998,7 @@ mod parse_test {
         assert!(matches!(value, Err(XmlParseError::BadEvent { .. })));
 
         let value = parse_test_xml::<History>("<History></History>");
-        assert!(matches!(value, Ok(_)));
+        assert!(value.is_ok());
 
         let value = parse_test_xml::<History>("<WrongTag></WrongTag>");
         assert!(matches!(value, Err(XmlParseError::BadEvent { .. })));
@@ -1007,7 +1007,7 @@ mod parse_test {
         assert!(matches!(value, Err(XmlParseError::BadEvent { .. })));
 
         let value = parse_test_xml::<History>("<History><StrangeTag>Data</StrangeTag></History>");
-        assert!(matches!(value, Ok(_)));
+        assert!(value.is_ok());
 
         Ok(())
     }

@@ -123,8 +123,7 @@ impl Database {
 
     /// Get the version of a database without decrypting it
     pub fn get_version(source: &mut dyn std::io::Read) -> Result<DatabaseVersion, DatabaseIntegrityError> {
-        let mut data = Vec::new();
-        data.resize(DatabaseVersion::get_version_header_size(), 0);
+        let mut data = vec![0; DatabaseVersion::get_version_header_size()];
         _ = source.read(&mut data)?;
         DatabaseVersion::parse(data.as_ref())
     }
@@ -339,12 +338,12 @@ impl Times {
     // Returns the current time, without the nanoseconds since
     // the last leap second.
     pub fn now() -> NaiveDateTime {
-        let now = chrono::Utc::now().naive_utc().timestamp();
-        chrono::NaiveDateTime::from_timestamp_opt(now, 0).unwrap()
+        let now = chrono::Utc::now().naive_utc().and_utc().timestamp();
+        chrono::DateTime::from_timestamp(now, 0).unwrap().naive_utc()
     }
 
     pub fn epoch() -> NaiveDateTime {
-        chrono::NaiveDateTime::from_timestamp_opt(0, 0).unwrap()
+        chrono::DateTime::from_timestamp(0, 0).unwrap().naive_utc()
     }
 
     pub fn new() -> Times {

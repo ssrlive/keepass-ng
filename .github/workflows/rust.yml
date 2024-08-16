@@ -1,10 +1,8 @@
 name: Rust
 
 on:
-  push:
-    branches: [ "refactor" ]
-  pull_request:
-    branches: [ "refactor" ]
+  [push, pull_request]
+
 env:
   CARGO_TERM_COLOR: always
 
@@ -12,49 +10,52 @@ jobs:
   testing:
 
     strategy:
+      fail-fast: false
       matrix:
-        target:
-          - x86_64-unknown-linux-gnu
-          - x86_64-apple-darwin
-          - x86_64-pc-windows-msvc
-
-        include:
-          - target: x86_64-unknown-linux-gnu
-            host_os: ubuntu-latest
-          - target: x86_64-apple-darwin
-            host_os: macos-latest
-          - target: x86_64-pc-windows-msvc
-            host_os: windows-latest
+        host_os:
+          - ubuntu-latest
+          - macos-latest
+          - windows-latest
 
     runs-on: ${{ matrix.host_os }}
 
     steps:
-    - uses: actions/checkout@v3
-
-    - name: Prepare
-      shell: bash
-      run: |
-        rustup target add ${{ matrix.target }}
+    - uses: actions/checkout@v4
+    - uses: dtolnay/rust-toolchain@stable
 
     - name: Rustfmt
+      if: ${{ !cancelled() }}
       uses: actions-rs/cargo@v1
       with:
         command: fmt
         args: --all -- --check
 
     - name: Clippy
-      run: cargo clippy --all-features -- -D warnings
+      if: ${{ !cancelled() }}
+      run: |
+        cargo clippy --all-features -- -D warnings
+        cargo clippy --no-default-features -- -D warnings
   
     - name: check --all-features
+      if: ${{ !cancelled() }}
       uses: actions-rs/cargo@v1
       with:
         command: check
-        args: --all-features --target ${{ matrix.target }}
+        args: --all-features
 
     - name: Build
-      run: cargo build --verbose --all-features --target ${{ matrix.target }}
+      if: ${{ !cancelled() }}
+      run: |
+        cargo build --verbose --all-features
+        cargo build --verbose --no-default-features
 
     - name: Run tests
+      if: ${{ !cancelled() }}
       shell: bash
       run: |
-        cargo test --verbose --all-features --target ${{ matrix.target }}
+        cargo test --verbose --all-features
+        cargo test --verbose --no-default-features
+
+    - name: Abort on error
+      if: ${{ failure() }}
+      run: echo "Some of jobs failed" && false
