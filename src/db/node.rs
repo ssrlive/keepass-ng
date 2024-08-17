@@ -7,6 +7,71 @@ use uuid::Uuid;
 
 pub type NodePtr = std::rc::Rc<std::cell::RefCell<dyn Node>>;
 
+#[derive(Debug, Clone)]
+pub struct SerializableNodePtr {
+    node_ptr: NodePtr,
+}
+
+#[cfg(feature = "serialization")]
+impl serde::ser::Serialize for SerializableNodePtr {
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::ser::Serializer,
+    {
+        self.node_ptr.borrow().serialize(serializer)
+    }
+}
+
+impl From<NodePtr> for SerializableNodePtr {
+    fn from(node: NodePtr) -> Self {
+        SerializableNodePtr { node_ptr: node }
+    }
+}
+
+impl From<&NodePtr> for SerializableNodePtr {
+    fn from(node: &NodePtr) -> Self {
+        SerializableNodePtr { node_ptr: node.clone() }
+    }
+}
+
+impl From<SerializableNodePtr> for NodePtr {
+    fn from(serializable: SerializableNodePtr) -> Self {
+        serializable.node_ptr
+    }
+}
+
+impl From<&SerializableNodePtr> for NodePtr {
+    fn from(serializable: &SerializableNodePtr) -> Self {
+        serializable.node_ptr.clone()
+    }
+}
+
+impl AsRef<NodePtr> for SerializableNodePtr {
+    fn as_ref(&self) -> &NodePtr {
+        &self.node_ptr
+    }
+}
+
+impl AsMut<NodePtr> for SerializableNodePtr {
+    fn as_mut(&mut self) -> &mut NodePtr {
+        &mut self.node_ptr
+    }
+}
+
+impl std::ops::Deref for SerializableNodePtr {
+    type Target = NodePtr;
+
+    fn deref(&self) -> &Self::Target {
+        &self.node_ptr
+    }
+}
+
+impl std::ops::DerefMut for SerializableNodePtr {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.node_ptr
+    }
+}
+
 #[macro_export]
 macro_rules! rc_refcell_node {
     ($e:expr) => {
@@ -46,7 +111,7 @@ pub fn group_reset_children(parent: &NodePtr, children: Vec<NodePtr>) -> Result<
         .as_any_mut()
         .downcast_mut::<Group>()
         .ok_or("parent is not a group")?
-        .children = children;
+        .children = children.into_iter().map(|c| c.into()).collect();
     Ok(())
 }
 
@@ -142,8 +207,7 @@ pub trait Node: as_any::AsAny + std::fmt::Debug {
     fn set_icon_id(&mut self, icon_id: Option<IconId>);
     fn get_custom_icon_uuid(&self) -> Option<Uuid>;
     fn get_times(&self) -> &Times;
-    fn get_time(&self, key: &str) -> Option<&chrono::NaiveDateTime>;
-    fn get_expiry_time(&self) -> Option<&chrono::NaiveDateTime>;
+    fn get_times_mut(&mut self) -> &mut Times;
     fn get_parent(&self) -> Option<Uuid>;
     fn set_parent(&mut self, parent: Option<Uuid>);
 }

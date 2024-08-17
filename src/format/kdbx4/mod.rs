@@ -70,7 +70,7 @@ mod kdbx4_tests {
         group_add_child(&root_group, rc_refcell_node!(Entry::default()), 0).unwrap();
         group_add_child(&root_group, rc_refcell_node!(Entry::default()), 1).unwrap();
         group_add_child(&root_group, rc_refcell_node!(Entry::default()), 2).unwrap();
-        db.root = root_group;
+        db.root = root_group.into();
 
         let mut password_bytes: Vec<u8> = vec![];
         let mut password: String = "".to_string();

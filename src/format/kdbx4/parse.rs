@@ -39,7 +39,7 @@ pub(crate) fn parse_kdbx4(data: &[u8], key_elements: &[Vec<u8>]) -> Result<Datab
     let db = Database {
         config,
         header_attachments,
-        root: rc_refcell_node!(database_content.root.group),
+        root: rc_refcell_node!(database_content.root.group).into(),
         deleted_objects: database_content.root.deleted_objects,
         meta: database_content.meta,
     };

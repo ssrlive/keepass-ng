@@ -74,7 +74,7 @@ pub struct Group {
     pub(crate) custom_icon_uuid: Option<Uuid>,
 
     /// The list of child nodes (Groups or Entries)
-    pub(crate) children: Vec<NodePtr>,
+    pub(crate) children: Vec<SerializableNodePtr>,
 
     /// The list of time fields for this group
     pub(crate) times: Times,
@@ -156,7 +156,7 @@ impl Node for Group {
             .map(|child| {
                 let child = child.borrow().duplicate();
                 child.borrow_mut().set_parent(Some(new_group.uuid));
-                child
+                child.into()
             })
             .collect();
         rc_refcell_node!(new_group)
@@ -224,7 +224,7 @@ impl Group {
     }
 
     pub fn get_children(&self) -> Vec<NodePtr> {
-        self.children.clone()
+        self.children.iter().map(|c| c.into()).collect()
     }
 
     fn compare_children(&self, other: &Self) -> bool {
@@ -255,9 +255,9 @@ impl Group {
     pub fn add_child(&mut self, child: NodePtr, index: usize) {
         child.borrow_mut().set_parent(Some(self.get_uuid()));
         if index < self.children.len() {
-            self.children.insert(index, child);
+            self.children.insert(index, child.into());
         } else {
-            self.children.push(child);
+            self.children.push(child.into());
         }
     }
 
@@ -300,7 +300,7 @@ impl Group {
         let mut response: Vec<NodePtr> = vec![];
         for node in &self.children {
             if node_is_entry(node) {
-                response.push(node.clone());
+                response.push(node.into());
             }
         }
         response
@@ -310,7 +310,7 @@ impl Group {
         let mut response: Vec<NodePtr> = vec![];
         for node in &self.children {
             if node_is_group(node) {
-                response.push(node.clone());
+                response.push(node.into());
             }
         }
         response
@@ -600,7 +600,7 @@ impl Group {
 
         for node in &self.children {
             if node_is_entry(node) {
-                response.push((node.clone(), new_location.clone()));
+                response.push((node.into(), new_location.clone()));
             } else if let Some(g) = node.borrow().as_any().downcast_ref::<Group>() {
                 let mut new_entries = g.get_all_entries(&new_location);
                 response.append(&mut new_entries);

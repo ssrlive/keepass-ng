@@ -64,11 +64,11 @@ impl FromXml for Group {
                     }
                     "Entry" => {
                         let entry = rc_refcell_node!(Entry::from_xml(iterator, inner_cipher)?);
-                        out.children.push(entry);
+                        out.children.push(entry.into());
                     }
                     "Group" => {
                         let group = rc_refcell_node!(Group::from_xml(iterator, inner_cipher)?);
-                        out.children.push(group);
+                        out.children.push(group.into());
                     }
                     "CustomData" => {
                         out.custom_data = CustomData::from_xml(iterator, inner_cipher)?;

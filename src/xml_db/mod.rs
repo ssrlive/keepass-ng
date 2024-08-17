@@ -104,7 +104,7 @@ mod tests {
         group_add_child(&root_group, entry.borrow().duplicate(), 0).unwrap();
 
         let mut db = Database::new(DatabaseConfig::default());
-        db.root = root_group;
+        db.root = root_group.into();
 
         let key_elements = make_key();
 
@@ -159,7 +159,7 @@ mod tests {
         group_add_child(&root_group, subgroup, 1).unwrap();
 
         let mut db = Database::new(DatabaseConfig::default());
-        db.root = root_group.borrow().duplicate();
+        db.root = root_group.borrow().duplicate().into();
 
         let key_elements = make_key();
 

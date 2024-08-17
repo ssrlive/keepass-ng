@@ -326,7 +326,7 @@ pub(crate) fn parse_kdb(data: &[u8], key_elements: &[Vec<u8>]) -> Result<Databas
     Ok(Database {
         config,
         header_attachments: Vec::default(),
-        root: root_group,
+        root: root_group.into(),
         deleted_objects: DeletedObjects::default(),
         meta: Meta::new(),
     })
