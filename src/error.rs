@@ -1,8 +1,5 @@
 //! Error types that this crate can return
 
-#[cfg(feature = "totp")]
-pub use crate::db::otp::TOTPError;
-
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
     #[error("std::io::Error {0}")]
@@ -19,6 +16,10 @@ pub enum Error {
 
     #[error("DatabaseSaveError {0}")]
     DatabaseSaveError(#[from] DatabaseSaveError),
+
+    #[cfg(feature = "totp")]
+    #[error("DbOtpError {0}")]
+    DbOtpError(#[from] crate::db::otp::TOTPError),
 
     #[error("OuterCipherConfigError {0}")]
     OuterCipherConfigError(#[from] OuterCipherConfigError),
@@ -50,19 +51,13 @@ pub enum Error {
     #[error("ParseIconIdError {}", icon_id)]
     ParseIconIdError { icon_id: usize },
 
-    #[error("&str error: {0}")]
-    Str(String),
-
     #[error("String error: {0}")]
     String(String),
-
-    #[error("&String error: {0}")]
-    RefString(String),
 }
 
 impl From<&str> for Error {
     fn from(s: &str) -> Self {
-        Error::Str(s.to_string())
+        Error::String(s.to_string())
     }
 }
 
@@ -74,11 +69,13 @@ impl From<String> for Error {
 
 impl From<&String> for Error {
     fn from(s: &String) -> Self {
-        Error::RefString(s.to_string())
+        Error::String(s.clone())
     }
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
+
+pub type BoxError = Box<dyn std::error::Error + Send + Sync + 'static>;
 
 /// Errors upon reading a Database
 #[derive(Debug, thiserror::Error)]

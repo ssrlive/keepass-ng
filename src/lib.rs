@@ -16,7 +16,7 @@ pub(crate) mod xml_db;
 pub use self::{
     config::DatabaseConfig,
     db::{group::Group, iconid::IconId, node::*, Database},
-    error::{Error, Result},
+    error::{BoxError, Error, Result},
     key::DatabaseKey,
 };
 pub use chrono::NaiveDateTime;

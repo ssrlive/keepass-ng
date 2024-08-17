@@ -1,10 +1,9 @@
 /// utility to parse a `KeePass` database, and then write it out again, to see if anything is lost.
 use std::fs::File;
 
-use anyhow::Result;
 use clap::Parser;
 
-use keepass::{Database, DatabaseKey};
+use keepass::{BoxError, Database, DatabaseKey};
 
 #[derive(Parser, Debug)]
 #[command(version, about)]
@@ -20,7 +19,7 @@ struct Args {
     keyfile: Option<String>,
 }
 
-pub fn main() -> Result<()> {
+pub fn main() -> Result<(), BoxError> {
     let args = Args::parse();
 
     let mut source = File::open(args.in_kdbx)?;

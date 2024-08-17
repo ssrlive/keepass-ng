@@ -1,11 +1,10 @@
 /// utility to dump keepass database internal XML data.
 use std::fs::File;
 
-use anyhow::Result;
 use clap::Parser;
 use keepass::{
     db::{Entry, Group},
-    Database, DatabaseKey,
+    BoxError, Database, DatabaseKey,
 };
 
 #[derive(Parser, Debug)]
@@ -22,7 +21,7 @@ struct Args {
     entry: String,
 }
 
-pub fn main() -> Result<()> {
+pub fn main() -> Result<(), BoxError> {
     let args = Args::parse();
 
     let mut source = File::open(args.in_kdbx)?;
