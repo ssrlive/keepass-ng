@@ -4,6 +4,7 @@ use crate::{
     db::{group_add_child, group_get_children, Database, DeletedObjects, Entry, Group, Meta, NodePtr, Value},
     error::{DatabaseIntegrityError, DatabaseKeyError, DatabaseOpenError},
     format::DatabaseVersion,
+    key::DatabaseKey,
     rc_refcell_node,
 };
 
@@ -266,7 +267,7 @@ fn parse_db(header: &KDBHeader, data: &[u8]) -> Result<NodePtr, DatabaseIntegrit
     Ok(root)
 }
 
-pub(crate) fn parse_kdb(data: &[u8], key_elements: &[Vec<u8>]) -> Result<Database, DatabaseOpenError> {
+pub(crate) fn parse_kdb(data: &[u8], db_key: &DatabaseKey) -> Result<Database, DatabaseOpenError> {
     let header = parse_header(data)?;
     #[allow(clippy::cast_possible_truncation)]
     let version = DatabaseVersion::KDB(header.subversion as u16);
@@ -275,6 +276,7 @@ pub(crate) fn parse_kdb(data: &[u8], key_elements: &[Vec<u8>]) -> Result<Databas
     let payload_encrypted = &data[HEADER_SIZE..];
 
     // derive master key from composite key, transform_seed, transform_rounds and master_seed
+    let key_elements = db_key.get_key_elements()?;
     let key_elements: Vec<&[u8]> = key_elements.iter().map(|v| &v[..]).collect();
     let composite_key = if key_elements.len() == 1 {
         let key_element: [u8; 32] = key_elements[0].try_into().unwrap();
@@ -290,7 +292,7 @@ pub(crate) fn parse_kdb(data: &[u8], key_elements: &[Vec<u8>]) -> Result<Databas
 
     let transformed_key = kdf_config.get_kdf_seeded(&header.transform_seed).transform_key(&composite_key)?;
 
-    let master_key = calculate_sha256(&[&header.master_seed, &transformed_key]);
+    let master_key = calculate_sha256(&[&header.master_seed, transformed_key.as_slice()]);
 
     let outer_cipher_config = if header.flags & 2 != 0 {
         OuterCipherConfig::AES256
@@ -302,7 +304,7 @@ pub(crate) fn parse_kdb(data: &[u8], key_elements: &[Vec<u8>]) -> Result<Databas
 
     // Decrypt payload
     let payload_padded = outer_cipher_config
-        .get_cipher(&master_key, header.encryption_iv.as_ref())?
+        .get_cipher(master_key.as_slice(), header.encryption_iv.as_ref())?
         .decrypt(payload_encrypted)?;
     let padlen = payload_padded[payload_padded.len() - 1] as usize;
     let payload = &payload_padded[..payload_padded.len() - padlen];

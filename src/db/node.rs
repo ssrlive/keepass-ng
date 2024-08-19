@@ -12,6 +12,14 @@ pub struct SerializableNodePtr {
     node_ptr: NodePtr,
 }
 
+impl PartialEq for SerializableNodePtr {
+    fn eq(&self, other: &Self) -> bool {
+        node_is_equals_to(&self.node_ptr, &other.node_ptr)
+    }
+}
+
+impl Eq for SerializableNodePtr {}
+
 #[cfg(feature = "serialization")]
 impl serde::ser::Serialize for SerializableNodePtr {
     fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>

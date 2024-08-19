@@ -4,6 +4,7 @@ use crate::{
     db::Database,
     error::{BlockStreamError, DatabaseIntegrityError, DatabaseKeyError, DatabaseOpenError},
     format::{kdbx_header_field_id::KDBXHeaderFieldID, DatabaseVersion},
+    key::DatabaseKey,
     rc_refcell_node, NodePtr,
 };
 use byteorder::{ByteOrder, LittleEndian};
@@ -152,8 +153,8 @@ fn parse_outer_header(data: &[u8]) -> Result<KDBX3Header, DatabaseOpenError> {
 }
 
 /// Open, decrypt and parse a `KeePass` database from a source and a password
-pub(crate) fn parse_kdbx3(data: &[u8], key_elements: &[Vec<u8>]) -> Result<Database, DatabaseOpenError> {
-    let (config, mut inner_decryptor, xml) = decrypt_kdbx3(data, key_elements)?;
+pub(crate) fn parse_kdbx3(data: &[u8], db_key: &DatabaseKey) -> Result<Database, DatabaseOpenError> {
+    let (config, mut inner_decryptor, xml) = decrypt_kdbx3(data, db_key)?;
 
     // Parse XML data blocks
     let database_content = crate::xml_db::parse::parse(&xml, &mut *inner_decryptor).map_err(DatabaseIntegrityError::from)?;
@@ -171,17 +172,14 @@ pub(crate) fn parse_kdbx3(data: &[u8], key_elements: &[Vec<u8>]) -> Result<Datab
 
 /// Open and decrypt a `KeePass` KDBX3 database from a source and a password
 #[allow(clippy::type_complexity)]
-pub(crate) fn decrypt_kdbx3(
-    data: &[u8],
-    key_elements: &[Vec<u8>],
-) -> Result<(DatabaseConfig, Box<dyn Cipher>, Vec<u8>), DatabaseOpenError> {
+pub(crate) fn decrypt_kdbx3(data: &[u8], db_key: &DatabaseKey) -> Result<(DatabaseConfig, Box<dyn Cipher>, Vec<u8>), DatabaseOpenError> {
     let version = DatabaseVersion::parse(data)?;
     let header = parse_outer_header(data)?;
 
     // Derive stream key for decrypting inner protected values and set up decryption context
     let stream_key = calculate_sha256(&[header.inner_random_stream_key.as_ref()]);
 
-    let inner_decryptor = header.inner_random_stream_id.get_cipher(&stream_key);
+    let inner_decryptor = header.inner_random_stream_id.get_cipher(stream_key.as_slice());
 
     let config = DatabaseConfig {
         version,
@@ -202,6 +200,7 @@ pub(crate) fn decrypt_kdbx3(
     })?;
 
     // derive master key from composite key, transform_seed, transform_rounds and master_seed
+    let key_elements = db_key.get_key_elements()?;
     let key_elements: Vec<&[u8]> = key_elements.iter().map(|v| &v[..]).collect();
     let composite_key = calculate_sha256(&key_elements);
 
@@ -211,12 +210,12 @@ pub(crate) fn decrypt_kdbx3(
         .get_kdf_seeded(&header.transform_seed)
         .transform_key(&composite_key)?;
 
-    let master_key = calculate_sha256(&[header.master_seed.as_ref(), &transformed_key]);
+    let master_key = calculate_sha256(&[header.master_seed.as_ref(), transformed_key.as_slice()]);
 
     // Decrypt payload
     let payload = config
         .outer_cipher_config
-        .get_cipher(&master_key, header.encryption_iv.as_ref())?
+        .get_cipher(master_key.as_slice(), header.encryption_iv.as_ref())?
         .decrypt(payload_encrypted)?;
 
     // Check if we decrypted correctly

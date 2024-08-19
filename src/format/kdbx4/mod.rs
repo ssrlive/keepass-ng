@@ -63,13 +63,55 @@ mod kdbx4_tests {
         rc_refcell_node,
     };
 
+    #[cfg(feature = "challenge_response")]
+    #[test]
+    fn test_with_challenge_response() {
+        let mut db = Database::new(DatabaseConfig::default());
+
+        let mut root_group = Group::new("Root");
+        root_group.add_child(rc_refcell_node!(Entry::default()), 0);
+        root_group.add_child(rc_refcell_node!(Entry::default()), 0);
+        root_group.add_child(rc_refcell_node!(Entry::default()), 0);
+        db.root = rc_refcell_node!(root_group).into();
+
+        let mut password_bytes: Vec<u8> = vec![];
+        let mut password: String = "".to_string();
+        password_bytes.resize(40, 0);
+        getrandom::getrandom(&mut password_bytes).unwrap();
+        for random_char in password_bytes {
+            password += &std::char::from_u32(random_char as u32).unwrap().to_string();
+        }
+
+        let db_key =
+            DatabaseKey::new()
+                .with_password(&password)
+                .with_challenge_response_key(crate::key::ChallengeResponseKey::LocalChallenge(
+                    "0102030405060708090a0b0c0d0e0f1011121314".to_string(),
+                ));
+
+        let mut encrypted_db = Vec::new();
+        dump_kdbx4(&db, &db_key, &mut encrypted_db).unwrap();
+
+        let decrypted_db = parse_kdbx4(&encrypted_db, &db_key).unwrap();
+
+        assert_eq!(group_get_children(&decrypted_db.root).unwrap().len(), 3);
+    }
+
     fn test_with_config(config: DatabaseConfig) {
         let mut db = Database::new(config);
 
         let root_group = rc_refcell_node!(Group::new("Root"));
+
+        let entry_with_password = rc_refcell_node!(Entry::default());
+        entry_with_password.borrow_mut().set_title(Some("Demo Entry"));
+
+        if let Some(entry) = entry_with_password.borrow_mut().as_any_mut().downcast_mut::<Entry>() {
+            entry.set_password(Some("secret"));
+        }
+
+        group_add_child(&root_group, entry_with_password, 0).unwrap();
         group_add_child(&root_group, rc_refcell_node!(Entry::default()), 0).unwrap();
-        group_add_child(&root_group, rc_refcell_node!(Entry::default()), 1).unwrap();
-        group_add_child(&root_group, rc_refcell_node!(Entry::default()), 2).unwrap();
+        group_add_child(&root_group, rc_refcell_node!(Entry::default()), 0).unwrap();
         db.root = root_group.into();
 
         let mut password_bytes: Vec<u8> = vec![];
@@ -80,15 +122,20 @@ mod kdbx4_tests {
             password += &std::char::from_u32(random_char as u32).unwrap().to_string();
         }
 
-        let key_elements = DatabaseKey::new().with_password(&password).get_key_elements().unwrap();
+        let db_key = DatabaseKey::new().with_password(&password);
 
         let mut encrypted_db = Vec::new();
-        dump_kdbx4(&db, &key_elements, &mut encrypted_db).unwrap();
+        dump_kdbx4(&db, &db_key, &mut encrypted_db).unwrap();
 
-        let decrypted_db = parse_kdbx4(&encrypted_db, &key_elements).unwrap();
+        let decrypted_db = parse_kdbx4(&encrypted_db, &db_key).unwrap();
 
-        let len = decrypted_db.root.borrow().as_any().downcast_ref::<Group>().unwrap().children.len();
-        assert_eq!(len, 3);
+        assert_eq!(group_get_children(&decrypted_db.root).unwrap().len(), 3);
+
+        let entry = Group::get(&decrypted_db.root, &["Demo Entry"]).unwrap();
+        assert_eq!(
+            entry.borrow().as_any().downcast_ref::<Entry>().unwrap().get_password(),
+            Some("secret")
+        );
     }
 
     #[test]
@@ -158,15 +205,14 @@ mod kdbx4_tests {
         entry.borrow_mut().set_title(Some("Demo entry"));
         group_add_child(&db.root, entry, 0).unwrap();
 
-        let key_elements = DatabaseKey::new().with_password("test").get_key_elements().unwrap();
+        let db_key = DatabaseKey::new().with_password("test");
 
         let mut encrypted_db = Vec::new();
-        dump_kdbx4(&db, &key_elements, &mut encrypted_db).unwrap();
+        dump_kdbx4(&db, &db_key, &mut encrypted_db).unwrap();
 
-        let decrypted_db = parse_kdbx4(&encrypted_db, &key_elements).unwrap();
+        let decrypted_db = parse_kdbx4(&encrypted_db, &db_key).unwrap();
 
-        let len = decrypted_db.root.borrow().as_any().downcast_ref::<Group>().unwrap().children.len();
-        assert_eq!(len, 1);
+        assert_eq!(group_get_children(&decrypted_db.root).unwrap().len(), 1);
 
         let header_attachments = &decrypted_db.header_attachments;
         assert_eq!(header_attachments.len(), 2);

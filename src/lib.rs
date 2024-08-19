@@ -13,6 +13,8 @@ mod key;
 pub(crate) mod variant_dictionary;
 pub(crate) mod xml_db;
 
+#[cfg(feature = "challenge_response")]
+pub use self::key::ChallengeResponseKey;
 pub use self::{
     config::DatabaseConfig,
     db::{group::Group, iconid::IconId, node::*, Database},

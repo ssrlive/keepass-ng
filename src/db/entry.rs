@@ -154,6 +154,14 @@ pub fn entry_set_field_and_commit(entry: &NodePtr, field_name: &str, field_value
 }
 
 impl Entry {
+    pub fn get_history(&self) -> &Option<History> {
+        &self.history
+    }
+
+    pub fn purge_history(&mut self) {
+        self.history = None;
+    }
+
     pub(crate) fn merge(entry: &NodePtr, other: &NodePtr) -> Result<(NodePtr, MergeLog), String> {
         let mut log = MergeLog::default();
 

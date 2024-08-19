@@ -8,10 +8,8 @@ use crate::{
         meta::{BinaryAttachment, BinaryAttachments, CustomIcons, Icon, MemoryProtection, Meta},
         Color,
     },
-    xml_db::parse::{CustomData, FromXml, SimpleTag, SimpleXmlEvent, XmlParseError},
+    xml_db::parse::{bad_event, CustomData, FromXml, IgnoreSubfield, SimpleTag, SimpleXmlEvent, XmlParseError},
 };
-
-use super::IgnoreSubfield;
 
 impl FromXml for Meta {
     type Parses = Self;
@@ -23,10 +21,7 @@ impl FromXml for Meta {
     ) -> Result<Self::Parses, crate::xml_db::parse::XmlParseError> {
         let open_tag = iterator.next().ok_or(XmlParseError::Eof)?;
         if !matches!(open_tag, SimpleXmlEvent::Start(ref tag, _) if tag == "Meta") {
-            return Err(XmlParseError::BadEvent {
-                expected: "Open Meta tag",
-                event: open_tag,
-            });
+            return Err(bad_event("Open Meta tag", open_tag));
         }
 
         let mut out = Meta::new();
@@ -114,17 +109,10 @@ impl FromXml for Meta {
                     "CustomData" => {
                         out.custom_data = CustomData::from_xml(iterator, inner_cipher)?;
                     }
-                    _ => {
-                        IgnoreSubfield::from_xml(iterator, inner_cipher)?;
-                    }
+                    _ => IgnoreSubfield::from_xml(iterator, inner_cipher)?,
                 },
                 SimpleXmlEvent::End(name) if name == "Meta" => break,
-                _ => {
-                    return Err(XmlParseError::BadEvent {
-                        expected: "start tag or close Meta",
-                        event: event.clone(),
-                    })
-                }
+                _ => return Err(bad_event("start tag or close Meta", event.clone())),
             }
         }
 
@@ -144,10 +132,7 @@ impl FromXml for MemoryProtection {
     ) -> Result<Self::Parses, XmlParseError> {
         let open_tag = iterator.next().ok_or(XmlParseError::Eof)?;
         if !matches!(open_tag, SimpleXmlEvent::Start(ref tag, _) if tag == "MemoryProtection") {
-            return Err(XmlParseError::BadEvent {
-                expected: "Open MemoryProtection tag",
-                event: open_tag,
-            });
+            return Err(bad_event("Open MemoryProtection tag", open_tag));
         }
 
         let mut out = MemoryProtection::default();
@@ -170,17 +155,10 @@ impl FromXml for MemoryProtection {
                     "ProtectNotes" => {
                         out.protect_notes = SimpleTag::<bool>::from_xml(iterator, inner_cipher)?.value;
                     }
-                    _ => {
-                        IgnoreSubfield::from_xml(iterator, inner_cipher)?;
-                    }
+                    _ => IgnoreSubfield::from_xml(iterator, inner_cipher)?,
                 },
                 SimpleXmlEvent::End(name) if name == "MemoryProtection" => break,
-                _ => {
-                    return Err(XmlParseError::BadEvent {
-                        expected: "start tag or close MemoryProtection",
-                        event: event.clone(),
-                    })
-                }
+                _ => return Err(bad_event("start tag or close MemoryProtection", event.clone())),
             }
         }
 
@@ -200,10 +178,7 @@ impl FromXml for BinaryAttachments {
     ) -> Result<Self::Parses, XmlParseError> {
         let open_tag = iterator.next().ok_or(XmlParseError::Eof)?;
         if !matches!(open_tag, SimpleXmlEvent::Start(ref tag, _) if tag == "Binaries") {
-            return Err(XmlParseError::BadEvent {
-                expected: "Open Binaries tag",
-                event: open_tag,
-            });
+            return Err(bad_event("Open Binaries tag", open_tag));
         }
 
         let mut out = BinaryAttachments::default();
@@ -215,17 +190,10 @@ impl FromXml for BinaryAttachments {
                         let binary = BinaryAttachment::from_xml(iterator, inner_cipher)?;
                         out.binaries.push(binary);
                     }
-                    _ => {
-                        IgnoreSubfield::from_xml(iterator, inner_cipher)?;
-                    }
+                    _ => IgnoreSubfield::from_xml(iterator, inner_cipher)?,
                 },
                 SimpleXmlEvent::End(name) if name == "Binaries" => break,
-                _ => {
-                    return Err(XmlParseError::BadEvent {
-                        expected: "start tag or close Binaries",
-                        event: event.clone(),
-                    })
-                }
+                _ => return Err(bad_event("start tag or close Binaries", event.clone())),
             }
         }
 
@@ -248,10 +216,7 @@ impl FromXml for BinaryAttachment {
         let mut out = BinaryAttachment::default();
         let (identifier, compressed) = if let SimpleXmlEvent::Start(ref name, ref attributes) = open_tag {
             if name != "Binary" {
-                return Err(XmlParseError::BadEvent {
-                    expected: "Open Binary tag",
-                    event: open_tag,
-                });
+                return Err(bad_event("Open Binary tag", open_tag));
             }
 
             let identifier = attributes.get("ID").map(std::string::ToString::to_string);
@@ -260,10 +225,7 @@ impl FromXml for BinaryAttachment {
 
             (identifier, compressed)
         } else {
-            return Err(XmlParseError::BadEvent {
-                expected: "Open Binary tag",
-                event: open_tag,
-            });
+            return Err(bad_event("Open Binary tag", open_tag));
         };
 
         let data = String::from_xml(iterator, inner_cipher)?;
@@ -293,10 +255,7 @@ impl FromXml for CustomIcons {
     ) -> Result<Self::Parses, XmlParseError> {
         let open_tag = iterator.next().ok_or(XmlParseError::Eof)?;
         if !matches!(open_tag, SimpleXmlEvent::Start(ref tag, _) if tag == "CustomIcons") {
-            return Err(XmlParseError::BadEvent {
-                expected: "Open CustomIcons tag",
-                event: open_tag,
-            });
+            return Err(bad_event("Open CustomIcons tag", open_tag));
         }
 
         let mut out = CustomIcons::default();
@@ -308,17 +267,10 @@ impl FromXml for CustomIcons {
                         let icon = Icon::from_xml(iterator, inner_cipher)?;
                         out.icons.push(icon);
                     }
-                    _ => {
-                        IgnoreSubfield::from_xml(iterator, inner_cipher)?;
-                    }
+                    _ => IgnoreSubfield::from_xml(iterator, inner_cipher)?,
                 },
                 SimpleXmlEvent::End(name) if name == "CustomIcons" => break,
-                _ => {
-                    return Err(XmlParseError::BadEvent {
-                        expected: "start tag or close CustomIcons",
-                        event: event.clone(),
-                    })
-                }
+                _ => return Err(bad_event("start tag or close CustomIcons", event.clone())),
             }
         }
 
@@ -338,10 +290,7 @@ impl FromXml for Icon {
     ) -> Result<Self::Parses, XmlParseError> {
         let open_tag = iterator.next().ok_or(XmlParseError::Eof)?;
         if !matches!(open_tag, SimpleXmlEvent::Start(ref tag, _) if tag == "Icon") {
-            return Err(XmlParseError::BadEvent {
-                expected: "Open Icon tag",
-                event: open_tag,
-            });
+            return Err(bad_event("Open Icon tag", open_tag));
         }
 
         let mut out = Icon::default();
@@ -357,17 +306,10 @@ impl FromXml for Icon {
                         let buf = base64_engine::STANDARD.decode(&data)?;
                         out.data = buf;
                     }
-                    _ => {
-                        IgnoreSubfield::from_xml(iterator, inner_cipher)?;
-                    }
+                    _ => IgnoreSubfield::from_xml(iterator, inner_cipher)?,
                 },
                 SimpleXmlEvent::End(name) if name == "Icon" => break,
-                _ => {
-                    return Err(XmlParseError::BadEvent {
-                        expected: "start tag or close Icon",
-                        event: event.clone(),
-                    })
-                }
+                _ => return Err(bad_event("start tag or close Icon", event.clone())),
             }
         }
 

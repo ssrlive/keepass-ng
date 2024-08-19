@@ -15,7 +15,9 @@ use crate::{
         },
         DatabaseVersion,
     },
-    hmac_block_stream, rc_refcell_node,
+    hmac_block_stream,
+    key::DatabaseKey,
+    rc_refcell_node,
     variant_dictionary::VariantDictionary,
 };
 
@@ -31,8 +33,8 @@ impl From<&[u8]> for HeaderAttachment {
 }
 
 /// Open, decrypt and parse a `KeePass` database from a source and key elements
-pub(crate) fn parse_kdbx4(data: &[u8], key_elements: &[Vec<u8>]) -> Result<Database, DatabaseOpenError> {
-    let (config, header_attachments, mut inner_decryptor, xml) = decrypt_kdbx4(data, key_elements)?;
+pub(crate) fn parse_kdbx4(data: &[u8], db_key: &DatabaseKey) -> Result<Database, DatabaseOpenError> {
+    let (config, header_attachments, mut inner_decryptor, xml) = decrypt_kdbx4(data, db_key)?;
 
     let database_content = crate::xml_db::parse::parse(&xml, &mut *inner_decryptor)?;
 
@@ -51,7 +53,7 @@ pub(crate) fn parse_kdbx4(data: &[u8], key_elements: &[Vec<u8>]) -> Result<Datab
 #[allow(clippy::type_complexity)]
 pub(crate) fn decrypt_kdbx4(
     data: &[u8],
-    key_elements: &[Vec<u8>],
+    db_key: &DatabaseKey,
 ) -> Result<(DatabaseConfig, Vec<HeaderAttachment>, Box<dyn Cipher>, Vec<u8>), DatabaseOpenError> {
     // parse header
     let (outer_header, inner_header_start) = parse_outer_header(data)?;
@@ -66,24 +68,29 @@ pub(crate) fn decrypt_kdbx4(
     let header_hmac = &data[(inner_header_start + 32)..(inner_header_start + 64)];
     let hmac_block_stream = &data[(inner_header_start + 64)..];
 
+    // verify header
+    if header_sha256 != crypt::calculate_sha256(&[header_data]).as_slice() {
+        return Err(DatabaseIntegrityError::HeaderHashMismatch.into());
+    }
+
+    #[cfg(feature = "challenge_response")]
+    let db_key = db_key.clone().perform_challenge(&outer_header.kdf_seed)?;
+
     // derive master key from composite key, transform_seed, transform_rounds and master_seed
+    let key_elements = db_key.get_key_elements()?;
     let key_elements: Vec<&[u8]> = key_elements.iter().map(|v| &v[..]).collect();
     let composite_key = crypt::calculate_sha256(&key_elements);
     let transformed_key = outer_header
         .kdf_config
         .get_kdf_seeded(&outer_header.kdf_seed)
         .transform_key(&composite_key)?;
-    let master_key = crypt::calculate_sha256(&[outer_header.master_seed.as_ref(), &transformed_key]);
-
-    // verify header
-    if header_sha256 != crypt::calculate_sha256(&[&data[0..inner_header_start]]).as_slice() {
-        return Err(DatabaseIntegrityError::HeaderHashMismatch.into());
-    }
+    let t_k = transformed_key.as_slice();
+    let master_key = crypt::calculate_sha256(&[outer_header.master_seed.as_ref(), t_k]);
 
     // verify credentials
-    let hmac_key = crypt::calculate_sha512(&[&outer_header.master_seed, &transformed_key, &hmac_block_stream::HMAC_KEY_END]);
+    let hmac_key = crypt::calculate_sha512(&[&outer_header.master_seed, t_k, &hmac_block_stream::HMAC_KEY_END]);
     let header_hmac_key = hmac_block_stream::get_hmac_block_key(u64::MAX, &hmac_key);
-    if header_hmac != crypt::calculate_hmac(&[header_data], &header_hmac_key)?.as_slice() {
+    if header_hmac != crypt::calculate_hmac(&[header_data], header_hmac_key.as_slice())?.as_slice() {
         return Err(DatabaseKeyError::IncorrectKey.into());
     }
 
@@ -93,7 +100,7 @@ pub(crate) fn decrypt_kdbx4(
     // Decrypt and decompress encrypted payload
     let payload_compressed = outer_header
         .outer_cipher_config
-        .get_cipher(&master_key, &outer_header.outer_iv)?
+        .get_cipher(master_key.as_slice(), &outer_header.outer_iv)?
         .decrypt(&payload_encrypted)?;
 
     let payload = outer_header.compression_config.get_compression().decompress(&payload_compressed)?;

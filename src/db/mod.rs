@@ -37,7 +37,7 @@ use crate::{
 };
 
 /// A decrypted `KeePass` database
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 #[cfg_attr(feature = "serialization", derive(serde::Serialize))]
 pub struct Database {
     /// Configuration settings of the database such as encryption and compression algorithms
@@ -71,18 +71,20 @@ impl Eq for Database {}
 impl Database {
     /// Parse a database from a `std::io::Read`
     pub fn open(source: &mut dyn std::io::Read, key: DatabaseKey) -> Result<Database, DatabaseOpenError> {
-        let key_elements = key.get_key_elements()?;
-
         let mut data = Vec::new();
         source.read_to_end(&mut data)?;
 
-        let database_version = DatabaseVersion::parse(data.as_ref())?;
+        Database::parse(data.as_ref(), key)
+    }
+
+    pub fn parse(data: &[u8], key: DatabaseKey) -> Result<Database, DatabaseOpenError> {
+        let database_version = DatabaseVersion::parse(data)?;
 
         match database_version {
-            DatabaseVersion::KDB(_) => parse_kdb(data.as_ref(), &key_elements),
+            DatabaseVersion::KDB(_) => parse_kdb(data, &key),
             DatabaseVersion::KDB2(_) => Err(DatabaseOpenError::UnsupportedVersion),
-            DatabaseVersion::KDB3(_) => parse_kdbx3(data.as_ref(), &key_elements),
-            DatabaseVersion::KDB4(_) => parse_kdbx4(data.as_ref(), &key_elements),
+            DatabaseVersion::KDB3(_) => parse_kdbx3(data, &key),
+            DatabaseVersion::KDB4(_) => parse_kdbx4(data, &key),
         }
     }
 
@@ -92,20 +94,16 @@ impl Database {
         use crate::error::DatabaseSaveError;
         use crate::format::kdbx4::dump_kdbx4;
 
-        let key_elements = key.get_key_elements()?;
-
         match self.config.version {
             DatabaseVersion::KDB(_) => Err(DatabaseSaveError::UnsupportedVersion),
             DatabaseVersion::KDB2(_) => Err(DatabaseSaveError::UnsupportedVersion),
             DatabaseVersion::KDB3(_) => Err(DatabaseSaveError::UnsupportedVersion),
-            DatabaseVersion::KDB4(_) => dump_kdbx4(self, &key_elements, destination),
+            DatabaseVersion::KDB4(_) => dump_kdbx4(self, &key, destination),
         }
     }
 
     /// Helper function to load a database into its internal XML chunks
     pub fn get_xml(source: &mut dyn std::io::Read, key: DatabaseKey) -> Result<Vec<u8>, DatabaseOpenError> {
-        let key_elements = key.get_key_elements()?;
-
         let mut data = Vec::new();
         source.read_to_end(&mut data)?;
 
@@ -114,8 +112,8 @@ impl Database {
         let data = match database_version {
             DatabaseVersion::KDB(_) => return Err(DatabaseOpenError::UnsupportedVersion),
             DatabaseVersion::KDB2(_) => return Err(DatabaseOpenError::UnsupportedVersion),
-            DatabaseVersion::KDB3(_) => decrypt_kdbx3(data.as_ref(), &key_elements)?.2,
-            DatabaseVersion::KDB4(_) => decrypt_kdbx4(data.as_ref(), &key_elements)?.3,
+            DatabaseVersion::KDB3(_) => decrypt_kdbx3(data.as_ref(), &key)?.2,
+            DatabaseVersion::KDB4(_) => decrypt_kdbx4(data.as_ref(), &key)?.3,
         };
 
         Ok(data)
@@ -474,6 +472,13 @@ mod database_tests {
         assert!(xml.len() > 100);
 
         Ok(())
+    }
+
+    #[test]
+    fn test_open_invalid_version_header_size() {
+        assert!(Database::parse(&[], DatabaseKey::new().with_password("testing")).is_err());
+        assert!(Database::parse(&[0, 0, 0, 0, 0, 0, 0, 0], DatabaseKey::new().with_password("testing")).is_err());
+        assert!(Database::parse(&[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], DatabaseKey::new().with_password("testing")).is_err());
     }
 
     #[cfg(feature = "save_kdbx4")]

@@ -4,6 +4,23 @@ use crate::{
 };
 use uuid::Uuid;
 
+pub enum SearchField {
+    Uuid,
+    Title,
+}
+
+impl SearchField {
+    pub(crate) fn matches(&self, node: &NodePtr, field_value: &str) -> bool {
+        match self {
+            SearchField::Uuid => node.borrow().get_uuid().to_string() == field_value,
+            SearchField::Title => match node.borrow().get_title() {
+                Some(title) => title == field_value,
+                None => false,
+            },
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub enum MergeEventType {
     EntryCreated,
@@ -279,20 +296,38 @@ impl Group {
     /// }
     /// ```
     pub fn get(root: &NodePtr, path: &[&str]) -> Option<NodePtr> {
+        Self::get_internal(root, path, SearchField::Title)
+    }
+
+    #[allow(dead_code)]
+    pub(crate) fn get_by_uuid<T: AsRef<str>>(root: &NodePtr, path: &[T]) -> Option<NodePtr> {
+        Self::get_internal(root, path, SearchField::Uuid)
+    }
+
+    fn get_internal<T: AsRef<str>>(root: &NodePtr, path: &[T], search_field: SearchField) -> Option<NodePtr> {
         if path.is_empty() {
             Some(root.clone())
         } else if path.len() == 1 {
-            let head = path[0];
-            group_get_children(root).and_then(|c| c.into_iter().find(|n| n.borrow().get_title().map_or(false, |t| t == head)))
+            group_get_children(root).and_then(|c| {
+                c.iter().find_map(|node| match search_field.matches(node, path[0].as_ref()) {
+                    true => Some(node.clone()),
+                    false => None,
+                })
+            })
         } else {
-            let head = path[0];
+            let head = path[0].as_ref();
             let tail = &path[1..path.len()];
             let head_group = group_get_children(root).and_then(|c| {
-                c.into_iter()
-                    .find(|n| n.borrow().as_any().downcast_ref::<Group>().is_some() && n.borrow().get_title().map_or(false, |t| t == head))
+                c.iter().find_map(|node| match node_is_group(node) {
+                    true => match search_field.matches(node, head) {
+                        true => Some(node.clone()),
+                        false => None,
+                    },
+                    false => None,
+                })
             })?;
 
-            Self::get(&head_group, tail)
+            Self::get_internal(&head_group, tail, search_field)
         }
     }
 
@@ -952,5 +987,58 @@ mod group_tests {
         let merge_result = Group::merge(&destination_group, &destination_group_dup).unwrap();
         assert_eq!(merge_result.warnings.len(), 0);
         assert_eq!(merge_result.events.len(), 0);
+    }
+
+    #[test]
+    fn get() {
+        let db = Database::new(Default::default());
+
+        let general_group = rc_refcell_node!(Group::new("General"));
+        let sample_entry = rc_refcell_node!(Entry::default());
+        sample_entry.borrow_mut().set_title(Some("Sample Entry #2"));
+        group_add_child(&general_group, sample_entry, 0).unwrap();
+        group_add_child(&db.root, general_group, 0).unwrap();
+
+        assert!(Group::get(&db.root, &["General", "Sample Entry #2"]).is_some());
+        assert!(Group::get(&db.root, &["General"]).is_some());
+        assert!(Group::get(&db.root, &["Invalid Group"]).is_none());
+        assert!(Group::get(&db.root, &[]).is_some());
+    }
+
+    #[test]
+    fn get_by_uuid() {
+        let db = Database::new(Default::default());
+
+        let general_group = rc_refcell_node!(Group::new("General"));
+        let general_group_uuid = general_group.borrow().get_uuid().to_string();
+        let sample_entry = rc_refcell_node!(Entry::default());
+        let sample_entry_uuid = sample_entry.borrow().get_uuid().to_string();
+        sample_entry.borrow_mut().set_title(Some("Sample Entry #2"));
+        group_add_child(&general_group, sample_entry, 0).unwrap();
+        group_add_child(&db.root, general_group, 0).unwrap();
+
+        let invalid_uuid = uuid::Uuid::new_v4().to_string();
+
+        // Testing with references to the UUIDs
+        let group_path: [&str; 1] = [general_group_uuid.as_ref()];
+        let entry_path: [&str; 2] = [general_group_uuid.as_ref(), sample_entry_uuid.as_ref()];
+        let invalid_path: [&str; 1] = [invalid_uuid.as_ref()];
+        let empty_path: [&str; 0] = [];
+
+        assert!(Group::get_by_uuid(&db.root, &group_path).is_some());
+        assert!(Group::get_by_uuid(&db.root, &entry_path).is_some());
+        assert!(Group::get_by_uuid(&db.root, &invalid_path).is_none());
+        assert!(Group::get_by_uuid(&db.root, &empty_path).is_some());
+
+        // Testing with owned versions of the UUIDs.
+        let group_path = vec![general_group_uuid.clone()];
+        let entry_path = vec![general_group_uuid.clone(), sample_entry_uuid.clone()];
+        let invalid_path = vec![invalid_uuid.clone()];
+        let empty_path: Vec<String> = vec![];
+
+        assert!(Group::get_by_uuid(&db.root, &group_path).is_some());
+        assert!(Group::get_by_uuid(&db.root, &entry_path).is_some());
+        assert!(Group::get_by_uuid(&db.root, &invalid_path).is_none());
+        assert!(Group::get_by_uuid(&db.root, &empty_path).is_some());
     }
 }

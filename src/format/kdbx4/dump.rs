@@ -16,12 +16,13 @@ use crate::{
     },
     hmac_block_stream,
     io::WriteLengthTaggedExt,
+    key::DatabaseKey,
     variant_dictionary::VariantDictionary,
 };
 
 /// Dump a `KeePass` database using the key elements
 #[allow(dead_code)]
-pub fn dump_kdbx4(db: &Database, key_elements: &[Vec<u8>], writer: &mut dyn Write) -> Result<(), DatabaseSaveError> {
+pub fn dump_kdbx4(db: &Database, db_key: &DatabaseKey, writer: &mut dyn Write) -> Result<(), DatabaseSaveError> {
     if !matches!(db.config.version, DatabaseVersion::KDB4(_)) {
         return Err(DatabaseSaveError::UnsupportedVersion);
     }
@@ -37,6 +38,9 @@ pub fn dump_kdbx4(db: &Database, key_elements: &[Vec<u8>], writer: &mut dyn Writ
     getrandom::getrandom(&mut inner_random_stream_key)?;
 
     let (kdf, kdf_seed) = db.config.kdf_config.get_kdf_and_seed()?;
+
+    #[cfg(feature = "challenge_response")]
+    let db_key = db_key.clone().perform_challenge(&kdf_seed)?;
 
     // dump the outer header - need to buffer so that SHA256 can be computed
     let mut header_data = Vec::new();
@@ -55,20 +59,21 @@ pub fn dump_kdbx4(db: &Database, key_elements: &[Vec<u8>], writer: &mut dyn Writ
 
     // write out header and header hash
     _ = writer.write(&header_data)?;
-    _ = writer.write(&header_sha256)?;
+    _ = writer.write(header_sha256.as_slice())?;
 
     // derive master key from composite key, transform_seed, transform_rounds and master_seed
+    let key_elements = db_key.get_key_elements()?;
     let key_elements: Vec<&[u8]> = key_elements.iter().map(|v| &v[..]).collect();
     let composite_key = crypt::calculate_sha256(&key_elements);
     let transformed_key = kdf.transform_key(&composite_key)?;
-    let master_key = crypt::calculate_sha256(&[&master_seed, &transformed_key]);
+    let master_key = crypt::calculate_sha256(&[&master_seed, transformed_key.as_slice()]);
 
     // verify credentials
-    let hmac_key = crypt::calculate_sha512(&[&master_seed, &transformed_key, &hmac_block_stream::HMAC_KEY_END]);
+    let hmac_key = crypt::calculate_sha512(&[&master_seed, transformed_key.as_slice(), &hmac_block_stream::HMAC_KEY_END]);
     let header_hmac_key = hmac_block_stream::get_hmac_block_key(u64::MAX, &hmac_key);
-    let header_hmac = crypt::calculate_hmac(&[&header_data], &header_hmac_key)?;
+    let header_hmac = crypt::calculate_hmac(&[&header_data], header_hmac_key.as_slice())?;
 
-    _ = writer.write(&header_hmac)?;
+    _ = writer.write(header_hmac.as_slice())?;
 
     // Initialize inner encryptor from inner header params
     let mut inner_cipher = db.config.inner_cipher_config.get_cipher(&inner_random_stream_key);
@@ -89,7 +94,7 @@ pub fn dump_kdbx4(db: &Database, key_elements: &[Vec<u8>], writer: &mut dyn Writ
     let payload_encrypted = db
         .config
         .outer_cipher_config
-        .get_cipher(&master_key, &outer_iv)?
+        .get_cipher(master_key.as_slice(), &outer_iv)?
         .encrypt(&payload_compressed)?;
 
     let payload_hmac = hmac_block_stream::write_hmac_block_stream(&payload_encrypted, &hmac_key)?;

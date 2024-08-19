@@ -1,9 +1,7 @@
-/// utility to parse a `KeePass` database, and then write it out again, to see if anything is lost.
-use std::fs::File;
-
+/// utility to add a Yubikey to a database's key
 use clap::Parser;
-
-use keepass::{BoxError, Database, DatabaseKey};
+use keepass::{BoxError, ChallengeResponseKey, Database, DatabaseKey};
+use std::fs::File;
 
 #[derive(Parser, Debug)]
 #[command(version, about)]
@@ -14,12 +12,19 @@ struct Args {
     /// Output file to write
     out_kdbx: String,
 
+    /// The slot number of the yubikey to add to the Database
+    slot: String,
+
+    /// The serial number of the yubikey to add to the Database
+    #[arg(short = 'n', long)]
+    serial_number: Option<u32>,
+
     /// Provide a keyfile
     #[arg(short = 'k', long)]
     keyfile: Option<String>,
 
     /// Do not use a password to decrypt the database
-    #[arg(short = 'n', long)]
+    #[arg(long)]
     no_password: bool,
 }
 
@@ -43,8 +48,15 @@ pub fn main() -> Result<(), BoxError> {
 
     let db = Database::open(&mut source, key.clone())?;
 
+    let yubikey = ChallengeResponseKey::get_yubikey(args.serial_number)?;
+
+    let new_key = key.with_challenge_response_key(ChallengeResponseKey::YubikeyChallenge(yubikey, args.slot));
+
     let mut out_file = File::create(args.out_kdbx)?;
-    db.save(&mut out_file, key)?;
+
+    db.save(&mut out_file, new_key)?;
+
+    println!("Yubikey was added to the database key.");
 
     Ok(())
 }

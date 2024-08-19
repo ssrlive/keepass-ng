@@ -34,7 +34,9 @@ jobs:
       if: ${{ !cancelled() }}
       run: |
         cargo clippy --all-features -- -D warnings
+        cargo clean
         cargo clippy --no-default-features -- -D warnings
+        cargo clean
   
     - name: check --all-features
       if: ${{ !cancelled() }}
@@ -47,14 +49,18 @@ jobs:
       if: ${{ !cancelled() }}
       run: |
         cargo build --verbose --all-features
+        cargo clean
         cargo build --verbose --no-default-features
+        cargo clean
 
     - name: Run tests
       if: ${{ !cancelled() }}
       shell: bash
       run: |
         cargo test --verbose --all-features
+        cargo clean
         cargo test --verbose --no-default-features
+        cargo clean
 
     - name: Abort on error
       if: ${{ failure() }}

@@ -17,6 +17,10 @@ struct Args {
     #[arg(short = 'k', long)]
     keyfile: Option<String>,
 
+    /// Do not use a password to decrypt the database
+    #[arg(short = 'n', long)]
+    no_password: bool,
+
     /// Provide the entry to read
     entry: String,
 }
@@ -31,11 +35,13 @@ pub fn main() -> Result<(), BoxError> {
         key = key.with_keyfile(&mut File::open(f)?)?;
     }
 
-    let password = rpassword::prompt_password("Password (or blank for none): ").expect("Read password");
+    if !args.no_password {
+        key = key.with_password_from_prompt("Password: ")?;
+    }
 
-    if !password.is_empty() {
-        key = key.with_password(&password);
-    };
+    if key.is_empty() {
+        return Err("No database key was provided.".into());
+    }
 
     let db = Database::open(&mut source, key)?;
 

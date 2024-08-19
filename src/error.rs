@@ -246,6 +246,11 @@ pub enum DatabaseKeyError {
     /// The keyfile is invalid and did not contain a key
     #[error("Could not obtain a key from the keyfile")]
     InvalidKeyFile,
+
+    /// Could not get challenge response key.
+    #[cfg(feature = "challenge_response")]
+    #[error("Error with the challenge-response key: {0}")]
+    ChallengeResponseKeyError(String),
 }
 
 /// Errors with the configuration of the outer encryption

@@ -56,6 +56,10 @@ pub enum SimpleXmlEvent {
     Err(xml::reader::Error),
 }
 
+pub(crate) fn bad_event(expected: &'static str, event: SimpleXmlEvent) -> XmlParseError {
+    XmlParseError::BadEvent { expected, event }
+}
+
 pub(crate) fn parse(xml: &[u8], inner_cipher: &mut dyn Cipher) -> Result<KeePassXml, XmlParseError> {
     parse_from_bytes::<KeePassXml>(xml, inner_cipher)
 }
@@ -109,10 +113,7 @@ impl<T: FromXmlCharacters> FromXml for T {
         if let SimpleXmlEvent::Characters(text) = event {
             T::from_xml_characters(&text)
         } else {
-            Err(XmlParseError::BadEvent {
-                expected: "text containing a value",
-                event,
-            })
+            Err(bad_event("text containing a value", event))
         }
     }
 }
@@ -199,18 +200,12 @@ impl<V: FromXml> FromXml for SimpleTag<V> {
 
             let close_tag = iterator.next().ok_or(XmlParseError::Eof)?;
             if !matches!(close_tag, SimpleXmlEvent::End(ref tag) if tag == &name) {
-                return Err(XmlParseError::BadEvent {
-                    expected: "Close tag",
-                    event: close_tag,
-                });
+                return Err(bad_event("Close tag", close_tag));
             }
 
             Ok(SimpleTag { name, value })
         } else {
-            Err(XmlParseError::BadEvent {
-                expected: "Open tag",
-                event: open_tag,
-            })
+            Err(bad_event("Open tag", open_tag))
         }
     }
 }
@@ -230,10 +225,7 @@ impl FromXml for KeePassXml {
     ) -> Result<Self::Parses, XmlParseError> {
         let open_tag = iterator.next().ok_or(XmlParseError::Eof)?;
         if !matches!(open_tag, SimpleXmlEvent::Start(ref tag, _) if tag == "KeePassFile") {
-            return Err(XmlParseError::BadEvent {
-                expected: "Open KeePassFile tag",
-                event: open_tag,
-            });
+            return Err(bad_event("Open KeePassFile tag", open_tag));
         }
 
         let mut out = KeePassXml::default();
@@ -247,20 +239,10 @@ impl FromXml for KeePassXml {
                     "Root" => {
                         out.root = Root::from_xml(iterator, inner_cipher)?;
                     }
-                    _ => {
-                        return Err(XmlParseError::BadEvent {
-                            expected: "valid Root child",
-                            event: event.clone(),
-                        })
-                    }
+                    _ => return Err(bad_event("valid Root child", event.clone())),
                 },
                 SimpleXmlEvent::End(name) if name == "KeePassFile" => break,
-                _ => {
-                    return Err(XmlParseError::BadEvent {
-                        expected: "start tag or close KeePassFile",
-                        event: event.clone(),
-                    })
-                }
+                _ => return Err(bad_event("start tag or close KeePassFile", event.clone())),
             }
         }
 
@@ -280,10 +262,7 @@ impl FromXml for Times {
     ) -> Result<Self::Parses, XmlParseError> {
         let open_tag = iterator.next().ok_or(XmlParseError::Eof)?;
         if !matches!(open_tag, SimpleXmlEvent::Start(ref tag, _) if tag == "Times") {
-            return Err(XmlParseError::BadEvent {
-                expected: "Open Times tag",
-                event: open_tag,
-            });
+            return Err(bad_event("Open Times tag", open_tag));
         }
 
         let mut out = Times::default();
@@ -304,12 +283,7 @@ impl FromXml for Times {
                     }
                 },
                 SimpleXmlEvent::End(name) if name == "Times" => break,
-                _ => {
-                    return Err(XmlParseError::BadEvent {
-                        expected: "start tag or close Times",
-                        event: event.clone(),
-                    })
-                }
+                _ => return Err(bad_event("start tag or close Times", event.clone())),
             }
         }
 
@@ -335,10 +309,7 @@ impl FromXml for Root {
     ) -> Result<Self::Parses, XmlParseError> {
         let open_tag = iterator.next().ok_or(XmlParseError::Eof)?;
         if !matches!(open_tag, SimpleXmlEvent::Start(ref tag, _) if tag == "Root") {
-            return Err(XmlParseError::BadEvent {
-                expected: "Open Root tag",
-                event: open_tag,
-            });
+            return Err(bad_event("Open Root tag", open_tag));
         }
 
         let mut out = Root::default();
@@ -352,20 +323,10 @@ impl FromXml for Root {
                     "DeletedObjects" => {
                         out.deleted_objects = DeletedObjects::from_xml(iterator, inner_cipher)?;
                     }
-                    _ => {
-                        return Err(XmlParseError::BadEvent {
-                            expected: "valid Root child",
-                            event: event.clone(),
-                        })
-                    }
+                    _ => return Err(bad_event("valid Root child", event.clone())),
                 },
                 SimpleXmlEvent::End(name) if name == "Root" => break,
-                _ => {
-                    return Err(XmlParseError::BadEvent {
-                        expected: "start tag or close Root",
-                        event: event.clone(),
-                    })
-                }
+                _ => return Err(bad_event("start tag or close Root", event.clone())),
             }
         }
 
@@ -385,35 +346,19 @@ impl FromXml for DeletedObjects {
     ) -> Result<Self::Parses, XmlParseError> {
         let open_tag = iterator.next().ok_or(XmlParseError::Eof)?;
         if !matches!(open_tag, SimpleXmlEvent::Start(ref tag, _) if tag == "DeletedObjects") {
-            return Err(XmlParseError::BadEvent {
-                expected: "Open DeletedObjects tag",
-                event: open_tag,
-            });
+            return Err(bad_event("Open DeletedObjects tag", open_tag));
         }
 
         let mut out = DeletedObjects::default();
 
         while let Some(event) = iterator.peek() {
             match event {
-                SimpleXmlEvent::Start(name, _) => match &name[..] {
-                    "DeletedObject" => {
-                        let object = DeletedObject::from_xml(iterator, inner_cipher)?;
-                        out.objects.push(object);
-                    }
-                    _ => {
-                        return Err(XmlParseError::BadEvent {
-                            expected: "valid DeletedObjects child",
-                            event: event.clone(),
-                        })
-                    }
-                },
-                SimpleXmlEvent::End(name) if name == "DeletedObjects" => break,
-                _ => {
-                    return Err(XmlParseError::BadEvent {
-                        expected: "start tag or close DeletedObjects",
-                        event: event.clone(),
-                    })
+                SimpleXmlEvent::Start(name, _) if name == "DeletedObject" => {
+                    let object = DeletedObject::from_xml(iterator, inner_cipher)?;
+                    out.objects.push(object);
                 }
+                SimpleXmlEvent::End(name) if name == "DeletedObjects" => break,
+                _ => return Err(bad_event("start tag or close DeletedObjects", event.clone())),
             }
         }
 
@@ -433,10 +378,7 @@ impl FromXml for DeletedObject {
     ) -> Result<Self::Parses, XmlParseError> {
         let open_tag = iterator.next().ok_or(XmlParseError::Eof)?;
         if !matches!(open_tag, SimpleXmlEvent::Start(ref tag, _) if tag == "DeletedObject") {
-            return Err(XmlParseError::BadEvent {
-                expected: "Open DeletedObject tag",
-                event: open_tag,
-            });
+            return Err(bad_event("Open DeletedObject tag", open_tag));
         }
 
         let mut out = DeletedObject::default();
@@ -450,20 +392,10 @@ impl FromXml for DeletedObject {
                     "DeletionTime" => {
                         out.deletion_time = SimpleTag::<NaiveDateTime>::from_xml(iterator, inner_cipher)?.value;
                     }
-                    _ => {
-                        return Err(XmlParseError::BadEvent {
-                            expected: "valid DeletedObject child",
-                            event: event.clone(),
-                        })
-                    }
+                    _ => return Err(bad_event("valid DeletedObject child", event.clone())),
                 },
                 SimpleXmlEvent::End(name) if name == "DeletedObject" => break,
-                _ => {
-                    return Err(XmlParseError::BadEvent {
-                        expected: "start tag or close DeletedObject",
-                        event: event.clone(),
-                    })
-                }
+                _ => return Err(bad_event("start tag or close DeletedObject", event.clone())),
             }
         }
 
@@ -483,10 +415,7 @@ impl FromXml for CustomData {
     ) -> Result<Self::Parses, XmlParseError> {
         let open_tag = iterator.next().ok_or(XmlParseError::Eof)?;
         if !matches!(open_tag, SimpleXmlEvent::Start(ref tag, _) if tag == "CustomData") {
-            return Err(XmlParseError::BadEvent {
-                expected: "Open CustomData tag",
-                event: open_tag,
-            });
+            return Err(bad_event("Open CustomData tag", open_tag));
         }
 
         let mut out = CustomData::default();
@@ -504,20 +433,10 @@ impl FromXml for CustomData {
                             },
                         );
                     }
-                    _ => {
-                        return Err(XmlParseError::BadEvent {
-                            expected: "valid CustomData child",
-                            event: event.clone(),
-                        })
-                    }
+                    _ => return Err(bad_event("valid CustomData child", event.clone())),
                 },
                 SimpleXmlEvent::End(name) if name == "CustomData" => break,
-                _ => {
-                    return Err(XmlParseError::BadEvent {
-                        expected: "start tag or close CustomData",
-                        event: event.clone(),
-                    })
-                }
+                _ => return Err(bad_event("start tag or close CustomData", event.clone())),
             }
         }
 
@@ -537,10 +456,7 @@ impl FromXml for CustomDataItemDenormalized {
     ) -> Result<Self::Parses, XmlParseError> {
         let open_tag = iterator.next().ok_or(XmlParseError::Eof)?;
         if !matches!(open_tag, SimpleXmlEvent::Start(ref tag, _) if tag == "Item") {
-            return Err(XmlParseError::BadEvent {
-                expected: "Open Item tag",
-                event: open_tag,
-            });
+            return Err(bad_event("Open Item tag", open_tag));
         }
 
         let mut out = CustomDataItemDenormalized::default();
@@ -558,20 +474,10 @@ impl FromXml for CustomDataItemDenormalized {
                         out.custom_data_item.last_modification_time =
                             SimpleTag::<Option<NaiveDateTime>>::from_xml(iterator, inner_cipher)?.value;
                     }
-                    _ => {
-                        return Err(XmlParseError::BadEvent {
-                            expected: "valid Item child",
-                            event: event.clone(),
-                        })
-                    }
+                    _ => return Err(bad_event("valid Item child", event.clone())),
                 },
                 SimpleXmlEvent::End(name) if name == "Item" => break,
-                _ => {
-                    return Err(XmlParseError::BadEvent {
-                        expected: "start tag or close Item",
-                        event: event.clone(),
-                    })
-                }
+                _ => return Err(bad_event("start tag or close Item", event.clone())),
             }
         }
 
@@ -612,10 +518,7 @@ impl FromXml for IgnoreSubfield {
                 }
             }
         } else {
-            return Err(XmlParseError::BadEvent {
-                expected: "Open tag (to be ignored)",
-                event: open_tag,
-            });
+            return Err(bad_event("Open tag (to be ignored)", open_tag));
         }
 
         Ok(())

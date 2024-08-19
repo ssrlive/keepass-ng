@@ -1,9 +1,7 @@
-/// utility to show a parsed `KeePass` database
-use std::fs::File;
-
+/// utility to recover a Yubikey-protected database using the HMAC-SHA1 secret
 use clap::Parser;
-
 use keepass::{BoxError, Database, DatabaseKey};
+use std::fs::File;
 
 #[derive(Parser, Debug)]
 #[command(version, about)]
@@ -11,12 +9,15 @@ struct Args {
     /// Provide a .kdbx database
     in_kdbx: String,
 
+    /// Output file to write
+    out_kdbx: String,
+
     /// Provide a keyfile
     #[arg(short = 'k', long)]
     keyfile: Option<String>,
 
     /// Do not use a password to decrypt the database
-    #[arg(short = 'n', long)]
+    #[arg(long)]
     no_password: bool,
 }
 
@@ -38,9 +39,17 @@ pub fn main() -> Result<(), BoxError> {
         return Err("No database key was provided.".into());
     }
 
-    let db = Database::open(&mut source, key)?;
+    let key_without_yubikey = key.clone();
 
-    println!("{db:#?}");
+    key = key.with_hmac_sha1_secret_from_prompt("HMAC-SHA1 secret: ")?;
+
+    let db = Database::open(&mut source, key.clone())?;
+
+    let mut out_file = File::create(args.out_kdbx)?;
+
+    db.save(&mut out_file, key_without_yubikey)?;
+
+    println!("Yubikey was removed from the database key.");
 
     Ok(())
 }
