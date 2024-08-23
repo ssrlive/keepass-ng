@@ -52,7 +52,7 @@ mod tests {
             Value::Protected(std::str::from_utf8(b"klmno").unwrap().into()),
         );
         entry.tags.push("test".to_string());
-        entry.tags.push("keepass-rs".to_string());
+        entry.tags.push("keepass-ng".to_string());
         entry.times.set_expires(true);
         entry.times.set_usage_count(42);
         entry.times.set_creation(Some(NaiveDateTime::default()));
@@ -90,7 +90,7 @@ mod tests {
         entry.foreground_color = Some("#C0FFEE".parse().unwrap());
         entry.background_color = Some("#1C1357".parse().unwrap());
 
-        entry.override_url = Some("https://docs.rs/keepass-rs/".to_string());
+        entry.override_url = Some("https://docs.rs/keepass-ng/".to_string());
         entry.quality_check = Some(true);
 
         let mut history = History::default();

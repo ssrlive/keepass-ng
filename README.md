@@ -1,11 +1,11 @@
-# keepass-rs
+# keepass-ng
 
-[![Crates.io](https://img.shields.io/crates/v/keepass.svg)](https://crates.io/crates/keepass)
-[![Documentation](https://docs.rs/keepass/badge.svg)](https://docs.rs/keepass/)
-[![Build Status](https://github.com/sseemayer/keepass-rs/actions/workflows/merge.yml/badge.svg?branch=master)](https://github.com/sseemayer/keepass-rs/actions/workflows/merge.yml)
-[![codecov](https://codecov.io/gh/sseemayer/keepass-rs/branch/master/graph/badge.svg)](https://codecov.io/gh/sseemayer/keepass-rs)
-[![dependency status](https://deps.rs/repo/github/sseemayer/keepass-rs/status.svg)](https://deps.rs/repo/github/sseemayer/keepass-rs)
-[![License file](https://img.shields.io/github/license/sseemayer/keepass-rs)](https://github.com/sseemayer/keepass-rs/blob/master/LICENSE)
+[![Crates.io](https://img.shields.io/crates/v/keepass-ng.svg)](https://crates.io/crates/keepass-ng)
+[![Documentation](https://docs.rs/keepass-ng/badge.svg)](https://docs.rs/keepass-ng/)
+[![Build Status](https://github.com/ssrlive/keepass-ng/actions/workflows/merge.yml/badge.svg?branch=refactor)](https://github.com/ssrlive/keepass-ng/actions/workflows/merge.yml)
+[![codecov](https://codecov.io/gh/ssrlive/keepass-ng/branch/refactor/graph/badge.svg)](https://codecov.io/gh/ssrlive/keepass-ng)
+[![dependency status](https://deps.rs/repo/github/ssrlive/keepass-ng/status.svg)](https://deps.rs/repo/github/ssrlive/keepass-ng)
+[![License file](https://img.shields.io/github/license/ssrlive/keepass-ng)](https://github.com/ssrlive/keepass-ng/blob/refactor/LICENSE)
 
 Rust KeePass database file parser for KDB, KDBX3 and KDBX4, with experimental support for KDBX4 writing.
 
@@ -17,7 +17,7 @@ Rust KeePass database file parser for KDB, KDBX3 and KDBX4, with experimental su
 </summary>
 
 ```rust
-use keepass::{
+use keepass_ng::{
     db::{node_is_group, Entry, Node, NodeIterator},
     error::DatabaseOpenError,
     Database, DatabaseKey,
@@ -62,7 +62,7 @@ fn main() -> Result<(), DatabaseOpenError> {
 You can enable the experimental support for saving KDBX4 databases using the `save_kdbx4` feature.
 
 ```rust
-use keepass::{
+use keepass_ng::{
     db::{group_add_child, Database, Entry, Group, Node, Value},
     rc_refcell_node, DatabaseConfig, DatabaseKey, NodePtr,
 };
@@ -118,7 +118,7 @@ Add the following to the `dependencies` section of your `Cargo.toml`:
 
 ```toml
 [dependencies]
-keepass = "*" # TODO replace with current version
+keepass-ng = "*" # TODO replace with current version
 ```
 
 ### Performance Notes

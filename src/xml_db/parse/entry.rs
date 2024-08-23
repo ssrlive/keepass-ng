@@ -8,6 +8,15 @@ use secstr::SecStr;
 use std::{convert::TryFrom, iter::Peekable};
 use uuid::Uuid;
 
+fn decode_xml(input: &str) -> String {
+    input
+        .replace("&amp;", "&")
+        .replace("&lt;", "<")
+        .replace("&gt;", ">")
+        .replace("&quot;", "\"")
+        .replace("&apos;", "'")
+}
+
 impl FromXml for Entry {
     type Parses = Self;
 
@@ -114,7 +123,7 @@ impl FromXml for StringField {
             match event {
                 SimpleXmlEvent::Start(name, _) => match &name[..] {
                     "Key" => {
-                        out.key = SimpleTag::<String>::from_xml(iterator, inner_cipher)?.value;
+                        out.key = decode_xml(&SimpleTag::<String>::from_xml(iterator, inner_cipher)?.value);
                     }
                     "Value" => {
                         let value = Value::from_xml(iterator, inner_cipher)?;
@@ -192,14 +201,15 @@ impl FromXml for Value {
                     .map_or(Ok(false), |v| v.to_lowercase().parse::<bool>())?;
 
                 let content = Option::<String>::from_xml(iterator, inner_cipher)?.unwrap_or(String::new());
+                let decoded_content = decode_xml(&content);
 
                 let value = if protected {
-                    let buf = base64_engine::STANDARD.decode(&content)?;
+                    let buf = base64_engine::STANDARD.decode(&decoded_content)?;
                     let buf_decrypted = inner_cipher.decrypt(&buf)?;
                     let value = String::from_utf8_lossy(&buf_decrypted).to_string();
                     Value::Protected(SecStr::from(value))
                 } else {
-                    Value::Unprotected(content)
+                    Value::Unprotected(decoded_content)
                 };
 
                 let close_value_tag = iterator.next().ok_or(XmlParseError::Eof)?;
@@ -235,7 +245,8 @@ impl FromXml for AutoType {
                         out.enabled = SimpleTag::<bool>::from_xml(iterator, inner_cipher)?.value;
                     }
                     "DefaultSequence" => {
-                        out.sequence = SimpleTag::<Option<String>>::from_xml(iterator, inner_cipher)?.value;
+                        let sequence = SimpleTag::<Option<String>>::from_xml(iterator, inner_cipher)?.value;
+                        out.sequence = sequence.map(|s| decode_xml(&s));
                     }
                     "DataTransferObfuscation" => {
                         let _value = SimpleTag::<Option<usize>>::from_xml(iterator, inner_cipher)?.value;
@@ -277,10 +288,12 @@ impl FromXml for AutoTypeAssociation {
             match event {
                 SimpleXmlEvent::Start(name, _) => match &name[..] {
                     "Window" => {
-                        out.window = SimpleTag::<Option<String>>::from_xml(iterator, inner_cipher)?.value;
+                        let window = SimpleTag::<Option<String>>::from_xml(iterator, inner_cipher)?.value;
+                        out.window = window.map(|w| decode_xml(&w));
                     }
                     "KeystrokeSequence" => {
-                        out.sequence = SimpleTag::<Option<String>>::from_xml(iterator, inner_cipher)?.value;
+                        let sequence = SimpleTag::<Option<String>>::from_xml(iterator, inner_cipher)?.value;
+                        out.sequence = sequence.map(|s| decode_xml(&s));
                     }
                     _ => IgnoreSubfield::from_xml(iterator, inner_cipher)?,
                 },

@@ -7,18 +7,35 @@ use crate::{
     xml_db::dump::{DumpXml, SimpleTag},
 };
 
+fn escape_xml(input: &str) -> String {
+    input
+        .chars()
+        .map(|c| match c {
+            '<' => "&lt;".to_string(),
+            '>' => "&gt;".to_string(),
+            '&' => "&amp;".to_string(),
+            '\'' => "&apos;".to_string(),
+            '"' => "&quot;".to_string(),
+            _ if c.is_control() && c != '\n' && c != '\r' && c != '\t' => {
+                format!("&#x{:X};", c as u32)
+            }
+            _ => c.to_string(),
+        })
+        .collect()
+}
+
 impl DumpXml for Entry {
     fn dump_xml<E: std::io::Write>(&self, writer: &mut EventWriter<E>, inner_cipher: &mut dyn Cipher) -> Result<(), xml::writer::Error> {
         writer.write(WriterEvent::start_element("Entry"))?;
 
         SimpleTag("UUID", &self.uuid).dump_xml(writer, inner_cipher)?;
 
-        SimpleTag("Tags", &self.tags.join(";")).dump_xml(writer, inner_cipher)?;
+        SimpleTag("Tags", &escape_xml(&self.tags.join(";"))).dump_xml(writer, inner_cipher)?;
 
         for (field_name, field_value) in &self.fields {
             writer.write(WriterEvent::start_element("String"))?;
 
-            SimpleTag("Key", field_name).dump_xml(writer, inner_cipher)?;
+            SimpleTag("Key", &escape_xml(field_name)).dump_xml(writer, inner_cipher)?;
             field_value.dump_xml(writer, inner_cipher)?;
 
             writer.write(WriterEvent::end_element())?; // String
@@ -41,15 +58,15 @@ impl DumpXml for Entry {
         }
 
         if let Some(ref value) = self.foreground_color {
-            SimpleTag("ForegroundColor", value).dump_xml(writer, inner_cipher)?;
+            SimpleTag("ForegroundColor", &escape_xml(&value.to_string())).dump_xml(writer, inner_cipher)?;
         }
 
         if let Some(ref value) = self.background_color {
-            SimpleTag("BackgroundColor", value).dump_xml(writer, inner_cipher)?;
+            SimpleTag("BackgroundColor", &escape_xml(&value.to_string())).dump_xml(writer, inner_cipher)?;
         }
 
         if let Some(ref value) = self.override_url {
-            SimpleTag("OverrideURL", value).dump_xml(writer, inner_cipher)?;
+            SimpleTag("OverrideURL", &escape_xml(value)).dump_xml(writer, inner_cipher)?;
         }
 
         if let Some(value) = self.quality_check {
@@ -70,7 +87,7 @@ impl DumpXml for Value {
     fn dump_xml<E: std::io::Write>(&self, writer: &mut EventWriter<E>, inner_cipher: &mut dyn Cipher) -> Result<(), xml::writer::Error> {
         match self {
             Value::Bytes(b) => SimpleTag("Value", std::str::from_utf8(b).expect("utf-8")).dump_xml(writer, inner_cipher),
-            Value::Unprotected(s) => SimpleTag("Value", s).dump_xml(writer, inner_cipher),
+            Value::Unprotected(s) => SimpleTag("Value", &escape_xml(s)).dump_xml(writer, inner_cipher),
             Value::Protected(p) => {
                 writer.write(WriterEvent::start_element("Value").attr("Protected", "True"))?;
 
@@ -94,7 +111,7 @@ impl DumpXml for AutoType {
         SimpleTag("Enabled", self.enabled).dump_xml(writer, inner_cipher)?;
 
         if let Some(ref value) = self.sequence {
-            SimpleTag("DefaultSequence", value).dump_xml(writer, inner_cipher)?;
+            SimpleTag("DefaultSequence", &escape_xml(value)).dump_xml(writer, inner_cipher)?;
         }
 
         for assoc in &self.associations {
@@ -111,11 +128,11 @@ impl DumpXml for AutoTypeAssociation {
         writer.write(WriterEvent::start_element("Association"))?;
 
         if let Some(ref value) = self.window {
-            SimpleTag("Window", value).dump_xml(writer, inner_cipher)?;
+            SimpleTag("Window", &escape_xml(value)).dump_xml(writer, inner_cipher)?;
         }
 
         if let Some(ref value) = self.sequence {
-            SimpleTag("KeystrokeSequence", value).dump_xml(writer, inner_cipher)?;
+            SimpleTag("KeystrokeSequence", &escape_xml(value)).dump_xml(writer, inner_cipher)?;
         }
 
         writer.write(WriterEvent::end_element())?;

@@ -1,5 +1,5 @@
 mod large_file_roundtrip_tests {
-    use keepass::{
+    use keepass_ng::{
         db::{Database, Entry, Node, NodePtr},
         group_add_child, rc_refcell_node, DatabaseKey, Group, NodeIterator,
     };

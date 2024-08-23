@@ -2,7 +2,7 @@
 use std::fs::File;
 
 use clap::Parser;
-use keepass::{
+use keepass_ng::{
     db::{Entry, Group},
     BoxError, Database, DatabaseKey,
 };

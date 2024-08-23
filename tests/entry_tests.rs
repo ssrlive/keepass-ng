@@ -1,5 +1,5 @@
 mod entry_tests {
-    use keepass::{
+    use keepass_ng::{
         db::{Database, Entry, Group, Node},
         error::{DatabaseKeyError, DatabaseOpenError},
         DatabaseKey,

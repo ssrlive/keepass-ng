@@ -20,11 +20,21 @@ impl std::str::FromStr for TOTPAlgorithm {
     type Err = TOTPError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
+        match s.to_uppercase().as_str() {
             "SHA1" => Ok(TOTPAlgorithm::Sha1),
             "SHA256" => Ok(TOTPAlgorithm::Sha256),
             "SHA512" => Ok(TOTPAlgorithm::Sha512),
             _ => Err(TOTPError::BadAlgorithm(s.to_string())),
+        }
+    }
+}
+
+impl std::fmt::Display for TOTPAlgorithm {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            TOTPAlgorithm::Sha1 => write!(f, "SHA1"),
+            TOTPAlgorithm::Sha256 => write!(f, "SHA256"),
+            TOTPAlgorithm::Sha512 => write!(f, "SHA512"),
         }
     }
 }
@@ -130,6 +140,21 @@ impl std::str::FromStr for TOTP {
             digits,
             algorithm,
         })
+    }
+}
+
+impl std::fmt::Display for TOTP {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(
+            f,
+            "otpauth://totp/{}?secret={}&period={}&digits={}&issuer={}&algorithm={:?}",
+            self.label,
+            base32::encode(base32::Alphabet::Rfc4648 { padding: true }, &self.secret),
+            self.period,
+            self.digits,
+            self.issuer,
+            self.algorithm
+        )
     }
 }
 

@@ -219,6 +219,10 @@ impl Database {
         Ok(node)
     }
 
+    pub fn search_node_by_uuid(&self, uuid: Uuid) -> Option<NodePtr> {
+        search_node_by_uuid(&self.root, uuid)
+    }
+
     fn create_new_node<T: Node + Default>(&self, parent: Uuid, index: usize) -> crate::Result<NodePtr> {
         let new_node = rc_refcell_node!(T::default());
         let parent = search_node_by_uuid_with_specific_type::<Group>(&self.root, parent)

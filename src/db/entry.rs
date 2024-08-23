@@ -261,6 +261,13 @@ impl<'a> Entry {
         self.get_raw_otp_value().ok_or(TOTPError::NoRecord)?.parse()
     }
 
+    /// Convenience method for setting a TOTP to this entry
+    #[cfg(feature = "totp")]
+    pub fn set_otp(&mut self, value: &str) {
+        self.fields.insert("otp".to_string(), Value::Protected(value.as_bytes().into()));
+        // self.set_unprotected_field_pair("otp", Some(value));
+    }
+
     /// Convenience method for getting the raw value of the 'otp' field
     pub fn get_raw_otp_value(&'a self) -> Option<&'a str> {
         self.get("otp")

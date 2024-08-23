@@ -1,7 +1,7 @@
 /// utility to get the version of a `KeePass` database.
-use std::fs::File;
-
 use clap::Parser;
+use keepass_ng::{BoxError, Database};
+use std::fs::File;
 
 #[derive(Parser, Debug)]
 #[command(version, about)]
@@ -10,12 +10,12 @@ struct Args {
     in_kdbx: String,
 }
 
-pub fn main() -> Result<(), keepass::BoxError> {
+pub fn main() -> Result<(), BoxError> {
     let args = Args::parse();
 
     let mut source = File::open(args.in_kdbx)?;
 
-    let version = keepass::Database::get_version(&mut source)?;
+    let version = Database::get_version(&mut source)?;
     println!("{}", version);
     Ok(())
 }

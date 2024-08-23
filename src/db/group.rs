@@ -280,7 +280,7 @@ impl Group {
 
     /// Recursively get a Group or Entry reference by specifying a path relative to the current Group
     /// ```
-    /// use keepass::{
+    /// use keepass_ng::{
     ///     db::{Entry, Group},
     ///     Database, DatabaseKey,
     /// };
