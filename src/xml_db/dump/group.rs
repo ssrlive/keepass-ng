@@ -9,7 +9,7 @@ impl DumpXml for Group {
     fn dump_xml<E: std::io::Write>(&self, writer: &mut EventWriter<E>, inner_cipher: &mut dyn Cipher) -> Result<(), xml::writer::Error> {
         writer.write(WriterEvent::start_element("Group"))?;
 
-        SimpleTag("Name", &self.name).dump_xml(writer, inner_cipher)?;
+        SimpleTag("Name", self.name.as_deref().unwrap_or("")).dump_xml(writer, inner_cipher)?;
         SimpleTag("UUID", &self.uuid).dump_xml(writer, inner_cipher)?;
 
         if let Some(ref value) = self.notes {

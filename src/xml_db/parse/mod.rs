@@ -195,7 +195,20 @@ impl<V: FromXml> FromXml for SimpleTag<V> {
         inner_cipher: &mut dyn Cipher,
     ) -> Result<Self::Parses, XmlParseError> {
         let open_tag = iterator.next().ok_or(XmlParseError::Eof)?;
-        if let SimpleXmlEvent::Start(name, _) = open_tag {
+        if let SimpleXmlEvent::Start(ref name, _) = open_tag {
+            let name = name.clone();
+            /*
+            if let SimpleXmlEvent::End(ref tag) = iterator.peek().ok_or(XmlParseError::Eof)? {
+                let tag = tag.clone();
+                let end_tag = iterator.next().ok_or(XmlParseError::Eof)?; // consume the end tag
+                if tag == name {
+                    return Err(bad_event("The value must not be empty", open_tag));
+                } else {
+                    return Err(bad_event("Close tag", end_tag));
+                }
+            }
+            */
+
             let value = V::from_xml(iterator, inner_cipher)?;
 
             let close_tag = iterator.next().ok_or(XmlParseError::Eof)?;
@@ -465,7 +478,12 @@ impl FromXml for CustomDataItemDenormalized {
             match event {
                 SimpleXmlEvent::Start(name, _) => match &name[..] {
                     "Key" => {
-                        out.key = SimpleTag::<String>::from_xml(iterator, inner_cipher)?.value;
+                        let event = event.clone();
+                        let key = SimpleTag::<String>::from_xml(iterator, inner_cipher)?.value;
+                        if key.is_empty() {
+                            return Err(bad_event("non-empty key", event));
+                        }
+                        out.key = key;
                     }
                     "Value" => {
                         out.custom_data_item.value = Some(Value::from_xml(iterator, inner_cipher)?);

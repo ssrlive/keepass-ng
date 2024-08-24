@@ -165,6 +165,9 @@ impl FromXml for BinaryField {
         }
 
         let key = SimpleTag::<String>::from_xml(iterator, inner_cipher)?.value;
+        if key.is_empty() {
+            return Err(bad_event("Key tag with content", open_tag));
+        }
 
         let value_event = iterator.next().ok_or(XmlParseError::Eof)?;
         let identifier = match value_event {

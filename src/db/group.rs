@@ -79,7 +79,7 @@ pub struct Group {
     pub(crate) uuid: Uuid,
 
     /// The name of the group
-    pub(crate) name: String,
+    pub(crate) name: Option<String>,
 
     /// Notes for the group
     pub(crate) notes: Option<String>,
@@ -125,7 +125,7 @@ impl Default for Group {
     fn default() -> Self {
         Self {
             uuid: Uuid::new_v4(),
-            name: "Default Group".to_string(),
+            name: Some("Default Group".to_string()),
             notes: None,
             icon_id: Some(IconId::FOLDER),
             custom_icon_uuid: None,
@@ -188,11 +188,11 @@ impl Node for Group {
     }
 
     fn get_title(&self) -> Option<&str> {
-        Some(&self.name)
+        self.name.as_deref()
     }
 
     fn set_title(&mut self, title: Option<&str>) {
-        self.name = title.unwrap_or_default().to_string();
+        self.name = title.map(std::string::ToString::to_string);
     }
 
     fn get_notes(&self) -> Option<&str> {
@@ -235,7 +235,7 @@ impl Node for Group {
 impl Group {
     pub fn new(name: &str) -> Group {
         Group {
-            name: name.to_string(),
+            name: Some(name.to_string()),
             ..Group::default()
         }
     }
@@ -266,7 +266,7 @@ impl Group {
     }
 
     pub fn set_name(&mut self, name: &str) {
-        self.name = name.to_string();
+        self.name = Some(name.to_string());
     }
 
     pub fn add_child(&mut self, child: NodePtr, index: usize) {
@@ -451,7 +451,7 @@ impl Group {
     }
 
     pub(crate) fn find_entry_location(&self, uuid: Uuid) -> Option<NodeLocation> {
-        let mut current_location = vec![GroupRef::new(self.uuid, &self.name)];
+        let mut current_location = vec![GroupRef::new(self.uuid, self.name.as_deref().unwrap_or(""))];
         for node in &self.children {
             if node_is_entry(node) {
                 if node.borrow().get_uuid() == uuid {
@@ -631,7 +631,7 @@ impl Group {
     pub(crate) fn get_all_entries(&self, current_location: &NodeLocation) -> Vec<(NodePtr, NodeLocation)> {
         let mut response: Vec<(NodePtr, NodeLocation)> = vec![];
         let mut new_location = current_location.clone();
-        new_location.push(GroupRef::new(self.uuid, &self.name));
+        new_location.push(GroupRef::new(self.uuid, self.name.as_deref().unwrap_or("")));
 
         for node in &self.children {
             if node_is_entry(node) {
