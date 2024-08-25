@@ -101,6 +101,12 @@ mod parse_group_test {
     fn test_group() -> Result<(), XmlParseError> {
         let _value = parse_test_xml::<Group>("<Group></Group>")?;
 
+        let value = parse_test_xml::<Group>("<Group><Name/></Group>")?;
+        assert_eq!(value.name, None);
+
+        let value = parse_test_xml::<Group>("<Group><Name></Name></Group>")?;
+        assert_eq!(value.name, None);
+
         let value = parse_test_xml::<Group>("<Group><Notes>ASDF</Notes></Group>")?;
         assert_eq!(value.notes, Some("ASDF".to_string()));
 

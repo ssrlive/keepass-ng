@@ -409,6 +409,7 @@ mod parse_meta_test {
 
     #[test]
     fn test_custom_icons() -> Result<(), XmlParseError> {
+        let _value = parse_test_xml::<CustomIcons>("<CustomIcons/>")?;
         let _value = parse_test_xml::<CustomIcons>("<CustomIcons></CustomIcons>")?;
 
         let value = parse_test_xml::<CustomIcons>("<TestTag>SomeData</TestTag>");
