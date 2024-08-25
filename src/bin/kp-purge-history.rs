@@ -1,6 +1,6 @@
 /// utility to purge the history of the entries in the database
 use clap::Parser;
-use keepass_ng::{db::Entry, group_get_children, node_is_group, BoxError, Database, DatabaseKey, Node, NodePtr};
+use keepass_ng::{db::Entry, group_get_children, node_is_group, with_node_mut, BoxError, Database, DatabaseKey, Node, NodePtr};
 use std::fs::File;
 
 #[derive(Parser, Debug)]
@@ -46,7 +46,7 @@ pub fn main() -> Result<(), BoxError> {
 }
 
 fn purge_history_for_entry(entry: &NodePtr) -> Result<(), BoxError> {
-    if let Some(entry) = entry.borrow_mut().as_any_mut().downcast_mut::<Entry>() {
+    with_node_mut::<Entry, _, _>(entry, |entry| {
         if let Some(history) = entry.get_history() {
             let history_size = history.get_entries().len();
             if history_size != 0 {
@@ -54,7 +54,7 @@ fn purge_history_for_entry(entry: &NodePtr) -> Result<(), BoxError> {
             }
         }
         entry.purge_history();
-    }
+    });
     Ok(())
 }
 

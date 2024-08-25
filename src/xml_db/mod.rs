@@ -129,7 +129,7 @@ mod tests {
         group_add_child(&root_group, entry, 0).unwrap();
 
         let subgroup = rc_refcell_node!(Group::new("Child group"));
-        if let Some(subgroup) = subgroup.borrow_mut().as_any_mut().downcast_mut::<Group>() {
+        with_node_mut::<Group, _, _>(&subgroup, |subgroup| {
             subgroup.notes = Some("I am a subgroup".to_string());
             subgroup.icon_id = Some(IconId::FOLDER);
             subgroup.custom_icon_uuid = Some(uuid!("11111111111111111111111111111111"));
@@ -154,7 +154,8 @@ mod tests {
                     last_modification_time: Some(NaiveDateTime::default()),
                 },
             );
-        }
+        })
+        .unwrap();
 
         group_add_child(&root_group, subgroup, 1).unwrap();
 

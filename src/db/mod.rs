@@ -228,9 +228,9 @@ impl Database {
         let parent = search_node_by_uuid_with_specific_type::<Group>(&self.root, parent)
             .or_else(|| Some(self.root.clone().into()))
             .ok_or("No parent node")?;
-        if let Some(parent) = parent.borrow_mut().as_any_mut().downcast_mut::<Group>() {
+        with_node_mut::<Group, _, _>(&parent, |parent| {
             parent.add_child(new_node.clone(), index);
-        };
+        });
         Ok(new_node)
     }
 

@@ -6,7 +6,7 @@ use crate::{
         node::{Node, NodePtr},
         Color, CustomData, IconId, Times,
     },
-    rc_refcell_node,
+    rc_refcell_node, with_node, with_node_mut,
 };
 use chrono::NaiveDateTime;
 use secstr::SecStr;
@@ -144,12 +144,11 @@ impl Node for Entry {
 
 #[allow(dead_code)]
 pub fn entry_set_field_and_commit(entry: &NodePtr, field_name: &str, field_value: &str) -> crate::Result<()> {
-    entry
-        .borrow_mut()
-        .as_any_mut()
-        .downcast_mut::<Entry>()
-        .ok_or("node is not an Entry.")?
-        .set_field_and_commit(field_name, field_value);
+    with_node_mut::<Entry, _, _>(entry, |entry| {
+        entry.set_field_and_commit(field_name, field_value);
+        Ok(())
+    })
+    .unwrap_or(Err("node is not an Entry.".to_string()))?;
     Ok(())
 }
 
@@ -172,19 +171,19 @@ impl Entry {
                 History::default()
             }
         };
-        let mut destination_history = match &entry.borrow().as_any().downcast_ref::<Entry>().ok_or("Error")?.history {
-            Some(h) => h.clone(),
-            None => {
-                log.warnings.push(format!("Entry {} had no history.", entry.borrow().get_uuid()));
-                History::default()
-            }
-        };
+        let _destination_history = with_node::<Entry, _, _>(entry, |entry| entry.history.clone()).unwrap_or_default();
+        let mut destination_history = _destination_history.unwrap_or_else(|| {
+            log.warnings.push(format!("Entry {} had no history.", entry.borrow().get_uuid()));
+            History::default()
+        });
 
         let other = other.borrow().duplicate();
         source_history.add_entry(other.borrow().as_any().downcast_ref::<Entry>().ok_or("Error")?.clone());
         let history_merge_log = destination_history.merge_with(&source_history)?;
         let response = entry.borrow().duplicate();
-        response.borrow_mut().as_any_mut().downcast_mut::<Entry>().ok_or("Error")?.history = Some(destination_history);
+        with_node_mut::<Entry, _, _>(&response, |entry| {
+            entry.history = Some(destination_history);
+        });
 
         Ok((response, log.merge_with(&history_merge_log)))
     }
@@ -211,8 +210,8 @@ impl Entry {
 
     pub(crate) fn entry_replaced_with(entry: &NodePtr, other: &NodePtr) -> Option<()> {
         let mut success = false;
-        if let Some(entry) = entry.borrow_mut().as_any_mut().downcast_mut::<Entry>() {
-            if let Some(other) = other.borrow().as_any().downcast_ref::<Entry>() {
+        with_node_mut::<Entry, _, _>(entry, |entry| {
+            with_node::<Entry, _, _>(other, |other| {
                 entry.uuid = other.uuid;
                 entry.fields = other.fields.clone();
                 entry.autotype = other.autotype.clone();
@@ -228,8 +227,8 @@ impl Entry {
                 entry.history = other.history.clone();
                 // entry.parent = other.parent;
                 success = true;
-            }
-        }
+            });
+        });
         if !success {
             return None;
         }

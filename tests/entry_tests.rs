@@ -2,7 +2,7 @@ mod entry_tests {
     use keepass_ng::{
         db::{Database, Entry, Group, Node},
         error::{DatabaseKeyError, DatabaseOpenError},
-        DatabaseKey,
+        with_node, DatabaseKey,
     };
     use std::{fs::File, path::Path};
     use uuid::uuid;
@@ -14,9 +14,8 @@ mod entry_tests {
         let db = Database::open(&mut File::open(path)?, key)?;
 
         // get an entry on the root node
-        if let Some(e) = Group::get(&db.root, &["Sample Entry"]) {
-            let e = e.borrow();
-            let e = e.as_any().downcast_ref::<Entry>().unwrap();
+        let e = Group::get(&db.root, &["Sample Entry"]).unwrap();
+        with_node::<Entry, _, _>(&e, |e| {
             assert_eq!(e.get_uuid(), uuid!("0ebeddb2-ed4e-5144-bc34-1a309266a513"));
             assert_eq!(e.get_title(), Some("Sample Entry"));
             assert_eq!(e.get_username(), Some("User Name"));
@@ -38,13 +37,10 @@ mod entry_tests {
             } else {
                 panic!("Expected an AutoType entry");
             }
-        } else {
-            panic!("Expected an entry");
-        }
+        });
 
-        if let Some(e) = Group::get(&db.root, &["General", "Subgroup", "test entry"]) {
-            let e = e.borrow();
-            let e = e.as_any().downcast_ref::<Entry>().unwrap();
+        let e = Group::get(&db.root, &["General", "Subgroup", "test entry"]).unwrap();
+        with_node::<Entry, _, _>(&e, |e| {
             assert_eq!(e.get_uuid(), uuid!("5e4c8ad1-9cd5-394c-9039-1178dc140b4a"));
             assert_eq!(e.get_title(), Some("test entry"));
             assert_eq!(e.get_username(), Some("jdoe"));
@@ -56,9 +52,7 @@ mod entry_tests {
             } else {
                 panic!("Expected an ExpiryTime");
             }
-        } else {
-            panic!("Expected an entry");
-        }
+        });
 
         Ok(())
     }
@@ -71,9 +65,8 @@ mod entry_tests {
         let db = Database::open(&mut File::open(path)?, key)?;
 
         // get an entry on the root node
-        if let Some(e) = Group::get(&db.root, &["ASDF"]) {
-            let e = e.borrow();
-            let e = e.as_any().downcast_ref::<Entry>().unwrap();
+        let e = Group::get(&db.root, &["ASDF"]).unwrap();
+        with_node::<Entry, _, _>(&e, |e| {
             assert_eq!(e.get_uuid(), uuid!("4f3816bd83304865879fa108a12f285c"));
             assert_eq!(e.get_title(), Some("ASDF"));
             assert_eq!(e.get_username(), Some("ghj"));
@@ -86,9 +79,7 @@ mod entry_tests {
             } else {
                 panic!("Expected an ExpiryTime");
             }
-        } else {
-            panic!("Expected an entry");
-        }
+        });
 
         Ok(())
     }

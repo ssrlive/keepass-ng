@@ -110,10 +110,9 @@ impl<T: FromXmlCharacters> FromXml for T {
         _inner_cipher: &mut dyn Cipher,
     ) -> Result<Self::Parses, XmlParseError> {
         let event = iterator.next().ok_or(XmlParseError::Eof)?;
-        if let SimpleXmlEvent::Characters(text) = event {
-            T::from_xml_characters(&text)
-        } else {
-            Err(bad_event("text containing a value", event))
+        match event {
+            SimpleXmlEvent::Characters(text) => T::from_xml_characters(&text),
+            _ => Err(bad_event("text containing a value", event)),
         }
     }
 }

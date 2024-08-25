@@ -1,6 +1,7 @@
 use crate::{
     crypt::ciphers::Cipher,
     db::{Entry, Group, NodePtr},
+    with_node,
     xml_db::dump::{DumpXml, SimpleTag},
 };
 use xml::writer::{EventWriter, XmlEvent as WriterEvent};
@@ -57,12 +58,11 @@ impl DumpXml for Group {
 
 impl DumpXml for NodePtr {
     fn dump_xml<E: std::io::Write>(&self, writer: &mut EventWriter<E>, inner_cipher: &mut dyn Cipher) -> Result<(), xml::writer::Error> {
-        if let Some(g) = self.borrow().as_any().downcast_ref::<Group>() {
-            g.dump_xml(writer, inner_cipher)
-        } else if let Some(e) = self.borrow().as_any().downcast_ref::<Entry>() {
-            e.dump_xml(writer, inner_cipher)
-        } else {
-            panic!("Node is neither an entry nor a group")
-        }
+        use std::io::{Error, ErrorKind::Other};
+        let err = xml::writer::Error::Io(Error::new(Other, "Node is neither an entry nor a group"));
+        let _ = with_node::<Group, _, _>(self, |g| g.dump_xml(writer, inner_cipher))
+            .or_else(|| with_node::<Entry, _, _>(self, |e| e.dump_xml(writer, inner_cipher)))
+            .ok_or(err)?;
+        Ok(())
     }
 }

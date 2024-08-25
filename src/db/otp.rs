@@ -193,6 +193,7 @@ mod kdbx4_otp_tests {
     use crate::{
         db::{Database, Entry, Group, Node},
         key::DatabaseKey,
+        with_node,
     };
     use std::{fs::File, path::Path};
 
@@ -207,12 +208,11 @@ mod kdbx4_otp_tests {
 
         // get an entry on the root node
         let entry = Group::get(&db.root, &["this entry has totp"]).unwrap();
-        if let Some(e) = entry.borrow().as_any().downcast_ref::<Entry>() {
+        with_node::<Entry, _, _>(&entry, |e| {
             assert_eq!(e.get_title(), Some("this entry has totp"));
             assert_eq!(e.get_raw_otp_value(), Some(otp_str));
-        } else {
-            panic!("Expected an entry");
-        }
+        })
+        .unwrap();
 
         Ok(())
     }

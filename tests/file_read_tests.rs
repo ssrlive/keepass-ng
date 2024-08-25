@@ -4,7 +4,7 @@ mod file_read_tests {
     use keepass_ng::{
         db::{Database, Entry, Group, Node, NodeIterator, NodePtr},
         error::{DatabaseIntegrityError, DatabaseOpenError},
-        group_get_children, DatabaseKey,
+        group_get_children, with_node, DatabaseKey,
     };
     use std::{fs::File, path::Path};
     use uuid::uuid;
@@ -22,16 +22,17 @@ mod file_read_tests {
         let mut total_groups = 0;
         let mut total_entries = 0;
         for node in NodeIterator::new(&db.root) {
-            if let Some(g) = node.borrow().as_any().downcast_ref::<Group>() {
+            with_node::<Group, _, _>(&node, |g| {
                 println!("Saw group '{0}'", g.get_title().unwrap());
                 total_groups += 1;
-            } else if let Some(e) = node.borrow().as_any().downcast_ref::<Entry>() {
+            });
+            with_node::<Entry, _, _>(&node, |e| {
                 let title = e.get_title().unwrap_or("(no title)");
                 let user = e.get_username().unwrap_or("(no user)");
                 let pass = e.get_password().unwrap_or("(no password)");
                 println!("Entry '{0}': '{1}' : '{2}'", title, user, pass);
                 total_entries += 1;
-            }
+            });
         }
 
         assert_eq!(total_groups, 5);
@@ -56,16 +57,17 @@ mod file_read_tests {
         let mut total_groups = 0;
         let mut total_entries = 0;
         for node in NodeIterator::new(&db.root) {
-            if let Some(g) = node.borrow().as_any().downcast_ref::<Group>() {
+            with_node::<Group, _, _>(&node, |g| {
                 println!("Saw group '{0}'", g.get_title().unwrap());
                 total_groups += 1;
-            } else if let Some(e) = node.borrow().as_any().downcast_ref::<Entry>() {
+            });
+            with_node::<Entry, _, _>(&node, |e| {
                 let title = e.get_title().unwrap_or("(no title)");
                 let user = e.get_username().unwrap_or("(no user)");
                 let pass = e.get_password().unwrap_or("(no password)");
                 println!("Entry '{0}': '{1}' : '{2}'", title, user, pass);
                 total_entries += 1;
-            }
+            });
         }
 
         assert_eq!(total_groups, 1);
@@ -90,16 +92,17 @@ mod file_read_tests {
         let mut total_groups = 0;
         let mut total_entries = 0;
         for node in NodeIterator::new(&db.root) {
-            if let Some(g) = node.borrow().as_any().downcast_ref::<Group>() {
+            with_node::<Group, _, _>(&node, |g| {
                 println!("Saw group '{0}'", g.get_title().unwrap());
                 total_groups += 1;
-            } else if let Some(e) = node.borrow().as_any().downcast_ref::<Entry>() {
+            });
+            with_node::<Entry, _, _>(&node, |e| {
                 let title = e.get_title().unwrap_or("(no title)");
                 let user = e.get_username().unwrap_or("(no user)");
                 let pass = e.get_password().unwrap_or("(no password)");
                 println!("Entry '{0}': '{1}' : '{2}'", title, user, pass);
                 total_entries += 1;
-            }
+            });
         }
 
         assert_eq!(total_groups, 5);
@@ -271,16 +274,17 @@ mod file_read_tests {
         let mut total_groups = 0;
         let mut total_entries = 0;
         for node in NodeIterator::new(&db.root) {
-            if let Some(g) = node.borrow().as_any().downcast_ref::<Group>() {
+            with_node::<Group, _, _>(&node, |g| {
                 println!("Saw group '{0}'", g.get_title().unwrap_or("(no title)"));
                 total_groups += 1;
-            } else if let Some(e) = node.borrow().as_any().downcast_ref::<Entry>() {
+            });
+            with_node::<Entry, _, _>(&node, |e| {
                 let title = e.get_title().unwrap_or("(no title)");
                 let user = e.get_username().unwrap_or("(no user)");
                 let pass = e.get_password().unwrap_or("(no password)");
                 println!("Entry '{0}': '{1}' : '{2}'", title, user, pass);
                 total_entries += 1;
-            }
+            });
         }
 
         assert_eq!(total_groups, 12);
@@ -303,16 +307,17 @@ mod file_read_tests {
         let mut total_groups = 0;
         let mut total_entries = 0;
         for node in NodeIterator::new(&db.root) {
-            if let Some(g) = node.borrow().as_any().downcast_ref::<Group>() {
+            with_node::<Group, _, _>(&node, |g| {
                 println!("Saw group '{0}'", g.get_title().unwrap_or("(no title)"));
                 total_groups += 1;
-            } else if let Some(e) = node.borrow().as_any().downcast_ref::<Entry>() {
+            });
+            with_node::<Entry, _, _>(&node, |e| {
                 let title = e.get_title().unwrap_or("(no title)");
                 let user = e.get_username().unwrap_or("(no user)");
                 let pass = e.get_password().unwrap_or("(no password)");
                 println!("Entry '{0}': '{1}' : '{2}'", title, user, pass);
                 total_entries += 1;
-            }
+            });
         }
 
         assert_eq!(total_groups, 1);
@@ -336,22 +341,15 @@ mod file_read_tests {
         assert_eq!(recycle_bin_uuid, uuid!("563171fe-6598-42dc-8003-f98dde32e872"));
 
         let recycle_group: Vec<NodePtr> = NodeIterator::new(&db.root)
-            .filter(|child| {
-                if let Some(g) = child.borrow().as_any().downcast_ref::<Group>() {
-                    g.get_uuid() == recycle_bin_uuid
-                } else {
-                    false
-                }
-            })
+            .filter(|child| with_node::<Group, _, _>(child, |g| g.get_uuid() == recycle_bin_uuid).unwrap_or(false))
             .collect();
 
         assert_eq!(recycle_group.len(), 1);
         let group = &recycle_group[0];
-        if let Some(g) = group.borrow().as_any().downcast_ref::<Group>() {
+        with_node::<Group, _, _>(group, |g| {
             assert_eq!(g.get_title().unwrap(), "Recycle Bin");
-        } else {
-            panic!("It should've matched a Group!");
-        }
+        })
+        .unwrap();
         Ok(())
     }
 

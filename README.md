@@ -18,9 +18,9 @@ Rust KeePass database file parser for KDB, KDBX3 and KDBX4, with experimental su
 
 ```rust
 use keepass_ng::{
-    db::{node_is_group, Entry, Node, NodeIterator},
+    db::{node_is_group, Entry, Group, Node, NodeIterator},
     error::DatabaseOpenError,
-    Database, DatabaseKey,
+    with_node, Database, DatabaseKey,
 };
 use std::fs::File;
 
@@ -32,17 +32,18 @@ fn main() -> Result<(), DatabaseOpenError> {
 
     // Iterate over all `Group`s and `Entry`s
     for node in NodeIterator::new(&db.root).into_iter() {
-        if node_is_group(&node) {
+        with_node::<Group, _, _>(&node, |group| {
             println!(
                 "Saw group '{0}'",
-                node.borrow().get_title().unwrap_or("(no title)")
+                group.get_title().unwrap_or("(no title)")
             );
-        } else if let Some(e) = node.borrow().as_any().downcast_ref::<Entry>() {
+        });
+        with_node::<Entry, _, _>(&node, |e| {
             let title = e.get_title().unwrap_or("(no title)");
             let user = e.get_username().unwrap_or("(no username)");
             let pass = e.get_password().unwrap_or("(no password)");
             println!("Entry '{0}': '{1}' : '{2}'", title, user, pass);
-        }
+        });
     }
 
     Ok(())
@@ -64,7 +65,7 @@ You can enable the experimental support for saving KDBX4 databases using the `sa
 ```rust
 use keepass_ng::{
     db::{group_add_child, Database, Entry, Group, Node, Value},
-    rc_refcell_node, DatabaseConfig, DatabaseKey, NodePtr,
+    rc_refcell_node, DatabaseConfig, DatabaseKey, NodePtr, with_node_mut,
 };
 use std::fs::File;
 
@@ -74,11 +75,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     db.meta.database_name = Some("Demo database".to_string());
 
     let entry = rc_refcell_node!(Entry::default());
-    if let Some(entry) = entry.borrow_mut().as_any_mut().downcast_mut::<Entry>() {
+    with_node_mut::<Entry, _, _>(&entry, |entry| {
         entry.set_title(Some("Demo entry"));
         entry.set_username(Some("jdoe"));
         entry.set_password(Some("hunter2"));
-    }
+    });
 
     let group = rc_refcell_node!(Group::new("Demo group"));
     group_add_child(&group, entry, 0).unwrap();

@@ -88,24 +88,69 @@ macro_rules! rc_refcell_node {
 }
 
 pub fn node_is_group(group: &NodePtr) -> bool {
-    group.borrow().as_any().downcast_ref::<Group>().is_some()
+    with_node::<Group, _, _>(group, |_| true).unwrap_or(false)
+}
+
+/// Get a reference to a node if it is of the specified type
+/// and call the closure with the reference.
+/// Usage:
+/// ```no_run
+/// use keepass_ng::{with_node, Entry, Group, NodePtr, rc_refcell_node};
+///
+/// let node: NodePtr = rc_refcell_node!(Group::new("group"));
+/// with_node::<Group, _, _>(&node, |group| {
+///     // do something with group
+/// });
+///
+/// with_node::<Entry, _, _>(&node, |entry| {
+///     // do something with entry
+/// });
+/// ```
+pub fn with_node<T, F, R>(node: &NodePtr, f: F) -> Option<R>
+where
+    T: 'static,
+    F: FnOnce(&T) -> R,
+{
+    node.borrow().as_any().downcast_ref::<T>().map(f)
+}
+
+/// Get a mutable reference to a node if it is of the specified type
+/// and call the closure with the mutable reference.
+/// Usage:
+/// ```no_run
+/// use keepass_ng::{with_node_mut, Entry, Group, NodePtr, rc_refcell_node};
+///
+/// let node: NodePtr = rc_refcell_node!(Group::new("group"));
+/// with_node_mut::<Group, _, _>(&node, |group| {
+///     // do something with group
+/// });
+///
+/// with_node_mut::<Entry, _, _>(&node, |entry| {
+///     // do something with entry
+/// });
+/// ```
+pub fn with_node_mut<T, F, R>(node: &NodePtr, f: F) -> Option<R>
+where
+    T: 'static,
+    F: FnOnce(&mut T) -> R,
+{
+    node.borrow_mut().as_any_mut().downcast_mut::<T>().map(f)
 }
 
 pub fn node_is_entry(entry: &NodePtr) -> bool {
-    entry.borrow().as_any().downcast_ref::<Entry>().is_some()
+    with_node::<Entry, _, _>(entry, |_| true).unwrap_or(false)
 }
 
 pub fn group_get_children(group: &NodePtr) -> Option<Vec<NodePtr>> {
-    group.borrow().as_any().downcast_ref::<Group>().map(Group::get_children)
+    with_node::<Group, _, _>(group, |g| g.get_children())
 }
 
 pub fn group_add_child(parent: &NodePtr, child: NodePtr, index: usize) -> Result<()> {
-    parent
-        .borrow_mut()
-        .as_any_mut()
-        .downcast_mut::<Group>()
-        .ok_or("parent is not a group")?
-        .add_child(child, index);
+    with_node_mut::<Group, _, _>(parent, |parent| {
+        parent.add_child(child, index);
+        Ok(())
+    })
+    .unwrap_or(Err(crate::Error::from("parent is not a group")))?;
     Ok(())
 }
 
@@ -114,12 +159,11 @@ pub fn group_reset_children(parent: &NodePtr, children: Vec<NodePtr>) -> Result<
     for c in &children {
         c.borrow_mut().set_parent(Some(uuid));
     }
-    parent
-        .borrow_mut()
-        .as_any_mut()
-        .downcast_mut::<Group>()
-        .ok_or("parent is not a group")?
-        .children = children.into_iter().map(|c| c.into()).collect();
+    with_node_mut::<Group, _, _>(parent, |parent| {
+        parent.children = children.into_iter().map(|c| c.into()).collect();
+        Ok(())
+    })
+    .unwrap_or(Err(crate::Error::from("parent is not a group")))?;
     Ok(())
 }
 
@@ -133,11 +177,13 @@ pub fn group_remove_node_by_uuid(root: &NodePtr, uuid: Uuid) -> crate::Result<No
     let parent_uuid = node.borrow().get_parent().ok_or("Node has no parent")?;
     let err = format!("Parent \"{parent_uuid}\" not found");
     let parent = search_node_by_uuid_with_specific_type::<Group>(root, parent_uuid).ok_or(err)?;
-    if let Some(parent) = parent.borrow_mut().as_any_mut().downcast_mut::<Group>() {
+    with_node_mut::<Group, _, _>(&parent, |parent| {
         let err = format!("Node \"{uuid}\" not found in parent");
         let index = parent.children.iter().position(|c| c.borrow().get_uuid() == uuid).ok_or(err)?;
         parent.children.remove(index);
-    }
+        Ok::<_, crate::Error>(())
+    })
+    .unwrap_or(Err(crate::Error::from("Not a group")))?;
 
     Ok(node)
 }
@@ -169,7 +215,7 @@ where
     T: 'a + 'static,
 {
     NodeIterator::new(root)
-        .filter(|n| n.borrow().as_any().downcast_ref::<T>().is_some())
+        .filter(|n| with_node::<T, _, _>(n, |_| true).is_some())
         .find(|n| n.borrow().get_uuid() == uuid)
 }
 

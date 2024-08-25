@@ -105,9 +105,10 @@ mod kdbx4_tests {
         let entry_with_password = rc_refcell_node!(Entry::default());
         entry_with_password.borrow_mut().set_title(Some("Demo Entry"));
 
-        if let Some(entry) = entry_with_password.borrow_mut().as_any_mut().downcast_mut::<Entry>() {
+        with_node_mut::<Entry, _, _>(&entry_with_password, |entry| {
             entry.set_password(Some("secret"));
-        }
+        })
+        .unwrap();
 
         group_add_child(&root_group, entry_with_password, 0).unwrap();
         group_add_child(&root_group, rc_refcell_node!(Entry::default()), 0).unwrap();
@@ -132,10 +133,10 @@ mod kdbx4_tests {
         assert_eq!(group_get_children(&decrypted_db.root).unwrap().len(), 3);
 
         let entry = Group::get(&decrypted_db.root, &["Demo Entry"]).unwrap();
-        assert_eq!(
-            entry.borrow().as_any().downcast_ref::<Entry>().unwrap().get_password(),
-            Some("secret")
-        );
+        with_node::<Entry, _, _>(&entry, |entry| {
+            assert_eq!(entry.get_password(), Some("secret"));
+        })
+        .unwrap();
     }
 
     #[test]

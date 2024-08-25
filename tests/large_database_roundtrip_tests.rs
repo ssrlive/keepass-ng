@@ -1,7 +1,7 @@
 mod large_file_roundtrip_tests {
     use keepass_ng::{
         db::{Database, Entry, Node, NodePtr},
-        group_add_child, rc_refcell_node, DatabaseKey, Group, NodeIterator,
+        group_add_child, rc_refcell_node, with_node, with_node_mut, DatabaseKey, Group, NodeIterator,
     };
 
     /// This can be tuned based on how "large" we expect databases to realistically be.
@@ -23,11 +23,11 @@ mod large_file_roundtrip_tests {
         for i in 0..LARGE_DATABASE_ENTRY_COUNT {
             let entry = rc_refcell_node!(Entry::default());
             entry.borrow_mut().set_title(Some(&format!("Entry_{i}")));
-            if let Some(entry) = entry.borrow_mut().as_any_mut().downcast_mut::<Entry>() {
+            with_node_mut::<Entry, _, _>(&entry, |entry| {
                 entry.set_username(Some(&format!("UserName_{i}")));
                 entry.set_password(Some(&format!("Password_{i}")));
-            }
-            group_add_child(&mut db.root, entry, i)?;
+            });
+            group_add_child(&db.root, entry, i)?;
         }
 
         // Define database key.
@@ -41,10 +41,10 @@ mod large_file_roundtrip_tests {
         // Validate that the data is what we expect.
         let mut entry_counter = 0;
         for node in NodeIterator::new(&db.root) {
-            if let Some(group) = node.borrow().as_any().downcast_ref::<Group>() {
+            with_node::<Group, _, _>(&node, |group| {
                 println!("Saw group '{}'", group.get_title().expect("Title should be defined"));
-            }
-            if let Some(entry) = node.borrow().as_any().downcast_ref::<Entry>() {
+            });
+            with_node::<Entry, _, _>(&node, |entry| {
                 assert_eq!(
                     format!("Entry_{entry_counter}"),
                     entry.get_title().expect("Title should be defined")
@@ -58,7 +58,7 @@ mod large_file_roundtrip_tests {
                     entry.get_password().expect("Password should be defined")
                 );
                 entry_counter += 1;
-            }
+            });
         }
         assert_eq!(entry_counter, LARGE_DATABASE_ENTRY_COUNT);
         Ok(())

@@ -4,7 +4,7 @@ use std::fs::File;
 use clap::Parser;
 use keepass_ng::{
     db::{Entry, Group},
-    BoxError, Database, DatabaseKey,
+    with_node, BoxError, Database, DatabaseKey,
 };
 
 #[derive(Parser, Debug)]
@@ -46,10 +46,10 @@ pub fn main() -> Result<(), BoxError> {
     let db = Database::open(&mut source, key)?;
 
     if let Some(e) = Group::get(&db.root, &[&args.entry]) {
-        let e = e.borrow();
-        let e = e.as_any().downcast_ref::<Entry>().unwrap();
-        let totp = e.get_otp().unwrap();
-        println!("Token is {}", totp.value_now().unwrap().code);
+        with_node::<Entry, _, _>(&e, |e| {
+            let totp = e.get_otp().unwrap();
+            println!("Token is {}", totp.value_now().unwrap().code);
+        });
         Ok(())
     } else {
         panic!("Could not find entry with provided name")
