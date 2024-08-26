@@ -39,6 +39,9 @@ pub(crate) fn dump(db: &Database, inner_cipher: &mut dyn Cipher, writer: &mut dy
 /// writer to build up the XML document.
 pub(crate) trait DumpXml {
     fn dump_xml<E: std::io::Write>(&self, writer: &mut EventWriter<E>, inner_cipher: &mut dyn Cipher) -> Result<(), xml::writer::Error>;
+    fn normalize_empty_elements(&self) -> bool {
+        false
+    }
 }
 
 impl DumpXml for &chrono::NaiveDateTime {
@@ -69,11 +72,17 @@ impl DumpXml for &str {
     fn dump_xml<E: std::io::Write>(&self, writer: &mut EventWriter<E>, _inner_cipher: &mut dyn Cipher) -> Result<(), xml::writer::Error> {
         writer.write(WriterEvent::characters(self))
     }
+    fn normalize_empty_elements(&self) -> bool {
+        self.is_empty()
+    }
 }
 
 impl DumpXml for &String {
     fn dump_xml<E: std::io::Write>(&self, writer: &mut EventWriter<E>, _inner_cipher: &mut dyn Cipher) -> Result<(), xml::writer::Error> {
         writer.write(WriterEvent::characters(self))
+    }
+    fn normalize_empty_elements(&self) -> bool {
+        self.is_empty()
     }
 }
 
@@ -96,7 +105,9 @@ struct SimpleTag<S: AsRef<str>, D: DumpXml>(S, D);
 impl<S: AsRef<str>, D: DumpXml> DumpXml for SimpleTag<S, D> {
     fn dump_xml<E: std::io::Write>(&self, writer: &mut EventWriter<E>, inner_cipher: &mut dyn Cipher) -> Result<(), xml::writer::Error> {
         writer.write(WriterEvent::start_element(self.0.as_ref()))?;
-        self.1.dump_xml(writer, inner_cipher)?;
+        if !self.1.normalize_empty_elements() {
+            self.1.dump_xml(writer, inner_cipher)?;
+        }
         writer.write(WriterEvent::end_element())?;
         Ok(())
     }

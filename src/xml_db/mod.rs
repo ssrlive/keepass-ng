@@ -10,7 +10,7 @@ pub fn get_epoch_baseline() -> chrono::NaiveDateTime {
 #[cfg(test)]
 mod tests {
     use crate::{
-        config::DatabaseConfig,
+        config::{DatabaseConfig, InnerCipherConfig},
         db::{
             entry::History,
             group_get_children,
@@ -23,6 +23,7 @@ mod tests {
         format::kdbx4,
         key::DatabaseKey,
         rc_refcell_node,
+        xml_db::dump::DumpXml,
     };
     use chrono::NaiveDateTime;
     use secstr::SecStr;
@@ -121,6 +122,17 @@ mod tests {
 
     #[test]
     pub fn test_group() {
+        let group = rc_refcell_node!(Group::new(""));
+        let xml = with_node::<Group, _, _>(&group, |group| {
+            let mut inner_cipher = InnerCipherConfig::Plain.get_cipher(&[]);
+            let mut writer = xml::EventWriter::new(Vec::new());
+            let _v = group.dump_xml(&mut writer, &mut *inner_cipher)?;
+            Ok::<_, xml::writer::Error>(writer.into_inner())
+        })
+        .unwrap()
+        .unwrap();
+        assert!(String::from_utf8(xml).unwrap().contains("<Name />"));
+
         let root_group = rc_refcell_node!(Group::new("Root"));
         let entry = rc_refcell_node!(Entry::default());
         let new_entry_uuid = entry.borrow().get_uuid();
