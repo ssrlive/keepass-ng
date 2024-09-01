@@ -64,7 +64,7 @@ You can enable the experimental support for saving KDBX4 databases using the `sa
 
 ```rust
 use keepass_ng::{
-    db::{group_add_child, with_node_mut, rc_refcell_node, NodePtr, Database, Entry, Group, Node, Value},
+    db::{with_node_mut, rc_refcell_node, NodePtr, Database, Entry, Group, Node, Value},
     DatabaseConfig, DatabaseKey, 
 };
 use std::fs::File;
@@ -74,17 +74,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     db.meta.database_name = Some("Demo database".to_string());
 
-    let entry = rc_refcell_node(Entry::default());
-    with_node_mut::<Entry, _, _>(&entry, |entry| {
-        entry.set_title(Some("Demo entry"));
-        entry.set_username(Some("jdoe"));
-        entry.set_password(Some("hunter2"));
+    let mut entry = Entry::default();
+    entry.set_title(Some("Demo entry"));
+    entry.set_username(Some("jdoe"));
+    entry.set_password(Some("hunter2"));
+
+    let mut group = Group::new("Demo group");
+    group.add_child(rc_refcell_node(entry), 0);
+
+    with_node_mut::<Group, _, _>(&db.root, |root| {
+        root.add_child(rc_refcell_node(group), 0);
     });
-
-    let group = rc_refcell_node(Group::new("Demo group"));
-    group_add_child(&group, entry, 0).unwrap();
-
-    group_add_child(&db.root, group, 0).unwrap();
 
     #[cfg(feature = "save_kdbx4")]
     db.save(&mut File::create("demo.kdbx")?, DatabaseKey::new().with_password("demopass"))?;

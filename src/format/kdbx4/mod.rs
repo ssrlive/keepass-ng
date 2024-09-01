@@ -131,7 +131,7 @@ mod kdbx4_tests {
 
         assert_eq!(group_get_children(&decrypted_db.root).unwrap().len(), 3);
 
-        let entry = Group::get(&decrypted_db.root, &["Demo Entry"]).unwrap();
+        let entry = with_node::<Group, _, _>(&decrypted_db.root, |root| root.get(&["Demo Entry"]).unwrap()).unwrap();
         with_node::<Entry, _, _>(&entry, |entry| {
             assert_eq!(entry.get_password(), Some("secret"));
         })

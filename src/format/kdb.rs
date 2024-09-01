@@ -1,7 +1,7 @@
 use crate::{
     config::{CompressionConfig, DatabaseConfig, InnerCipherConfig, KdfConfig, OuterCipherConfig},
     crypt::calculate_sha256,
-    db::{group_add_child, group_get_children, rc_refcell_node, Database, DeletedObjects, Entry, Group, Meta, NodePtr, Value},
+    db::*,
     error::{DatabaseIntegrityError, DatabaseKeyError, DatabaseOpenError},
     format::DatabaseVersion,
     key::DatabaseKey,
@@ -231,10 +231,18 @@ fn parse_entries(root: &NodePtr, gid_map: &GidMap, header_num_entries: u32, data
                     .map(std::string::String::as_str)
                     .collect();
 
-                if let Some(group) = Group::get(root, group_path.as_slice()) {
-                    let count = group_get_children(&group).ok_or(DatabaseIntegrityError::IncompleteKDBGroup)?.len();
-                    group_add_child(&group, rc_refcell_node(entry), count).map_err(|_| DatabaseIntegrityError::IncompleteKDBGroup)?;
-                }
+                with_node::<Group, _, _>(root, |root| {
+                    if let Some(group) = root.get(group_path.as_slice()) {
+                        with_node_mut::<Group, _, _>(&group, |group| {
+                            let count = group.get_children().len();
+                            group.add_child(rc_refcell_node(entry), count);
+                            Ok::<(), DatabaseIntegrityError>(())
+                        })
+                        .ok_or(DatabaseIntegrityError::IncompleteKDBGroup)??;
+                    }
+                    Ok::<(), DatabaseIntegrityError>(())
+                })
+                .ok_or(DatabaseIntegrityError::IncompleteKDBGroup)??;
 
                 entry = Entry::default();
                 gid = None;

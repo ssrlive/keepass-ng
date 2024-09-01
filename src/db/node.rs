@@ -93,10 +93,6 @@ pub fn rc_refcell_node<T: Node>(e: T) -> NodePtr {
     ptr
 }
 
-pub fn node_is_group(group: &NodePtr) -> bool {
-    with_node::<Group, _, _>(group, |_| true).unwrap_or(false)
-}
-
 /// Get a reference to a node if it is of the specified type
 /// and call the closure with the reference.
 /// Usage:
@@ -147,6 +143,10 @@ pub fn node_is_entry(entry: &NodePtr) -> bool {
     with_node::<Entry, _, _>(entry, |_| true).unwrap_or(false)
 }
 
+pub fn node_is_group(group: &NodePtr) -> bool {
+    with_node::<Group, _, _>(group, |_| true).unwrap_or(false)
+}
+
 pub fn group_get_children(group: &NodePtr) -> Option<Vec<NodePtr>> {
     with_node::<Group, _, _>(group, |g| g.get_children())
 }
@@ -154,22 +154,9 @@ pub fn group_get_children(group: &NodePtr) -> Option<Vec<NodePtr>> {
 pub fn group_add_child(parent: &NodePtr, child: NodePtr, index: usize) -> Result<()> {
     with_node_mut::<Group, _, _>(parent, |parent| {
         parent.add_child(child, index);
-        Ok(())
+        Ok::<_, crate::Error>(())
     })
-    .unwrap_or(Err(crate::Error::from("parent is not a group")))?;
-    Ok(())
-}
-
-pub fn group_reset_children(parent: &NodePtr, children: Vec<NodePtr>) -> Result<()> {
-    let uuid = parent.borrow().get_uuid();
-    for c in &children {
-        c.borrow_mut().set_parent(Some(uuid));
-    }
-    with_node_mut::<Group, _, _>(parent, |parent| {
-        parent.children = children.into_iter().map(|c| c.into()).collect();
-        Ok(())
-    })
-    .unwrap_or(Err(crate::Error::from("parent is not a group")))?;
+    .unwrap_or(Err("parent is not a group".into()))?;
     Ok(())
 }
 
@@ -184,9 +171,7 @@ pub fn group_remove_node_by_uuid(root: &NodePtr, uuid: Uuid) -> crate::Result<No
     let err = format!("Parent \"{parent_uuid}\" not found");
     let parent = search_node_by_uuid_with_specific_type::<Group>(root, parent_uuid).ok_or(err)?;
     with_node_mut::<Group, _, _>(&parent, |parent| {
-        let err = format!("Node \"{uuid}\" not found in parent");
-        let index = parent.children.iter().position(|c| c.borrow().get_uuid() == uuid).ok_or(err)?;
-        parent.children.remove(index);
+        parent.children.retain(|c| c.borrow().get_uuid() != uuid);
         Ok::<_, crate::Error>(())
     })
     .unwrap_or(Err(crate::Error::from("Not a group")))?;
@@ -195,21 +180,10 @@ pub fn group_remove_node_by_uuid(root: &NodePtr, uuid: Uuid) -> crate::Result<No
 }
 
 pub fn node_is_equals_to(node: &NodePtr, other: &NodePtr) -> bool {
-    let node = node.borrow();
-    let other = other.borrow();
-    let g_node = node.as_any().downcast_ref::<Group>();
-    let g_other = other.as_any().downcast_ref::<Group>();
-    if let (Some(g_node), Some(g_other)) = (g_node, g_other) {
-        return g_node == g_other;
-    }
-    let e_node = node.as_any().downcast_ref::<Entry>();
-    let e_other = other.as_any().downcast_ref::<Entry>();
-    if let (Some(e_node), Some(e_other)) = (e_node, e_other) {
-        return e_node == e_other;
-    } else if let (None, None) = (e_node, e_other) {
+    if with_node::<Entry, _, _>(node, |e1| with_node::<Entry, _, _>(other, |e2| e1 == e2).unwrap_or(false)).unwrap_or(false) {
         return true;
     }
-    false
+    with_node::<Group, _, _>(node, |g1| with_node::<Group, _, _>(other, |g2| g1 == g2).unwrap_or(false)).unwrap_or(false)
 }
 
 pub fn search_node_by_uuid(root: &NodePtr, uuid: Uuid) -> Option<NodePtr> {

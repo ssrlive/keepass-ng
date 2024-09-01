@@ -293,45 +293,43 @@ impl Group {
     /// let mut file = File::open("tests/resources/test_db_with_password.kdbx").unwrap();
     /// let db = Database::open(&mut file, DatabaseKey::new().with_password("demopass")).unwrap();
     ///
-    /// if let Some(e) = Group::get(&db.root, &["General", "Sample Entry #2"]) {
-    ///     with_node::<Entry, _, _>(&e, |e| {
-    ///         println!("User: {}", e.get_username().unwrap());
-    ///     });
-    /// }
+    /// let e = with_node::<Group, _, _>(&db.root, |root| root.get(&["General", "Sample Entry #2"]).unwrap()).unwrap();
+    /// with_node::<Entry, _, _>(&e, |e| {
+    ///     println!("User: {}", e.get_username().unwrap());
+    /// });
     /// ```
-    pub fn get(root: &NodePtr, path: &[&str]) -> Option<NodePtr> {
-        Self::get_internal(root, path, SearchField::Title)
+    pub fn get(&self, path: &[&str]) -> Option<NodePtr> {
+        self.get_internal(path, SearchField::Title)
     }
 
     #[allow(dead_code)]
-    pub(crate) fn get_by_uuid<T: AsRef<str>>(root: &NodePtr, path: &[T]) -> Option<NodePtr> {
-        Self::get_internal(root, path, SearchField::Uuid)
+    pub(crate) fn get_by_uuid<T: AsRef<str>>(&self, path: &[T]) -> Option<NodePtr> {
+        self.get_internal(path, SearchField::Uuid)
     }
 
-    fn get_internal<T: AsRef<str>>(root: &NodePtr, path: &[T], search_field: SearchField) -> Option<NodePtr> {
+    fn get_internal<T: AsRef<str>>(&self, path: &[T], search_field: SearchField) -> Option<NodePtr> {
         if path.is_empty() {
-            Some(root.clone())
+            let root = self.weak_self.as_ref()?.upgrade()?;
+            Some(root)
         } else if path.len() == 1 {
-            group_get_children(root).and_then(|c| {
-                c.iter().find_map(|node| match search_field.matches(node, path[0].as_ref()) {
-                    true => Some(node.clone()),
+            self.children
+                .iter()
+                .find_map(|node| match search_field.matches(node, path[0].as_ref()) {
+                    true => Some(node.into()),
                     false => None,
                 })
-            })
         } else {
             let head = path[0].as_ref();
             let tail = &path[1..path.len()];
-            let head_group = group_get_children(root).and_then(|c| {
-                c.iter().find_map(|node| match node_is_group(node) {
-                    true => match search_field.matches(node, head) {
-                        true => Some(node.clone()),
-                        false => None,
-                    },
-                    false => None,
-                })
+            let head_group = self.children.iter().find_map(|node| {
+                if node_is_group(node) && search_field.matches(node, head) {
+                    Some(NodePtr::from(node))
+                } else {
+                    None
+                }
             })?;
 
-            Self::get_internal(&head_group, tail, search_field)
+            with_node::<Group, _, _>(&head_group, |g| g.get_internal(tail, search_field)).unwrap()
         }
     }
 
@@ -355,17 +353,23 @@ impl Group {
         response
     }
 
+    pub fn reset_children(&mut self, children: Vec<NodePtr>) {
+        let uuid = self.get_uuid();
+        children.iter().for_each(|c| c.borrow_mut().set_parent(Some(uuid)));
+        self.children = children.into_iter().map(|c| c.into()).collect();
+    }
+
     fn replace_entry(root: &NodePtr, entry: &NodePtr) -> Option<()> {
         let uuid = entry.borrow().get_uuid();
         let target_entry = search_node_by_uuid_with_specific_type::<Entry>(root, uuid);
         Entry::entry_replaced_with(target_entry.as_ref()?, entry)
     }
 
-    pub(crate) fn has_group(root: &NodePtr, uuid: Uuid) -> bool {
-        group_get_children(root).map_or(false, |c| c.into_iter().any(|n| n.borrow().get_uuid() == uuid && node_is_group(&n)))
+    pub(crate) fn has_group(&self, uuid: Uuid) -> bool {
+        self.children.iter().any(|n| n.borrow().get_uuid() == uuid && node_is_group(n))
     }
 
-    pub(crate) fn get_group_mut(root: &NodePtr, location: &NodeLocation, create_groups: bool) -> Result<NodePtr> {
+    pub(crate) fn get_group_mut(&mut self, location: &NodeLocation, create_groups: bool) -> Result<NodePtr> {
         if location.is_empty() {
             return Err("Empty location.".into());
         }
@@ -374,55 +378,66 @@ impl Group {
         remaining_location.remove(0);
 
         if remaining_location.is_empty() {
-            return Ok(root.clone());
+            let root = self
+                .weak_self
+                .as_ref()
+                .ok_or("Weak self is not set.")?
+                .upgrade()
+                .ok_or("Could not upgrade weak self.")?;
+            return Ok(root);
         }
 
         let next_location = &remaining_location[0];
         let mut next_location_uuid = next_location.uuid;
 
-        if !Self::has_group(root, next_location_uuid) && create_groups {
+        if !self.has_group(next_location_uuid) && create_groups {
             let mut current_group: Option<NodePtr> = None;
             for i in (0..(remaining_location.len())).rev() {
-                let new_group = rc_refcell_node(Group::new(&remaining_location[i].name));
+                let mut new_group = Group::new(&remaining_location[i].name);
                 if let Some(current_group) = current_group {
-                    let count = group_get_children(&current_group).map_or(0, |c| c.len());
-                    group_add_child(&new_group, current_group, count)?;
+                    let count = self.children.len();
+                    new_group.add_child(current_group, count);
                 }
-                current_group = Some(new_group);
+                current_group = Some(rc_refcell_node(new_group));
             }
 
             if let Some(current_group) = current_group {
                 next_location_uuid = current_group.borrow().get_uuid();
-                let count = group_get_children(root).map_or(0, |c| c.len());
-                group_add_child(root, current_group, count)?;
+                let count = self.children.len();
+                self.add_child(current_group, count);
             } else {
                 return Err("Could not create group.".into());
             }
         }
 
         let mut target = None;
-        for node in group_get_children(root).ok_or("No children.")? {
-            if node_is_group(&node) && node.borrow().get_uuid() == next_location_uuid {
-                target = Some(node);
+        for node in self.children.iter() {
+            if node_is_group(node) && node.borrow().get_uuid() == next_location_uuid {
+                target = Some(NodePtr::from(node));
                 break;
             }
         }
 
-        if let Some(target) = target {
-            return Self::get_group_mut(&target, &remaining_location, create_groups);
+        if let Some(ref target) = target {
+            return with_node_mut::<Group, _, _>(target, |g| g.get_group_mut(&remaining_location, create_groups))
+                .unwrap_or(Err("Could not get group.".into()));
         }
         Err("The group was not found.".into())
     }
 
-    pub(crate) fn insert_entry(root: &NodePtr, entry: NodePtr, location: &NodeLocation) -> Result<()> {
-        let group = Self::get_group_mut(root, location, true)?;
-        let count = group_get_children(&group).map_or(0, |c| c.len());
-        group_add_child(&group, entry, count)?;
+    pub(crate) fn insert_entry(&mut self, entry: NodePtr, location: &NodeLocation) -> Result<()> {
+        let group = self.get_group_mut(location, true)?;
+        with_node_mut::<Group, _, _>(&group, |g| {
+            let count = g.children.len();
+            g.add_child(entry, count);
+            Ok::<(), crate::Error>(())
+        })
+        .ok_or("Could not add entry")??;
         Ok(())
     }
 
-    pub(crate) fn remove_entry(root: &NodePtr, uuid: Uuid, location: &NodeLocation) -> Result<NodePtr> {
-        let group = Self::get_group_mut(root, location, false)?;
+    pub(crate) fn remove_entry(&mut self, uuid: Uuid, location: &NodeLocation) -> Result<NodePtr> {
+        let group = self.get_group_mut(location, false)?;
 
         let mut removed_entry: Option<NodePtr> = None;
         let mut new_nodes: Vec<NodePtr> = vec![];
@@ -431,22 +446,25 @@ impl Group {
             uuid,
             group.borrow().get_title().unwrap_or("No title")
         );
-        for node in group_get_children(&group).unwrap_or_default() {
-            if node_is_entry(&node) {
-                let node_uuid = node.borrow().get_uuid();
-                println!("Saw entry {node_uuid}");
-                if node_uuid != uuid {
-                    new_nodes.push(node.borrow().duplicate());
-                    continue;
+
+        with_node::<Group, _, _>(&group, |g| {
+            for node in g.children.iter() {
+                if node_is_entry(node) {
+                    let node_uuid = node.borrow().get_uuid();
+                    println!("Saw entry {}", node_uuid);
+                    if node_uuid != uuid {
+                        new_nodes.push(NodePtr::from(node));
+                        continue;
+                    }
+                    removed_entry = Some(NodePtr::from(node));
+                } else if node_is_group(node) {
+                    new_nodes.push(NodePtr::from(node));
                 }
-                removed_entry = Some(node.borrow().duplicate());
-            } else if node_is_group(&node) {
-                new_nodes.push(node.borrow().duplicate());
             }
-        }
+        });
 
         if let Some(entry) = removed_entry {
-            group_reset_children(&group, new_nodes)?;
+            with_node_mut::<Group, _, _>(&group, |g| g.reset_children(new_nodes)).ok_or("Could not reset children")?;
             Ok(entry)
         } else {
             let title = group.borrow().get_title().unwrap_or("No title").to_string();
@@ -480,8 +498,12 @@ impl Group {
         remaining_location.remove(0);
 
         if remaining_location.is_empty() {
-            let count = group_get_children(parent).map_or(0, |c| c.len());
-            group_add_child(parent, entry, count)?;
+            with_node_mut::<Group, _, _>(parent, |g| {
+                let count = g.children.len();
+                g.add_child(entry, count);
+                Ok::<(), crate::Error>(())
+            })
+            .ok_or("Could not add entry")??;
             return Ok(());
         }
 
@@ -552,8 +574,12 @@ impl Group {
                     event_type: MergeEventType::EntryLocationUpdated,
                     node_uuid: entry_uuid,
                 });
-                let _ = Group::remove_entry(root, entry_uuid, &existing_entry_location)?;
-                Group::insert_entry(root, entry.borrow().duplicate(), entry_location)?;
+                with_node_mut::<Group, _, _>(root, |g| {
+                    let _ = g.remove_entry(entry_uuid, &existing_entry_location)?;
+                    g.insert_entry(entry.borrow().duplicate(), entry_location)?;
+                    Ok::<(), crate::Error>(())
+                })
+                .ok_or("Could not remove entry")??;
             }
         }
 
@@ -796,7 +822,9 @@ mod group_tests {
             GroupRef::new(destination_group_uuid, ""),
             GroupRef::new(destination_sub_group1_uuid, ""),
         ];
-        let removed_entry = Group::remove_entry(&source_group, entry_uuid, &location).unwrap();
+        let removed_entry = with_node_mut::<Group, _, _>(&source_group, |g| g.remove_entry(entry_uuid, &location))
+            .unwrap()
+            .unwrap();
 
         removed_entry.borrow_mut().get_times_mut().set_location_changed(Some(Times::now()));
         assert!(with_node::<Group, _, _>(&source_group, |g| g.get_all_entries(&vec![]))
@@ -813,7 +841,9 @@ mod group_tests {
             GroupRef::new(destination_sub_group2_uuid, ""),
         ];
 
-        Group::insert_entry(&source_group, removed_entry, &location).unwrap();
+        with_node_mut::<Group, _, _>(&source_group, |g| g.insert_entry(removed_entry, &location))
+            .unwrap()
+            .unwrap();
 
         let merge_result = Group::merge(&destination_group, &source_group).unwrap();
         assert_eq!(merge_result.warnings.len(), 0);
@@ -848,8 +878,11 @@ mod group_tests {
             entry.update_history();
         });
         group_add_child(&source_sub_group, entry, 0).unwrap();
-        group_reset_children(&source_group, vec![]).unwrap();
-        group_add_child(&source_group, source_sub_group, 0).unwrap();
+        with_node_mut::<Group, _, _>(&source_group, |g| {
+            g.reset_children(vec![]);
+            g.add_child(source_sub_group, 0);
+        })
+        .unwrap();
 
         let merge_result = Group::merge(&destination_group, &source_group).unwrap();
         assert_eq!(merge_result.warnings.len(), 0);
@@ -955,10 +988,13 @@ mod group_tests {
         group_add_child(&general_group, sample_entry, 0).unwrap();
         group_add_child(&db.root, general_group, 0).unwrap();
 
-        assert!(Group::get(&db.root, &["General", "Sample Entry #2"]).is_some());
-        assert!(Group::get(&db.root, &["General"]).is_some());
-        assert!(Group::get(&db.root, &["Invalid Group"]).is_none());
-        assert!(Group::get(&db.root, &[]).is_some());
+        with_node::<Group, _, _>(&db.root, |g| {
+            assert!(g.get(&["General", "Sample Entry #2"]).is_some());
+            assert!(g.get(&["General"]).is_some());
+            assert!(g.get(&["Invalid Group"]).is_none());
+            assert!(g.get(&[]).is_some());
+        })
+        .unwrap();
     }
 
     #[test]
@@ -981,10 +1017,13 @@ mod group_tests {
         let invalid_path: [&str; 1] = [invalid_uuid.as_ref()];
         let empty_path: [&str; 0] = [];
 
-        assert!(Group::get_by_uuid(&db.root, &group_path).is_some());
-        assert!(Group::get_by_uuid(&db.root, &entry_path).is_some());
-        assert!(Group::get_by_uuid(&db.root, &invalid_path).is_none());
-        assert!(Group::get_by_uuid(&db.root, &empty_path).is_some());
+        with_node::<Group, _, _>(&db.root, |g| {
+            assert!(g.get_by_uuid(&group_path).is_some());
+            assert!(g.get_by_uuid(&entry_path).is_some());
+            assert!(g.get_by_uuid(&invalid_path).is_none());
+            assert!(g.get_by_uuid(&empty_path).is_some());
+        })
+        .unwrap();
 
         // Testing with owned versions of the UUIDs.
         let group_path = vec![general_group_uuid.clone()];
@@ -992,9 +1031,12 @@ mod group_tests {
         let invalid_path = vec![invalid_uuid.clone()];
         let empty_path: Vec<String> = vec![];
 
-        assert!(Group::get_by_uuid(&db.root, &group_path).is_some());
-        assert!(Group::get_by_uuid(&db.root, &entry_path).is_some());
-        assert!(Group::get_by_uuid(&db.root, &invalid_path).is_none());
-        assert!(Group::get_by_uuid(&db.root, &empty_path).is_some());
+        with_node::<Group, _, _>(&db.root, |g| {
+            assert!(g.get_by_uuid(&group_path).is_some());
+            assert!(g.get_by_uuid(&entry_path).is_some());
+            assert!(g.get_by_uuid(&invalid_path).is_none());
+            assert!(g.get_by_uuid(&empty_path).is_some());
+        })
+        .unwrap();
     }
 }

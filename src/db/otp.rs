@@ -206,7 +206,7 @@ mod kdbx4_otp_tests {
         let otp_str = "otpauth://totp/KeePassXC:none?secret=JBSWY3DPEHPK3PXP&period=30&digits=6&issuer=KeePassXC";
 
         // get an entry on the root node
-        let entry = Group::get(&db.root, &["this entry has totp"]).unwrap();
+        let entry = with_node::<Group, _, _>(&db.root, |root| root.get(&["this entry has totp"]).unwrap()).unwrap();
         with_node::<Entry, _, _>(&entry, |e| {
             assert_eq!(e.get_title(), Some("this entry has totp"));
             assert_eq!(e.get_raw_otp_value(), Some(otp_str));
