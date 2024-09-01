@@ -35,6 +35,9 @@ pub struct Entry {
     pub(crate) history: Option<History>,
 
     pub(crate) parent: Option<Uuid>,
+
+    #[cfg_attr(feature = "serialization", serde(skip_serializing))]
+    pub(crate) weak_self: Option<std::rc::Weak<std::cell::RefCell<dyn Node>>>,
 }
 
 impl Default for Entry {
@@ -54,6 +57,7 @@ impl Default for Entry {
             quality_check: None,
             history: None,
             parent: None,
+            weak_self: None,
         }
     }
 }

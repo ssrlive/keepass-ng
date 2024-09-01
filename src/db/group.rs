@@ -119,6 +119,9 @@ pub struct Group {
     pub(crate) last_top_visible_entry: Option<Uuid>,
 
     pub(crate) parent: Option<Uuid>,
+
+    #[cfg_attr(feature = "serialization", serde(skip_serializing))]
+    pub(crate) weak_self: Option<std::rc::Weak<std::cell::RefCell<dyn Node>>>,
 }
 
 impl Default for Group {
@@ -138,6 +141,7 @@ impl Default for Group {
             enable_searching: None,
             last_top_visible_entry: None,
             parent: None,
+            weak_self: None,
         }
     }
 }
