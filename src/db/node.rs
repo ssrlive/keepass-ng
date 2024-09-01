@@ -80,11 +80,8 @@ impl std::ops::DerefMut for SerializableNodePtr {
     }
 }
 
-#[macro_export]
-macro_rules! rc_refcell_node {
-    ($e:expr) => {
-        std::rc::Rc::new(std::cell::RefCell::new($e)) as NodePtr
-    };
+pub fn rc_refcell_node<T: Node>(e: T) -> NodePtr {
+    std::rc::Rc::new(std::cell::RefCell::new(e)) as NodePtr
 }
 
 pub fn node_is_group(group: &NodePtr) -> bool {
@@ -95,9 +92,9 @@ pub fn node_is_group(group: &NodePtr) -> bool {
 /// and call the closure with the reference.
 /// Usage:
 /// ```no_run
-/// use keepass_ng::{with_node, Entry, Group, NodePtr, rc_refcell_node};
+/// use keepass_ng::db::{with_node, Entry, Group, NodePtr, rc_refcell_node};
 ///
-/// let node: NodePtr = rc_refcell_node!(Group::new("group"));
+/// let node: NodePtr = rc_refcell_node(Group::new("group"));
 /// with_node::<Group, _, _>(&node, |group| {
 ///     // do something with group
 /// });
@@ -118,9 +115,9 @@ where
 /// and call the closure with the mutable reference.
 /// Usage:
 /// ```no_run
-/// use keepass_ng::{with_node_mut, Entry, Group, NodePtr, rc_refcell_node};
+/// use keepass_ng::db::{with_node_mut, Entry, Group, NodePtr, rc_refcell_node};
 ///
-/// let node: NodePtr = rc_refcell_node!(Group::new("group"));
+/// let node: NodePtr = rc_refcell_node(Group::new("group"));
 /// with_node_mut::<Group, _, _>(&node, |group| {
 ///     // do something with group
 /// });

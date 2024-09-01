@@ -33,7 +33,6 @@ use crate::{
         DatabaseVersion,
     },
     key::DatabaseKey,
-    rc_refcell_node,
 };
 
 /// A decrypted `KeePass` database
@@ -131,7 +130,7 @@ impl Database {
         Self {
             config,
             header_attachments: Vec::new(),
-            root: rc_refcell_node!(Group::new("Root")).into(),
+            root: rc_refcell_node(Group::new("Root")).into(),
             deleted_objects: DeletedObjects::default(),
             meta: Meta::new(),
         }
@@ -192,7 +191,7 @@ impl Database {
         if self.get_recycle_bin().is_some() {
             return Err(Error::RecycleBinAlreadyExists);
         }
-        let recycle_bin = rc_refcell_node!(Group::new("Recycle Bin"));
+        let recycle_bin = rc_refcell_node(Group::new("Recycle Bin"));
         recycle_bin.borrow_mut().set_icon_id(Some(IconId::RECYCLE_BIN));
         self.meta.recyclebin_uuid = Some(recycle_bin.borrow().get_uuid());
         let count = group_get_children(&self.root).ok_or("")?.len();
@@ -224,7 +223,7 @@ impl Database {
     }
 
     fn create_new_node<T: Node + Default>(&self, parent: Uuid, index: usize) -> crate::Result<NodePtr> {
-        let new_node = rc_refcell_node!(T::default());
+        let new_node = rc_refcell_node(T::default());
         let parent = search_node_by_uuid_with_specific_type::<Group>(&self.root, parent)
             .or_else(|| Some(self.root.clone().into()))
             .ok_or("No parent node")?;
@@ -463,8 +462,11 @@ impl std::fmt::Display for Color {
 #[cfg(test)]
 mod database_tests {
     #[cfg(feature = "save_kdbx4")]
-    use crate::{config::DatabaseConfig, db::Entry, db::NodePtr};
-    use crate::{Database, DatabaseKey, Result};
+    use crate::{config::DatabaseConfig, db::Entry};
+    use crate::{
+        db::{Database, DatabaseKey},
+        Result,
+    };
     use std::fs::File;
 
     #[test]
@@ -488,17 +490,20 @@ mod database_tests {
     #[cfg(feature = "save_kdbx4")]
     #[test]
     fn test_save() -> Result<()> {
-        use crate::{db::group_add_child, db::Group, rc_refcell_node};
+        use crate::{
+            db::Group,
+            db::{group_add_child, rc_refcell_node},
+        };
 
         let db = Database::new(DatabaseConfig::default());
 
-        group_add_child(&db.root, rc_refcell_node!(Entry::default()), 0).unwrap();
-        group_add_child(&db.root, rc_refcell_node!(Entry::default()), 1).unwrap();
-        group_add_child(&db.root, rc_refcell_node!(Entry::default()), 2).unwrap();
+        group_add_child(&db.root, rc_refcell_node(Entry::default()), 0).unwrap();
+        group_add_child(&db.root, rc_refcell_node(Entry::default()), 1).unwrap();
+        group_add_child(&db.root, rc_refcell_node(Entry::default()), 2).unwrap();
 
-        let group = rc_refcell_node!(Group::new("my group"));
-        group_add_child(&group, rc_refcell_node!(Entry::default()), 0).unwrap();
-        group_add_child(&group, rc_refcell_node!(Entry::default()), 1).unwrap();
+        let group = rc_refcell_node(Group::new("my group"));
+        group_add_child(&group, rc_refcell_node(Entry::default()), 0).unwrap();
+        group_add_child(&group, rc_refcell_node(Entry::default()), 1).unwrap();
         group_add_child(&db.root, group, 3).unwrap();
 
         let mut buffer = Vec::new();

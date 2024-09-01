@@ -18,9 +18,9 @@ Rust KeePass database file parser for KDB, KDBX3 and KDBX4, with experimental su
 
 ```rust
 use keepass_ng::{
-    db::{node_is_group, Entry, Group, Node, NodeIterator},
+    db::{node_is_group, with_node, Database, Entry, Group, Node, NodeIterator},
     error::DatabaseOpenError,
-    with_node, Database, DatabaseKey,
+    DatabaseKey,
 };
 use std::fs::File;
 
@@ -64,8 +64,8 @@ You can enable the experimental support for saving KDBX4 databases using the `sa
 
 ```rust
 use keepass_ng::{
-    db::{group_add_child, Database, Entry, Group, Node, Value},
-    rc_refcell_node, DatabaseConfig, DatabaseKey, NodePtr, with_node_mut,
+    db::{group_add_child, with_node_mut, rc_refcell_node, NodePtr, Database, Entry, Group, Node, Value},
+    DatabaseConfig, DatabaseKey, 
 };
 use std::fs::File;
 
@@ -74,14 +74,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     db.meta.database_name = Some("Demo database".to_string());
 
-    let entry = rc_refcell_node!(Entry::default());
+    let entry = rc_refcell_node(Entry::default());
     with_node_mut::<Entry, _, _>(&entry, |entry| {
         entry.set_title(Some("Demo entry"));
         entry.set_username(Some("jdoe"));
         entry.set_password(Some("hunter2"));
     });
 
-    let group = rc_refcell_node!(Group::new("Demo group"));
+    let group = rc_refcell_node(Group::new("Demo group"));
     group_add_child(&group, entry, 0).unwrap();
 
     group_add_child(&db.root, group, 0).unwrap();

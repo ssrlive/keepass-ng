@@ -1,7 +1,7 @@
 mod large_file_roundtrip_tests {
     use keepass_ng::{
-        db::{Database, Entry, Node, NodePtr},
-        group_add_child, rc_refcell_node, with_node, with_node_mut, DatabaseKey, Group, NodeIterator,
+        db::{group_add_child, rc_refcell_node, with_node, with_node_mut, Database, Entry, Group, Node, NodeIterator},
+        DatabaseKey,
     };
 
     /// This can be tuned based on how "large" we expect databases to realistically be.
@@ -21,7 +21,7 @@ mod large_file_roundtrip_tests {
         db.meta.database_name = Some("Demo database".to_string());
 
         for i in 0..LARGE_DATABASE_ENTRY_COUNT {
-            let entry = rc_refcell_node!(Entry::default());
+            let entry = rc_refcell_node(Entry::default());
             entry.borrow_mut().set_title(Some(&format!("Entry_{i}")));
             with_node_mut::<Entry, _, _>(&entry, |entry| {
                 entry.set_username(Some(&format!("UserName_{i}")));

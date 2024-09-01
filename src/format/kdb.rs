@@ -1,11 +1,10 @@
 use crate::{
     config::{CompressionConfig, DatabaseConfig, InnerCipherConfig, KdfConfig, OuterCipherConfig},
     crypt::calculate_sha256,
-    db::{group_add_child, group_get_children, Database, DeletedObjects, Entry, Group, Meta, NodePtr, Value},
+    db::{group_add_child, group_get_children, rc_refcell_node, Database, DeletedObjects, Entry, Group, Meta, NodePtr, Value},
     error::{DatabaseIntegrityError, DatabaseKeyError, DatabaseOpenError},
     format::DatabaseVersion,
     key::DatabaseKey,
-    rc_refcell_node,
 };
 
 use byteorder::{ByteOrder, LittleEndian};
@@ -97,7 +96,7 @@ fn parse_groups(root: &NodePtr, header_num_groups: u32, data: &mut &[u8]) -> Res
     // Loop over group TLVs
     let mut gid_map: HashMap<u32, Vec<String>> = HashMap::new(); // the gid to group path map
     let mut branch: Vec<NodePtr> = Vec::new(); // the current branch in the group tree
-    let mut group = rc_refcell_node!(Group::new("")); // the current group (will be added as a leaf of the branch)
+    let mut group = rc_refcell_node(Group::new("")); // the current group (will be added as a leaf of the branch)
     let mut level: Option<u16> = None; // the current group's level
     let mut gid: Option<u32> = None; // the current group's id
     let mut group_path: Vec<String> = Vec::new(); // the current group path
@@ -155,7 +154,7 @@ fn parse_groups(root: &NodePtr, header_num_groups: u32, data: &mut &[u8]) -> Res
                 // Update the GroupId map and reset state for the next group
                 let group_id = gid.ok_or_else(|| DatabaseIntegrityError::MissingKDBGroupId)?;
                 gid_map.insert(group_id, group_path.clone());
-                group = rc_refcell_node!(Group::new(""));
+                group = rc_refcell_node(Group::new(""));
                 gid = None;
                 num_groups += 1;
             }
@@ -234,7 +233,7 @@ fn parse_entries(root: &NodePtr, gid_map: &GidMap, header_num_entries: u32, data
 
                 if let Some(group) = Group::get(root, group_path.as_slice()) {
                     let count = group_get_children(&group).ok_or(DatabaseIntegrityError::IncompleteKDBGroup)?.len();
-                    group_add_child(&group, rc_refcell_node!(entry), count).map_err(|_| DatabaseIntegrityError::IncompleteKDBGroup)?;
+                    group_add_child(&group, rc_refcell_node(entry), count).map_err(|_| DatabaseIntegrityError::IncompleteKDBGroup)?;
                 }
 
                 entry = Entry::default();
@@ -256,7 +255,7 @@ fn parse_entries(root: &NodePtr, gid_map: &GidMap, header_num_entries: u32, data
 }
 
 fn parse_db(header: &KDBHeader, data: &[u8]) -> Result<NodePtr, DatabaseIntegrityError> {
-    let root = rc_refcell_node!(Group::new("Root"));
+    let root = rc_refcell_node(Group::new("Root"));
 
     let mut pos = data;
 

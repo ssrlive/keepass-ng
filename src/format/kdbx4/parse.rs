@@ -5,7 +5,7 @@ use byteorder::{ByteOrder, LittleEndian};
 use crate::{
     config::{CompressionConfig, DatabaseConfig, InnerCipherConfig, KdfConfig, OuterCipherConfig},
     crypt::{self, ciphers::Cipher},
-    db::{node::NodePtr, Database, HeaderAttachment},
+    db::{rc_refcell_node, Database, HeaderAttachment},
     error::{DatabaseIntegrityError, DatabaseKeyError, DatabaseOpenError},
     format::{
         kdbx4::{
@@ -17,7 +17,6 @@ use crate::{
     },
     hmac_block_stream,
     key::DatabaseKey,
-    rc_refcell_node,
     variant_dictionary::VariantDictionary,
 };
 
@@ -41,7 +40,7 @@ pub(crate) fn parse_kdbx4(data: &[u8], db_key: &DatabaseKey) -> Result<Database,
     let db = Database {
         config,
         header_attachments,
-        root: rc_refcell_node!(database_content.root.group).into(),
+        root: rc_refcell_node(database_content.root.group).into(),
         deleted_objects: database_content.root.deleted_objects,
         meta: database_content.meta,
     };

@@ -1,12 +1,9 @@
 #[cfg(feature = "totp")]
 use crate::db::otp::{TOTPError, TOTP};
-use crate::{
-    db::{
-        group::MergeLog,
-        node::{Node, NodePtr},
-        Color, CustomData, IconId, Times,
-    },
-    rc_refcell_node, with_node, with_node_mut,
+use crate::db::{
+    group::MergeLog,
+    node::{Node, NodePtr},
+    rc_refcell_node, with_node, with_node_mut, Color, CustomData, IconId, Times,
 };
 use chrono::NaiveDateTime;
 use secstr::SecStr;
@@ -86,7 +83,7 @@ impl Node for Entry {
     fn duplicate(&self) -> NodePtr {
         let mut tmp = self.clone();
         tmp.parent = None;
-        rc_refcell_node!(tmp)
+        rc_refcell_node(tmp)
     }
 
     fn get_uuid(&self) -> Uuid {

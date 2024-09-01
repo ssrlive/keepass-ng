@@ -1,11 +1,10 @@
 use crate::{
     config::{CompressionConfig, DatabaseConfig, InnerCipherConfig, KdfConfig, OuterCipherConfig},
     crypt::{calculate_sha256, ciphers::Cipher},
-    db::Database,
+    db::{rc_refcell_node, Database},
     error::{BlockStreamError, DatabaseIntegrityError, DatabaseKeyError, DatabaseOpenError},
     format::{kdbx_header_field_id::KDBXHeaderFieldID, DatabaseVersion},
     key::DatabaseKey,
-    rc_refcell_node, NodePtr,
 };
 use byteorder::{ByteOrder, LittleEndian};
 use std::convert::{TryFrom, TryInto};
@@ -162,7 +161,7 @@ pub(crate) fn parse_kdbx3(data: &[u8], db_key: &DatabaseKey) -> Result<Database,
     let db = Database {
         config,
         header_attachments: Vec::new(),
-        root: rc_refcell_node!(database_content.root.group).into(),
+        root: rc_refcell_node(database_content.root.group).into(),
         deleted_objects: database_content.root.deleted_objects,
         meta: database_content.meta,
     };

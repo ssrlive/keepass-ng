@@ -17,12 +17,11 @@ mod tests {
             iconid::IconId,
             meta::{BinaryAttachments, CustomIcons, Icon, MemoryProtection},
             node::*,
-            node_is_equals_to, AutoType, AutoTypeAssociation, BinaryAttachment, CustomData, CustomDataItem, Database, DeletedObject, Entry,
-            Group, Meta, NodePtr, Times, Value,
+            node_is_equals_to, rc_refcell_node, AutoType, AutoTypeAssociation, BinaryAttachment, CustomData, CustomDataItem, Database,
+            DeletedObject, Entry, Group, Meta, Times, Value,
         },
         format::kdbx4,
         key::DatabaseKey,
-        rc_refcell_node,
         xml_db::dump::DumpXml,
     };
     use chrono::NaiveDateTime;
@@ -99,9 +98,9 @@ mod tests {
 
         entry.history = Some(history);
 
-        let entry = rc_refcell_node!(entry);
+        let entry = rc_refcell_node(entry);
 
-        let root_group = rc_refcell_node!(Group::new("Root"));
+        let root_group = rc_refcell_node(Group::new("Root"));
         group_add_child(&root_group, entry.borrow().duplicate(), 0).unwrap();
 
         let mut db = Database::new(DatabaseConfig::default());
@@ -122,25 +121,25 @@ mod tests {
 
     #[test]
     pub fn test_group() {
-        let group = rc_refcell_node!(Group::new(""));
+        let group = rc_refcell_node(Group::new(""));
         let xml = with_node::<Group, _, _>(&group, |group| {
             let mut inner_cipher = InnerCipherConfig::Plain.get_cipher(&[]);
             let mut writer = xml::EventWriter::new(Vec::new());
-            let _v = group.dump_xml(&mut writer, &mut *inner_cipher)?;
+            group.dump_xml(&mut writer, &mut *inner_cipher)?;
             Ok::<_, xml::writer::Error>(writer.into_inner())
         })
         .unwrap()
         .unwrap();
         assert!(String::from_utf8(xml).unwrap().contains("<Name />"));
 
-        let root_group = rc_refcell_node!(Group::new("Root"));
-        let entry = rc_refcell_node!(Entry::default());
+        let root_group = rc_refcell_node(Group::new("Root"));
+        let entry = rc_refcell_node(Entry::default());
         let new_entry_uuid = entry.borrow().get_uuid();
         entry.borrow_mut().set_title(Some("ASDF"));
 
         group_add_child(&root_group, entry, 0).unwrap();
 
-        let subgroup = rc_refcell_node!(Group::new("Child group"));
+        let subgroup = rc_refcell_node(Group::new("Child group"));
         with_node_mut::<Group, _, _>(&subgroup, |subgroup| {
             subgroup.notes = Some("I am a subgroup".to_string());
             subgroup.icon_id = Some(IconId::FOLDER);

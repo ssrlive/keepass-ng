@@ -1,6 +1,6 @@
 /// utility to get the version of a `KeePass` database.
 use clap::Parser;
-use keepass_ng::{BoxError, Database};
+use keepass_ng::{db::Database, BoxError};
 use std::fs::File;
 
 #[derive(Parser, Debug)]

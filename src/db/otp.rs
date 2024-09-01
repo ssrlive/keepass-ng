@@ -191,9 +191,8 @@ impl TOTP {
 mod kdbx4_otp_tests {
     use super::{TOTPAlgorithm, TOTPError, TOTP};
     use crate::{
-        db::{Database, Entry, Group, Node},
+        db::{with_node, Database, Entry, Group, Node},
         key::DatabaseKey,
-        with_node,
     };
     use std::{fs::File, path::Path};
 

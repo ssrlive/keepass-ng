@@ -1,6 +1,5 @@
 use crate::{
-    db::{iconid::IconId, node::NodePtr, CustomData, Entry, Group, Times},
-    rc_refcell_node,
+    db::{iconid::IconId, rc_refcell_node, CustomData, Entry, Group, Times},
     xml_db::parse::{bad_event, FromXml, IgnoreSubfield, SimpleTag, SimpleXmlEvent, XmlParseError},
 };
 use std::convert::TryFrom;
@@ -59,11 +58,11 @@ impl FromXml for Group {
                         out.last_top_visible_entry = SimpleTag::<Option<Uuid>>::from_xml(iterator, inner_cipher)?.value;
                     }
                     "Entry" => {
-                        let entry = rc_refcell_node!(Entry::from_xml(iterator, inner_cipher)?);
+                        let entry = rc_refcell_node(Entry::from_xml(iterator, inner_cipher)?);
                         out.children.push(entry.into());
                     }
                     "Group" => {
-                        let group = rc_refcell_node!(Group::from_xml(iterator, inner_cipher)?);
+                        let group = rc_refcell_node(Group::from_xml(iterator, inner_cipher)?);
                         out.children.push(group.into());
                     }
                     "CustomData" => {
