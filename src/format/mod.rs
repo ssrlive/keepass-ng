@@ -3,9 +3,12 @@ pub(crate) mod kdbx3;
 pub(crate) mod kdbx4;
 pub(crate) mod kdbx_header_field_id;
 
+#[cfg(feature = "save_kdbx4")]
 use std::io::Write;
 
-use byteorder::{ByteOrder, LittleEndian, WriteBytesExt};
+#[cfg(feature = "save_kdbx4")]
+use byteorder::WriteBytesExt;
+use byteorder::{ByteOrder, LittleEndian};
 
 use crate::error::DatabaseIntegrityError;
 
@@ -66,6 +69,7 @@ impl DatabaseVersion {
         Ok(response)
     }
 
+    #[cfg(feature = "save_kdbx4")]
     fn dump(&self, writer: &mut dyn Write) -> Result<(), std::io::Error> {
         if let DatabaseVersion::KDB4(minor_version) = self {
             _ = writer.write(&crate::format::KDBX_IDENTIFIER)?;

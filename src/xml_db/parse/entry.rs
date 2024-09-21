@@ -39,7 +39,7 @@ impl FromXml for Entry {
                     }
                     "Tags" => {
                         if let Some(tags) = SimpleTag::<Option<String>>::from_xml(iterator, inner_cipher)?.value {
-                            out.tags = tags.split(|c| c == ';' || c == ',').map(std::borrow::ToOwned::to_owned).collect();
+                            out.tags = tags.split([';', ',']).map(std::borrow::ToOwned::to_owned).collect();
                         }
                     }
                     "String" => {

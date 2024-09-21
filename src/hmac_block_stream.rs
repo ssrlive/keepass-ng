@@ -1,8 +1,9 @@
+use crate::error::BlockStreamError;
+#[cfg(feature = "save_kdbx4")]
+use crate::error::CryptographyError;
 use byteorder::{ByteOrder, LittleEndian};
 use cipher::generic_array::{typenum::U64, GenericArray};
 use hex_literal::hex;
-
-use crate::error::{BlockStreamError, CryptographyError};
 
 pub const HMAC_KEY_END: [u8; 1] = hex!("01");
 
@@ -44,7 +45,7 @@ pub(crate) fn read_hmac_block_stream(data: &[u8], key: &GenericArray<u8, U64>) -
 }
 
 /// Write a raw buffer as a HMAC block stream
-#[allow(dead_code)]
+#[cfg(feature = "save_kdbx4")]
 pub(crate) fn write_hmac_block_stream(data: &[u8], key: &GenericArray<u8, U64>) -> Result<Vec<u8>, CryptographyError> {
     let mut out = Vec::new();
 

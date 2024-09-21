@@ -5,6 +5,7 @@ use crate::{
 use uuid::Uuid;
 
 pub enum SearchField {
+    #[cfg(test)]
     Uuid,
     Title,
 }
@@ -12,6 +13,7 @@ pub enum SearchField {
 impl SearchField {
     pub(crate) fn matches(&self, node: &NodePtr, field_value: &str) -> bool {
         match self {
+            #[cfg(test)]
             SearchField::Uuid => node.borrow().get_uuid().to_string() == field_value,
             SearchField::Title => match node.borrow().get_title() {
                 Some(title) => title == field_value,
@@ -302,7 +304,7 @@ impl Group {
         self.get_internal(path, SearchField::Title)
     }
 
-    #[allow(dead_code)]
+    #[cfg(test)]
     pub(crate) fn get_by_uuid<T: AsRef<str>>(&self, path: &[T]) -> Option<NodePtr> {
         self.get_internal(path, SearchField::Uuid)
     }
