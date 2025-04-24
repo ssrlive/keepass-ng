@@ -153,7 +153,7 @@ impl ChallengeResponseKey {
             Err(e) => {
                 return Err(DatabaseKeyError::ChallengeResponseKeyError(format!(
                     "Could not search for yubikeys: {e}",
-                )))
+                )));
             }
         };
         for yubikey in yubikeys {

@@ -157,7 +157,7 @@ impl Database {
 
     pub fn node_is_recycle_bin(&self, node: &NodePtr) -> bool {
         let uuid = node.borrow().get_uuid();
-        node_is_group(node) && self.get_recycle_bin().map_or(false, |bin| bin.borrow().get_uuid() == uuid)
+        node_is_group(node) && self.get_recycle_bin().is_some_and(|bin| bin.borrow().get_uuid() == uuid)
     }
 
     pub fn node_is_in_recycle_bin(&self, node: Uuid) -> bool {
@@ -165,7 +165,7 @@ impl Database {
             let parents = self.node_get_parents(&node);
             self.get_recycle_bin()
                 .map(|bin| bin.borrow().get_uuid())
-                .map_or(false, |uuid| parents.contains(&uuid))
+                .is_some_and(|uuid| parents.contains(&uuid))
         } else {
             false
         }

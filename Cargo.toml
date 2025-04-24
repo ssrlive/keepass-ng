@@ -48,9 +48,9 @@ cipher = { version = "0.4", features = ["std"] }
 clap = { version = "4", optional = true, features = ["derive"] }
 erased-serde = "0.4"
 flate2 = "1"
-getrandom = { version = "0.2", features = ["std"] }
+getrandom = { version = "0.3", features = ["std"] }
 hex = { version = "0.4" }
-hex-literal = "0.4"
+hex-literal = "1"
 hmac = "0.12"
 rpassword = { version = "7", optional = true }
 rust-argon2 = "2"
@@ -60,7 +60,7 @@ serde = { version = "1", optional = true, features = ["derive"] }
 serde_json = { version = "1", optional = true }
 sha1 = { version = "0.10", optional = true }
 sha2 = "0.10"
-thiserror = "1"
+thiserror = "2"
 totp-lite = { version = "2", optional = true }
 twofish = "0.7"
 url = { version = "2", optional = true }

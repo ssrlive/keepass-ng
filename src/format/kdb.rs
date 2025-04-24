@@ -131,7 +131,7 @@ fn parse_groups(root: &NodePtr, header_num_groups: u32, data: &mut &[u8]) -> Res
             0xffff => {
                 ensure_length(field_type, field_size, 0)?;
 
-                let level = level.ok_or_else(|| DatabaseIntegrityError::MissingKDBGroupLevel)? as usize;
+                let level = level.ok_or(DatabaseIntegrityError::MissingKDBGroupLevel)? as usize;
 
                 // Update the current group tree branch (collapse previous sub-branch, initiate
                 // current sub-branch)
@@ -152,7 +152,7 @@ fn parse_groups(root: &NodePtr, header_num_groups: u32, data: &mut &[u8]) -> Res
                 }
 
                 // Update the GroupId map and reset state for the next group
-                let group_id = gid.ok_or_else(|| DatabaseIntegrityError::MissingKDBGroupId)?;
+                let group_id = gid.ok_or(DatabaseIntegrityError::MissingKDBGroupId)?;
                 gid_map.insert(group_id, group_path.clone());
                 group = rc_refcell_node(Group::new(""));
                 gid = None;
@@ -223,7 +223,7 @@ fn parse_entries(root: &NodePtr, gid_map: &GidMap, header_num_entries: u32, data
             0xffff => {
                 ensure_length(field_type, field_size, 0)?;
 
-                let group_id = gid.ok_or_else(|| DatabaseIntegrityError::MissingKDBGroupId)?;
+                let group_id = gid.ok_or(DatabaseIntegrityError::MissingKDBGroupId)?;
                 let group_path: Vec<&str> = gid_map
                     .get(&group_id)
                     .ok_or(DatabaseIntegrityError::InvalidKDBGroupId { group_id })?

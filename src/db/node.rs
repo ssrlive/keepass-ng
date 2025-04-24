@@ -81,7 +81,7 @@ impl std::ops::DerefMut for SerializableNodePtr {
 }
 
 pub fn rc_refcell_node<T: Node>(e: T) -> NodePtr {
-    let ptr = std::rc::Rc::new(std::cell::RefCell::new(e)) as NodePtr;
+    let ptr: NodePtr = std::rc::Rc::new(std::cell::RefCell::new(e));
 
     with_node_mut::<Entry, _, _>(&ptr, |entry| {
         entry.weak_self = Some(std::rc::Rc::downgrade(&ptr));

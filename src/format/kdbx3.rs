@@ -218,9 +218,7 @@ pub(crate) fn decrypt_kdbx3(data: &[u8], db_key: &DatabaseKey) -> Result<(Databa
         .decrypt(payload_encrypted)?;
 
     // Check if we decrypted correctly
-    let stream_start = payload
-        .get(0..header.stream_start.len())
-        .ok_or_else(|| DatabaseKeyError::IncorrectKey)?;
+    let stream_start = payload.get(0..header.stream_start.len()).ok_or(DatabaseKeyError::IncorrectKey)?;
     if stream_start != header.stream_start.as_slice() {
         return Err(DatabaseKeyError::IncorrectKey.into());
     }
