@@ -1,6 +1,5 @@
 use base32;
 use std::time::{Duration, SystemTime, SystemTimeError, UNIX_EPOCH};
-use thiserror::Error;
 use totp_lite::{totp_custom, Sha1, Sha256, Sha512};
 use url::Url;
 use zeroize::{Zeroize, ZeroizeOnDrop};
@@ -70,7 +69,7 @@ impl std::fmt::Display for OTPCode {
 }
 
 /// Errors while processing a TOTP specification
-#[derive(Debug, Error)]
+#[derive(Debug, thiserror::Error)]
 pub enum TOTPError {
     #[error(transparent)]
     UrlFormat(#[from] url::ParseError),

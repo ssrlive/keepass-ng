@@ -51,6 +51,10 @@ pub enum Error {
     #[error("ParseIconIdError {}", icon_id)]
     ParseIconIdError { icon_id: usize },
 
+    #[cfg(feature = "_merge")]
+    #[error("MergeError {0}")]
+    MergeError(#[from] crate::db::merge::MergeError),
+
     #[error("String error: {0}")]
     String(String),
 }
@@ -73,7 +77,7 @@ impl From<&String> for Error {
     }
 }
 
-pub type Result<T> = std::result::Result<T, Error>;
+pub type Result<T, E = Error> = std::result::Result<T, E>;
 
 pub type BoxError = Box<dyn std::error::Error + Send + Sync + 'static>;
 

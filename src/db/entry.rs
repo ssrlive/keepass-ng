@@ -1,13 +1,13 @@
+#[cfg(feature = "_merge")]
+use crate::db::merge::{MergeError, MergeLog};
 #[cfg(feature = "totp")]
 use crate::db::otp::{TOTPError, TOTP};
 use crate::db::{
-    group::MergeLog,
     node::{Node, NodePtr},
     rc_refcell_node, with_node, with_node_mut, Color, CustomData, IconId, Times,
 };
-use chrono::NaiveDateTime;
 use secstr::SecStr;
-use std::{collections::HashMap, thread, time};
+use std::collections::HashMap;
 use uuid::Uuid;
 
 /// A database entry containing several key-value fields.
@@ -143,6 +143,7 @@ impl Node for Entry {
     }
 }
 
+#[cfg(feature = "_merge")]
 #[allow(dead_code)]
 pub fn entry_set_field_and_commit(entry: &NodePtr, field_name: &str, field_value: &str) -> crate::Result<()> {
     with_node_mut::<Entry, _, _>(entry, |entry| {
@@ -162,7 +163,99 @@ impl Entry {
         self.history = None;
     }
 
-    pub(crate) fn merge(entry: &NodePtr, other: &NodePtr) -> Result<(NodePtr, MergeLog), String> {
+    #[cfg(feature = "_merge")]
+    pub(crate) fn merge(entry: &NodePtr, other: &NodePtr) -> Result<(Option<NodePtr>, MergeLog), MergeError> {
+        let mut log = MergeLog::default();
+        let source_last_modification = match with_node::<Entry, _, _>(other, |e| e.get_times().get_last_modification()).unwrap() {
+            Some(t) => t,
+            None => {
+                let info = format!("Entry {} did not have a last modification timestamp", other.borrow().get_uuid());
+                log.warnings.push(info);
+                Times::epoch()
+            }
+        };
+
+        let destination_last_modification = match with_node::<Entry, _, _>(entry, |e| e.get_times().get_last_modification()).unwrap() {
+            Some(t) => t,
+            None => {
+                let info = format!("Entry {} did not have a last modification timestamp", entry.borrow().get_uuid());
+                log.warnings.push(info);
+                Times::epoch()
+            }
+        };
+
+        if destination_last_modification == source_last_modification {
+            if !super::has_diverged_from(entry, other) {
+                // This should never happen. This means that an entry was updated without updating the last modification timestamp.
+                return Err(MergeError::EntryModificationTimeNotUpdated(other.borrow().get_uuid().to_string()));
+            }
+            return Ok((None, log));
+        }
+        let (mut merged_entry, entry_merge_log) = with_node::<Entry, _, _>(entry, |entry| {
+            with_node::<Entry, _, _>(other, |other| {
+                if destination_last_modification > source_last_modification {
+                    entry.merge_history(other)
+                } else {
+                    other.merge_history(entry)
+                }
+            })
+            .unwrap()
+        })
+        .unwrap()?;
+
+        if let location_changed_timestamp @ Some(_) = entry.borrow().get_times().get_location_changed() {
+            merged_entry.get_times_mut().set_location_changed(location_changed_timestamp);
+        }
+        Ok((Some(rc_refcell_node(merged_entry)), entry_merge_log))
+    }
+
+    #[cfg(feature = "_merge")]
+    pub(crate) fn merge_history(&self, other: &Entry) -> Result<(Entry, MergeLog), MergeError> {
+        let mut log = MergeLog::default();
+        let mut source_history = match &other.history {
+            Some(h) => h.clone(),
+            None => {
+                log.warnings
+                    .push(format!("Entry {} from source database had no history.", self.uuid));
+                History::default()
+            }
+        };
+        let mut destination_history = match &self.history {
+            Some(h) => h.clone(),
+            None => {
+                log.warnings
+                    .push(format!("Entry {} from destination database had no history.", self.uuid));
+                History::default()
+            }
+        };
+        let mut response = self.clone();
+        if other.has_uncommited_changes() {
+            log.warnings
+                .push(format!("Entry {} from source database has uncommitted changes.", self.uuid));
+            source_history.add_entry(other.clone());
+        }
+        // TODO we should probably check for uncommitted changes in the destination
+        // database here too for consistency.
+        let history_merge_log = destination_history.merge_with(&source_history)?;
+        response.history = Some(destination_history);
+        Ok((response, log.merge_with(&history_merge_log)))
+    }
+
+    // Convenience function used in when merging two entries
+    #[cfg(feature = "_merge")]
+    pub(crate) fn _has_diverged_from(&self, other_entry: &Entry) -> bool {
+        let new_times = Times::default();
+
+        let mut self_without_times = self.clone();
+        self_without_times.times = new_times.clone();
+
+        let mut other_without_times = other_entry.clone();
+        other_without_times.times = new_times;
+        !self_without_times.eq(&other_without_times)
+    }
+
+    /*
+    pub(crate) fn merge_(entry: &NodePtr, other: &NodePtr) -> Result<(NodePtr, MergeLog), String> {
         let mut log = MergeLog::default();
 
         let mut source_history = match &other.borrow().as_any().downcast_ref::<Entry>().ok_or("Error")?.history {
@@ -188,15 +281,17 @@ impl Entry {
 
         Ok((response, log.merge_with(&history_merge_log)))
     }
+    */
 
     // Convenience function used in unit tests, to make sure that:
     // 1. The history gets updated after changing a field
     // 2. We wait a second before commiting the changes so that the timestamp is not the same
     //    as it previously was. This is necessary since the timestamps in the KDBX format
     //    do not preserve the msecs.
+    #[cfg(feature = "_merge")]
     pub(crate) fn set_field_and_commit(&mut self, field_name: &str, field_value: &str) {
         self.set_unprotected_field_pair(field_name, Some(field_value));
-        thread::sleep(time::Duration::from_secs(1));
+        std::thread::sleep(std::time::Duration::from_secs(1));
         self.update_history();
     }
 
@@ -209,6 +304,7 @@ impl Entry {
         }
     }
 
+    #[allow(dead_code)]
     pub(crate) fn entry_replaced_with(entry: &NodePtr, other: &NodePtr) -> Option<()> {
         let mut success = false;
         with_node_mut::<Entry, _, _>(entry, |entry| {
@@ -360,12 +456,14 @@ impl<'a> Entry {
                 return true;
             }
 
+            let new_times = Times::default();
+
             let mut sanitized_entry = self.clone();
-            sanitized_entry.times.set_last_modification(Some(NaiveDateTime::default()));
+            sanitized_entry.times = new_times.clone();
             sanitized_entry.history.take();
 
             let mut last_history_entry = history.entries.first().unwrap().clone();
-            last_history_entry.times.set_last_modification(Some(NaiveDateTime::default()));
+            last_history_entry.times = new_times;
             last_history_entry.history.take();
 
             if sanitized_entry.eq(&last_history_entry) {
@@ -449,8 +547,9 @@ impl History {
 
     // Determines if the entries of the history are
     // ordered by last modification time.
+    #[cfg(all(test, feature = "_merge"))]
     pub(crate) fn is_ordered(&self) -> bool {
-        let mut last_modification_time: Option<NaiveDateTime> = None;
+        let mut last_modification_time: Option<chrono::NaiveDateTime> = None;
         for entry in &self.entries {
             if last_modification_time.is_none() {
                 last_modification_time = entry.times.get_last_modification();
@@ -467,14 +566,18 @@ impl History {
     }
 
     // Merge both histories together.
-    pub(crate) fn merge_with(&mut self, other: &History) -> Result<MergeLog, String> {
+    #[cfg(feature = "_merge")]
+    pub(crate) fn merge_with(&mut self, other: &History) -> Result<MergeLog, MergeError> {
         let mut log = MergeLog::default();
-        let mut new_history_entries: HashMap<NaiveDateTime, Entry> = HashMap::new();
+        let mut new_history_entries: HashMap<chrono::NaiveDateTime, Entry> = HashMap::new();
 
         for history_entry in &self.entries {
             let modification_time = history_entry.times.get_last_modification().unwrap();
             if new_history_entries.contains_key(&modification_time) {
-                return Err("This should never happen.".to_string());
+                return Err(MergeError::DuplicateHistoryEntries(
+                    modification_time.to_string(),
+                    history_entry.uuid.to_string(),
+                ));
             }
             new_history_entries.insert(modification_time, history_entry.clone());
         }
@@ -483,29 +586,25 @@ impl History {
             let modification_time = history_entry.times.get_last_modification().unwrap();
             let existing_history_entry = new_history_entries.get(&modification_time);
             if let Some(existing_history_entry) = existing_history_entry {
-                if !existing_history_entry.eq(history_entry) {
-                    log.warnings
-                        .push("History entries have the same modification timestamp but were not the same.".to_string());
+                if existing_history_entry._has_diverged_from(history_entry) {
+                    log.warnings.push(format!(
+                        "History entries for {} have the same modification timestamp but were not the same.",
+                        existing_history_entry.uuid
+                    ));
                 }
             } else {
                 new_history_entries.insert(modification_time, history_entry.clone());
             }
         }
 
-        let mut all_modification_times: Vec<&NaiveDateTime> = new_history_entries.keys().collect();
+        let mut all_modification_times: Vec<&chrono::NaiveDateTime> = new_history_entries.keys().collect();
         all_modification_times.sort();
         all_modification_times.reverse();
         let mut new_entries: Vec<Entry> = vec![];
         for modification_time in &all_modification_times {
             new_entries.push(new_history_entries.get(modification_time).unwrap().clone());
         }
-
         self.entries = new_entries;
-        if !self.is_ordered() {
-            // TODO this should be unit tested.
-            return Err("The resulting history is not ordered.".to_string());
-        }
-
         Ok(log)
     }
 }
