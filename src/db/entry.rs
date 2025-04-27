@@ -388,6 +388,22 @@ impl<'a> Entry {
         self.tags.as_mut()
     }
 
+    /// Set or remove additional attributes (custom string data)
+    pub fn set_additional_attribute(&mut self, key: &str, value: Option<&str>) -> crate::Result<()> {
+        #[rustfmt::skip]
+        let excluded_fields = ["Password", "BinaryData", "otp", "Title", "URL", "UserName", "Notes", "Additional", "BinaryDesc"];
+        if excluded_fields.contains(&key) {
+            return Err(format!("Cannot set additional attribute for field {}", key).into());
+        }
+        self.set_unprotected_field_pair(key, value);
+        Ok(())
+    }
+
+    /// Get an additional attribute (custom string data)
+    pub fn get_additional_attribute(&self, key: &str) -> Option<&str> {
+        self.get(key)
+    }
+
     /// Convenience method for getting the value of the `UserName` field
     pub fn get_username(&'a self) -> Option<&'a str> {
         self.get("UserName")
