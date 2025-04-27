@@ -44,6 +44,9 @@ pub struct DatabaseConfig {
 
     /// Settings for the Key Derivation Function (KDF)
     pub kdf_config: KdfConfig,
+
+    /// Custom data of plugins/ports.
+    pub public_custom_data: Option<VariantDictionary>,
 }
 
 /// Sensible default configuration for new databases
@@ -60,6 +63,7 @@ impl Default for DatabaseConfig {
                 parallelism: 4,
                 version: argon2::Version::Version13,
             },
+            public_custom_data: None,
         }
     }
 }

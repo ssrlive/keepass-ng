@@ -20,6 +20,8 @@ use crate::{
     variant_dictionary::VariantDictionary,
 };
 
+use super::HEADER_PUBLIC_CUSTOM_DATA;
+
 /// Dump a `KeePass` database using the key elements
 #[allow(dead_code)]
 pub fn dump_kdbx4(db: &Database, db_key: &DatabaseKey, writer: &mut dyn Write) -> Result<(), DatabaseSaveError> {
@@ -52,6 +54,7 @@ pub fn dump_kdbx4(db: &Database, db_key: &DatabaseKey, writer: &mut dyn Write) -
         outer_iv: outer_iv.clone(),
         kdf_config: db.config.kdf_config.clone(),
         kdf_seed,
+        public_custom_data: db.config.public_custom_data.clone(),
     }
     .dump(&mut header_data)?;
 
@@ -137,6 +140,13 @@ impl KDBX4OuterHeader {
 
         writer.write_u8(HEADER_END)?;
         writer.write_with_len(&[])?;
+
+        if let Some(pcd) = &self.public_custom_data {
+            let mut vd_buffer = Vec::new();
+            pcd.dump(&mut vd_buffer)?;
+            writer.write_u8(HEADER_PUBLIC_CUSTOM_DATA)?;
+            writer.write_with_len(&vd_buffer)?;
+        }
 
         Ok(())
     }

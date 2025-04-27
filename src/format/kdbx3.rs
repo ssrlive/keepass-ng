@@ -186,6 +186,7 @@ pub(crate) fn decrypt_kdbx3(data: &[u8], db_key: &DatabaseKey) -> Result<(Databa
         compression_config: header.compression,
         inner_cipher_config: header.inner_random_stream_id,
         kdf_config: header.kdf_config,
+        public_custom_data: Default::default(),
     };
 
     let mut pos = header.body_start;
