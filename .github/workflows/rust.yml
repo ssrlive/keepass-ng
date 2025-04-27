@@ -33,9 +33,9 @@ jobs:
     - name: Clippy
       if: ${{ !cancelled() }}
       run: |
-        cargo clippy --all-features -- -D warnings
+        cargo clippy --all-features --all-targets -- -D warnings
         cargo clean
-        cargo clippy --no-default-features -- -D warnings
+        cargo clippy --no-default-features --all-targets -- -D warnings
         cargo clean
   
     - name: check --all-features
