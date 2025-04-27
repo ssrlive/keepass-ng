@@ -70,9 +70,6 @@ uuid = { version = "1", features = ["v4", "serde"] }
 xml-rs = "0.8"
 zeroize = { version = "1", features = ["zeroize_derive"] }
 
-[dev-dependencies]
-rustfmt = "0.10.0"
-
 [[bin]]
 # parse a KeePass database and output as a JSON document
 name = "kp-dump-json"
