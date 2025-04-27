@@ -1,6 +1,6 @@
 use crate::{
-    db::{iconid::IconId, Entry, Group, Times},
     Result,
+    db::{Entry, Group, Times, iconid::IconId},
 };
 use std::collections::VecDeque;
 use uuid::Uuid;

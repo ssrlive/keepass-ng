@@ -3,8 +3,8 @@ use std::fs::File;
 
 use clap::Parser;
 use keepass_ng::{
-    db::{with_node, Database, Entry, Group},
     BoxError, DatabaseKey,
+    db::{Database, Entry, Group, with_node},
 };
 
 #[derive(Parser, Debug)]

@@ -1,10 +1,10 @@
 use aes::Aes256;
 #[cfg(feature = "save_kdbx4")]
 use cipher::BlockEncryptMut;
-use cipher::{block_padding::Pkcs7, generic_array::GenericArray, BlockDecryptMut};
+use cipher::{BlockDecryptMut, block_padding::Pkcs7, generic_array::GenericArray};
 use salsa20::{
-    cipher::{KeyIvInit, StreamCipher},
     Salsa20,
+    cipher::{KeyIvInit, StreamCipher},
 };
 
 use crate::crypt::CryptographyError;

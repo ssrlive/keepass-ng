@@ -1,14 +1,14 @@
 use std::io::Read;
 
-use base64::{engine::general_purpose as base64_engine, Engine as _};
+use base64::{Engine as _, engine::general_purpose as base64_engine};
 use xml::name::OwnedName;
 use xml::reader::{EventReader, XmlEvent};
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
 #[cfg(feature = "challenge_response")]
 use challenge_response::{
-    config::{Config, Mode, Slot},
     ChallengeResponse,
+    config::{Config, Mode, Slot},
 };
 
 use crate::{crypt::calculate_sha256, error::DatabaseKeyError};
@@ -363,16 +363,18 @@ mod key_tests {
 
         assert_eq!(ke.len(), 1);
 
-        assert!(DatabaseKey {
-            password: None,
-            keyfile: None,
-            #[cfg(feature = "challenge_response")]
-            challenge_response_key: None,
-            #[cfg(feature = "challenge_response")]
-            challenge_response_result: None,
-        }
-        .get_key_elements()
-        .is_err());
+        assert!(
+            DatabaseKey {
+                password: None,
+                keyfile: None,
+                #[cfg(feature = "challenge_response")]
+                challenge_response_key: None,
+                #[cfg(feature = "challenge_response")]
+                challenge_response_result: None,
+            }
+            .get_key_elements()
+            .is_err()
+        );
 
         Ok(())
     }

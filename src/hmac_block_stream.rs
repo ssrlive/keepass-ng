@@ -2,7 +2,7 @@ use crate::error::BlockStreamError;
 #[cfg(feature = "save_kdbx4")]
 use crate::error::CryptographyError;
 use byteorder::{ByteOrder, LittleEndian};
-use cipher::generic_array::{typenum::U64, GenericArray};
+use cipher::generic_array::{GenericArray, typenum::U64};
 use hex_literal::hex;
 
 pub const HMAC_KEY_END: [u8; 1] = hex!("01");

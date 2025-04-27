@@ -1,6 +1,6 @@
 use crate::{
-    db::{iconid::IconId, rc_refcell_node, CustomData, Entry, Group, Times},
-    xml_db::parse::{bad_event, FromXml, IgnoreSubfield, SimpleTag, SimpleXmlEvent, XmlParseError},
+    db::{CustomData, Entry, Group, Times, iconid::IconId, rc_refcell_node},
+    xml_db::parse::{FromXml, IgnoreSubfield, SimpleTag, SimpleXmlEvent, XmlParseError, bad_event},
 };
 use std::convert::TryFrom;
 use uuid::Uuid;
@@ -91,7 +91,7 @@ mod parse_group_test {
 
     use crate::{
         db::Group,
-        xml_db::parse::{parse_test::parse_test_xml, XmlParseError},
+        xml_db::parse::{XmlParseError, parse_test::parse_test_xml},
     };
 
     use uuid::uuid;

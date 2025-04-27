@@ -3,7 +3,7 @@ use std::fs::File;
 
 use clap::Parser;
 
-use keepass_ng::{db::Database, BoxError, ChallengeResponseKey, DatabaseKey};
+use keepass_ng::{BoxError, ChallengeResponseKey, DatabaseKey, db::Database};
 
 #[derive(Parser, Debug)]
 #[command(version, about)]

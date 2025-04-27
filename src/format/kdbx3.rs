@@ -1,9 +1,9 @@
 use crate::{
     config::{CompressionConfig, DatabaseConfig, InnerCipherConfig, KdfConfig, OuterCipherConfig},
     crypt::{calculate_sha256, ciphers::Cipher},
-    db::{rc_refcell_node, Database},
+    db::{Database, rc_refcell_node},
     error::{BlockStreamError, DatabaseIntegrityError, DatabaseKeyError, DatabaseOpenError},
-    format::{kdbx_header_field_id::KDBXHeaderFieldID, DatabaseVersion},
+    format::{DatabaseVersion, kdbx_header_field_id::KDBXHeaderFieldID},
     key::DatabaseKey,
 };
 use byteorder::{ByteOrder, LittleEndian};

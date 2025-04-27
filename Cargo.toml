@@ -1,7 +1,7 @@
 [package]
 name = "keepass-ng"
 description = "KeePass .kdbx database file parser with ehancements"
-edition = "2021"
+edition = "2024"
 
 homepage = "https://github.com/ssrlive/keepass-ng"
 repository = "https://github.com/ssrlive/keepass-ng"

@@ -1,6 +1,6 @@
 use crate::{
     crypt::ciphers::Cipher,
-    db::{with_node, Entry, Group, NodePtr},
+    db::{Entry, Group, NodePtr, with_node},
     xml_db::dump::{DumpXml, SimpleTag},
 };
 use xml::writer::{EventWriter, XmlEvent as WriterEvent};

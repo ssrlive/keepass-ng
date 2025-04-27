@@ -1,14 +1,14 @@
-use base64::{engine::general_purpose as base64_engine, Engine as _};
+use base64::{Engine as _, engine::general_purpose as base64_engine};
 use chrono::NaiveDateTime;
 use uuid::Uuid;
 
 use crate::{
     compression::{Compression, GZipCompression},
     db::{
-        meta::{BinaryAttachment, BinaryAttachments, CustomIcons, Icon, MemoryProtection, Meta},
         Color,
+        meta::{BinaryAttachment, BinaryAttachments, CustomIcons, Icon, MemoryProtection, Meta},
     },
-    xml_db::parse::{bad_event, CustomData, FromXml, IgnoreSubfield, SimpleTag, SimpleXmlEvent, XmlParseError},
+    xml_db::parse::{CustomData, FromXml, IgnoreSubfield, SimpleTag, SimpleXmlEvent, XmlParseError, bad_event},
 };
 
 impl FromXml for Meta {
@@ -325,9 +325,9 @@ mod parse_meta_test {
 
     use crate::{
         db::meta::{BinaryAttachment, BinaryAttachments, CustomIcons, Icon, MemoryProtection, Meta},
-        xml_db::parse::{parse_test::parse_test_xml, XmlParseError},
+        xml_db::parse::{XmlParseError, parse_test::parse_test_xml},
     };
-    use uuid::{uuid, Uuid};
+    use uuid::{Uuid, uuid};
 
     #[test]
     fn test_meta() -> Result<(), XmlParseError> {

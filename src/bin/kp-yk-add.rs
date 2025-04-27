@@ -1,6 +1,6 @@
 /// utility to add a Yubikey to a database's key
 use clap::Parser;
-use keepass_ng::{db::Database, BoxError, ChallengeResponseKey, DatabaseKey};
+use keepass_ng::{BoxError, ChallengeResponseKey, DatabaseKey, db::Database};
 use std::fs::File;
 
 #[derive(Parser, Debug)]

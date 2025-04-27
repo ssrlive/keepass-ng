@@ -1,6 +1,6 @@
 /// utility to recover a Yubikey-protected database using the HMAC-SHA1 secret
 use clap::Parser;
-use keepass_ng::{db::Database, BoxError, DatabaseKey};
+use keepass_ng::{BoxError, DatabaseKey, db::Database};
 use std::fs::File;
 
 #[derive(Parser, Debug)]

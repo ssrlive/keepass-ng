@@ -1,9 +1,9 @@
 use crate::{
     crypt::ciphers::Cipher,
-    db::{iconid::IconId, AutoType, AutoTypeAssociation, Color, Entry, History, Times, Value},
-    xml_db::parse::{bad_event, CustomData, FromXml, IgnoreSubfield, SimpleTag, SimpleXmlEvent, XmlParseError},
+    db::{AutoType, AutoTypeAssociation, Color, Entry, History, Times, Value, iconid::IconId},
+    xml_db::parse::{CustomData, FromXml, IgnoreSubfield, SimpleTag, SimpleXmlEvent, XmlParseError, bad_event},
 };
-use base64::{engine::general_purpose as base64_engine, Engine as _};
+use base64::{Engine as _, engine::general_purpose as base64_engine};
 use secstr::SecStr;
 use std::{convert::TryFrom, iter::Peekable};
 use uuid::Uuid;

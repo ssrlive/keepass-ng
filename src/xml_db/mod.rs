@@ -14,13 +14,14 @@ mod tests {
     use crate::{
         config::{DatabaseConfig, InnerCipherConfig},
         db::{
+            AutoType, AutoTypeAssociation, BinaryAttachment, CustomData, CustomDataItem, Database, DeletedObject, Entry, Group, Meta,
+            Times, Value,
             entry::History,
             group_get_children,
             iconid::IconId,
             meta::{BinaryAttachments, CustomIcons, Icon, MemoryProtection},
             node::*,
-            node_is_equals_to, rc_refcell_node, AutoType, AutoTypeAssociation, BinaryAttachment, CustomData, CustomDataItem, Database,
-            DeletedObject, Entry, Group, Meta, Times, Value,
+            node_is_equals_to, rc_refcell_node,
         },
         format::kdbx4,
         key::DatabaseKey,

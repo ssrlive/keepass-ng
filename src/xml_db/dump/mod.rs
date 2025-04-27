@@ -4,11 +4,11 @@ mod meta;
 
 use std::io::Write;
 
-use base64::{engine::general_purpose as base64_engine, Engine as _};
+use base64::{Engine as _, engine::general_purpose as base64_engine};
 use uuid::Uuid;
 use xml::{
-    writer::{EventWriter, XmlEvent as WriterEvent},
     EmitterConfig,
+    writer::{EventWriter, XmlEvent as WriterEvent},
 };
 
 use crate::{

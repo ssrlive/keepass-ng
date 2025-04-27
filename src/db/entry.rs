@@ -1,10 +1,11 @@
 #[cfg(feature = "_merge")]
 use crate::db::merge::{MergeError, MergeLog};
 #[cfg(feature = "totp")]
-use crate::db::otp::{TOTPError, TOTP};
+use crate::db::otp::{TOTP, TOTPError};
 use crate::db::{
+    Color, CustomData, IconId, Times,
     node::{Node, NodePtr},
-    rc_refcell_node, with_node, with_node_mut, Color, CustomData, IconId, Times,
+    rc_refcell_node, with_node, with_node_mut,
 };
 use secstr::SecStr;
 use std::collections::HashMap;

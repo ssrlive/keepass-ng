@@ -4,7 +4,7 @@ use std::io::Write;
 
 use clap::Parser;
 
-use keepass_ng::{db::Database, BoxError, DatabaseKey};
+use keepass_ng::{BoxError, DatabaseKey, db::Database};
 
 #[derive(Parser, Debug)]
 #[command(version, about)]

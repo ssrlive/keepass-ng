@@ -1,8 +1,8 @@
+#[cfg(feature = "save_kdbx4")]
+use flate2::Compression as Flate2Compression;
 use flate2::read::GzDecoder;
 #[cfg(feature = "save_kdbx4")]
 use flate2::write::GzEncoder;
-#[cfg(feature = "save_kdbx4")]
-use flate2::Compression as Flate2Compression;
 use std::io::Read;
 #[cfg(feature = "save_kdbx4")]
 use std::io::Write;

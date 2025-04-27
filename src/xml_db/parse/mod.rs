@@ -4,10 +4,10 @@ mod meta;
 
 use std::{collections::HashMap, iter::Peekable};
 
-use base64::{engine::general_purpose as base64_engine, Engine as _};
+use base64::{Engine as _, engine::general_purpose as base64_engine};
 use chrono::NaiveDateTime;
 use uuid::Uuid;
-use xml::{name::OwnedName, reader::XmlEvent, EventReader};
+use xml::{EventReader, name::OwnedName, reader::XmlEvent};
 
 use crate::{
     crypt::ciphers::Cipher,
@@ -548,10 +548,10 @@ mod parse_test {
         config::InnerCipherConfig,
         crypt::ciphers::PlainCipher,
         db::{AutoType, AutoTypeAssociation, CustomData, CustomDataItemDenormalized, Entry, History, Times, Value},
-        xml_db::parse::{entry::StringField, DeletedObject, DeletedObjects, IgnoreSubfield, Root},
+        xml_db::parse::{DeletedObject, DeletedObjects, IgnoreSubfield, Root, entry::StringField},
     };
 
-    use super::{entry::BinaryField, parse, parse_from_bytes, FromXml, KeePassXml, SimpleTag, XmlParseError};
+    use super::{FromXml, KeePassXml, SimpleTag, XmlParseError, entry::BinaryField, parse, parse_from_bytes};
 
     pub(crate) fn parse_test_xml<P: FromXml>(xml: &str) -> Result<<P as FromXml>::Parses, XmlParseError> {
         parse_from_bytes::<P>(xml.as_bytes(), &mut PlainCipher)

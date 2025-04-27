@@ -64,8 +64,8 @@ mod kdbx4_tests {
     use super::*;
     use crate::{
         config::{CompressionConfig, DatabaseConfig, InnerCipherConfig, KdfConfig, OuterCipherConfig},
-        db::{group_add_child, node::*, Database, Entry, Group, HeaderAttachment},
-        format::{kdbx4::dump::dump_kdbx4, KDBX4_CURRENT_MINOR_VERSION},
+        db::{Database, Entry, Group, HeaderAttachment, group_add_child, node::*},
+        format::{KDBX4_CURRENT_MINOR_VERSION, kdbx4::dump::dump_kdbx4},
         key::DatabaseKey,
     };
 

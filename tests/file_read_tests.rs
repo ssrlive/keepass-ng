@@ -2,9 +2,9 @@ mod file_read_tests {
     #[cfg(feature = "challenge_response")]
     use keepass_ng::ChallengeResponseKey;
     use keepass_ng::{
-        db::{group_get_children, with_node, Database, Entry, Group, Node, NodeIterator, NodePtr},
-        error::{DatabaseIntegrityError, DatabaseOpenError},
         DatabaseKey,
+        db::{Database, Entry, Group, Node, NodeIterator, NodePtr, group_get_children, with_node},
+        error::{DatabaseIntegrityError, DatabaseOpenError},
     };
     use std::{fs::File, path::Path};
     use uuid::uuid;

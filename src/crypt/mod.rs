@@ -1,8 +1,8 @@
 #[cfg(feature = "challenge_response")]
 use cipher::generic_array::typenum::U20;
 use cipher::generic_array::{
-    typenum::{U32, U64},
     GenericArray,
+    typenum::{U32, U64},
 };
 
 use hmac::{Hmac, Mac};

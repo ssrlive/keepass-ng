@@ -1,4 +1,4 @@
-use crate::db::{entry::Entry, node::*, rc_refcell_node, CustomData, IconId, Times};
+use crate::db::{CustomData, IconId, Times, entry::Entry, node::*, rc_refcell_node};
 use uuid::Uuid;
 
 #[cfg(feature = "_merge")]
@@ -290,22 +290,14 @@ impl Group {
     pub(crate) fn find_group(&self, path: &NodeLocation) -> Option<NodePtr> {
         let path: Vec<String> = path.iter().map(|p| p.to_string()).collect();
         let node_ref = self.get_by_uuid(&path)?;
-        if node_is_group(&node_ref) {
-            Some(node_ref)
-        } else {
-            None
-        }
+        if node_is_group(&node_ref) { Some(node_ref) } else { None }
     }
 
     #[cfg(feature = "_merge")]
     pub(crate) fn find_entry(&self, path: &NodeLocation) -> Option<NodePtr> {
         let path: Vec<String> = path.iter().map(|p| p.to_string()).collect();
         let node_ref = self.get_by_uuid(&path)?;
-        if node_is_entry(&node_ref) {
-            Some(node_ref)
-        } else {
-            None
-        }
+        if node_is_entry(&node_ref) { Some(node_ref) } else { None }
     }
 
     pub fn entries(&self) -> Vec<NodePtr> {
@@ -939,9 +931,11 @@ mod group_tests {
             .unwrap();
 
         removed_entry.borrow_mut().get_times_mut().set_location_changed(Some(Times::now()));
-        assert!(with_node::<Group, _, _>(&source_group, |g| g.get_all_entries(&vec![]))
-            .unwrap()
-            .is_empty());
+        assert!(
+            with_node::<Group, _, _>(&source_group, |g| g.get_all_entries(&vec![]))
+                .unwrap()
+                .is_empty()
+        );
         // FIXME we should not have to update the history here. We should
         // have a better compare function in the merge function instead.
         with_node_mut::<Entry, _, _>(&removed_entry, |entry| {

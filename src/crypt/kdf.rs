@@ -1,7 +1,7 @@
 use aes::Aes256;
 use cipher::{
-    generic_array::{typenum::U32, GenericArray},
     BlockEncrypt, KeyInit,
+    generic_array::{GenericArray, typenum::U32},
 };
 use sha2::{Digest, Sha256};
 

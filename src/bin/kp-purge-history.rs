@@ -1,8 +1,8 @@
 /// utility to purge the history of the entries in the database
 use clap::Parser;
 use keepass_ng::{
-    db::{group_get_children, node_is_group, with_node_mut, Database, Entry, Node, NodePtr},
     BoxError, DatabaseKey,
+    db::{Database, Entry, Node, NodePtr, group_get_children, node_is_group, with_node_mut},
 };
 use std::fs::File;
 

@@ -21,7 +21,7 @@ use std::{collections::HashMap, str::FromStr};
 use uuid::Uuid;
 
 #[cfg(feature = "totp")]
-pub use crate::db::otp::{TOTPAlgorithm, TOTP};
+pub use crate::db::otp::{TOTP, TOTPAlgorithm};
 
 #[cfg(feature = "_merge")]
 use crate::db::merge::{MergeError, MergeEvent, MergeEventType, MergeLog, NodeLocation};
@@ -34,10 +34,10 @@ use crate::{
     db::iconid::IconId,
     error::{DatabaseIntegrityError, DatabaseOpenError, ParseColorError},
     format::{
+        DatabaseVersion,
         kdb::parse_kdb,
         kdbx3::{decrypt_kdbx3, parse_kdbx3},
         kdbx4::{decrypt_kdbx4, parse_kdbx4},
-        DatabaseVersion,
     },
     key::DatabaseKey,
 };
@@ -894,12 +894,12 @@ impl std::fmt::Display for Color {
 
 #[cfg(test)]
 mod database_tests {
+    use crate::{
+        Result,
+        db::{Database, DatabaseKey},
+    };
     #[cfg(feature = "save_kdbx4")]
     use crate::{config::DatabaseConfig, db::Entry};
-    use crate::{
-        db::{Database, DatabaseKey},
-        Result,
-    };
     use std::fs::File;
 
     #[test]

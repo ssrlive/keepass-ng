@@ -74,8 +74,8 @@ mod merge_tests {
     use uuid::Uuid;
 
     use crate::db::{
-        group_add_child, group_get_children, node_is_group, rc_refcell_node, with_node, with_node_mut, Database, Entry, Group, Node,
-        NodePtr, Times,
+        Database, Entry, Group, Node, NodePtr, Times, group_add_child, group_get_children, node_is_group, rc_refcell_node, with_node,
+        with_node_mut,
     };
 
     fn get_entry(db: &Database, path: &[&str]) -> NodePtr {
