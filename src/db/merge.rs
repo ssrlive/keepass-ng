@@ -719,14 +719,14 @@ mod merge_tests {
         thread::sleep(time::Duration::from_secs(1));
         let new_location_changed_timestamp = Times::now();
 
-        Database::relocate_node(
-            &source_db.root,
-            Uuid::parse_str(ENTRY2_ID).unwrap(),
-            &vec![Uuid::parse_str(GROUP1_ID).unwrap(), Uuid::parse_str(SUBGROUP1_ID).unwrap()],
-            &vec![Uuid::parse_str(GROUP2_ID).unwrap()],
-            new_location_changed_timestamp,
-        )
-        .unwrap();
+        source_db
+            .relocate_node(
+                Uuid::parse_str(ENTRY2_ID).unwrap(),
+                &vec![Uuid::parse_str(GROUP1_ID).unwrap(), Uuid::parse_str(SUBGROUP1_ID).unwrap()],
+                &vec![Uuid::parse_str(GROUP2_ID).unwrap()],
+                new_location_changed_timestamp,
+            )
+            .unwrap();
 
         let merge_result = destination_db.merge(&source_db).unwrap();
         assert_eq!(merge_result.warnings.len(), 0);
@@ -772,14 +772,14 @@ mod merge_tests {
         thread::sleep(time::Duration::from_secs(1));
         let new_location_changed_timestamp = Times::now();
 
-        Database::relocate_node(
-            &source_db.root,
-            Uuid::parse_str(ENTRY2_ID).unwrap(),
-            &vec![Uuid::parse_str(GROUP1_ID).unwrap(), Uuid::parse_str(SUBGROUP1_ID).unwrap()],
-            &vec![Uuid::parse_str(GROUP2_ID).unwrap()],
-            new_location_changed_timestamp,
-        )
-        .unwrap();
+        source_db
+            .relocate_node(
+                Uuid::parse_str(ENTRY2_ID).unwrap(),
+                &vec![Uuid::parse_str(GROUP1_ID).unwrap(), Uuid::parse_str(SUBGROUP1_ID).unwrap()],
+                &vec![Uuid::parse_str(GROUP2_ID).unwrap()],
+                new_location_changed_timestamp,
+            )
+            .unwrap();
 
         let entry2 = with_node::<Group, _, _>(&destination_db.root, |group| {
             group.find_entry(&vec![
@@ -841,14 +841,14 @@ mod merge_tests {
         thread::sleep(time::Duration::from_secs(1));
         let new_location_changed_timestamp = Times::now();
 
-        Database::relocate_node(
-            &destination_db.root,
-            Uuid::parse_str(ENTRY2_ID).unwrap(),
-            &vec![Uuid::parse_str(GROUP1_ID).unwrap(), Uuid::parse_str(SUBGROUP1_ID).unwrap()],
-            &vec![Uuid::parse_str(GROUP2_ID).unwrap()],
-            new_location_changed_timestamp,
-        )
-        .unwrap();
+        destination_db
+            .relocate_node(
+                Uuid::parse_str(ENTRY2_ID).unwrap(),
+                &vec![Uuid::parse_str(GROUP1_ID).unwrap(), Uuid::parse_str(SUBGROUP1_ID).unwrap()],
+                &vec![Uuid::parse_str(GROUP2_ID).unwrap()],
+                new_location_changed_timestamp,
+            )
+            .unwrap();
 
         let merge_result = destination_db.merge(&source_db).unwrap();
         assert_eq!(merge_result.warnings.len(), 0);
@@ -1141,14 +1141,14 @@ mod merge_tests {
             .get_times_mut()
             .set_last_modification(Some(new_modification_timestamp));
 
-        Database::relocate_node(
-            &source_db.root,
-            Uuid::parse_str(SUBGROUP1_ID).unwrap(),
-            &vec![Uuid::parse_str(GROUP1_ID).unwrap()],
-            &vec![Uuid::parse_str(GROUP2_ID).unwrap()],
-            new_modification_timestamp,
-        )
-        .unwrap();
+        source_db
+            .relocate_node(
+                Uuid::parse_str(SUBGROUP1_ID).unwrap(),
+                &vec![Uuid::parse_str(GROUP1_ID).unwrap()],
+                &vec![Uuid::parse_str(GROUP2_ID).unwrap()],
+                new_modification_timestamp,
+            )
+            .unwrap();
 
         let merge_result = destination_db.merge(&source_db).unwrap();
         assert_eq!(merge_result.warnings.len(), 0);
@@ -1188,14 +1188,14 @@ mod merge_tests {
 
         thread::sleep(time::Duration::from_secs(1));
         let new_location_changed_timestamp = Times::now();
-        Database::relocate_node(
-            &destination_db.root,
-            Uuid::parse_str(SUBGROUP1_ID).unwrap(),
-            &vec![Uuid::parse_str(GROUP1_ID).unwrap()],
-            &vec![Uuid::parse_str(GROUP2_ID).unwrap()],
-            new_location_changed_timestamp,
-        )
-        .unwrap();
+        destination_db
+            .relocate_node(
+                Uuid::parse_str(SUBGROUP1_ID).unwrap(),
+                &vec![Uuid::parse_str(GROUP1_ID).unwrap()],
+                &vec![Uuid::parse_str(GROUP2_ID).unwrap()],
+                new_location_changed_timestamp,
+            )
+            .unwrap();
 
         let merge_result = destination_db.merge(&source_db).unwrap();
         assert_eq!(merge_result.warnings.len(), 0);

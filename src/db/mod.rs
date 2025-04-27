@@ -481,8 +481,7 @@ impl Database {
                             event_type: MergeEventType::EntryLocationUpdated,
                             node_uuid: other_entry_uuid,
                         });
-                        Self::relocate_node(
-                            &self.root,
+                        self.relocate_node(
                             other_entry_uuid,
                             &destination_entry_location,
                             current_group_path,
@@ -585,8 +584,7 @@ impl Database {
                         };
                     // The other group was moved after the current group, so we have to relocate it.
                     if existing_group_location_changed < other_group_location_changed {
-                        Self::relocate_node(
-                            &self.root,
+                        self.relocate_node(
                             other_group_uuid,
                             destination_group_location,
                             current_group_path,
@@ -628,13 +626,13 @@ impl Database {
     }
     #[cfg(feature = "_merge")]
     fn relocate_node(
-        root: &NodePtr,
+        &self,
         node_uuid: Uuid,
         from: &NodeLocation,
         to: &NodeLocation,
         new_location_changed_timestamp: NaiveDateTime,
     ) -> Result<(), MergeError> {
-        let source_group = match with_node::<Group, _, _>(root, |root| root.find_group(from)).unwrap() {
+        let source_group = match with_node::<Group, _, _>(&self.root, |root| root.find_group(from)).unwrap() {
             Some(g) => g,
             None => return Err(MergeError::FindGroupError(from.to_vec())),
         };
@@ -644,11 +642,10 @@ impl Database {
             .get_times_mut()
             .set_location_changed(Some(new_location_changed_timestamp));
 
-        let destination_group = match with_node::<Group, _, _>(root, |root| root.find_group(to)).unwrap() {
+        let destination_group = match with_node::<Group, _, _>(&self.root, |root| root.find_group(to)).unwrap() {
             Some(g) => g,
             None => return Err(MergeError::FindGroupError(to.to_vec())),
         };
-        // destination_group.children.push(relocated_node);
         group_add_child(&destination_group, relocated_node, 0).unwrap();
         Ok(())
     }
