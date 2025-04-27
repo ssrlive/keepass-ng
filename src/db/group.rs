@@ -352,12 +352,12 @@ impl Group {
             let node_uuid = node.borrow().get_uuid();
             if node_is_entry(node) {
                 if node_uuid == id {
-                    current_location.push(id);
+                    // current_location.push(id);
                     return Some(current_location);
                 }
             } else if node_is_group(node) {
                 if node_uuid == id {
-                    current_location.push(id);
+                    // current_location.push(id);
                     return Some(current_location);
                 }
                 if let Some(mut location) = Self::find_node_location(node, id) {
