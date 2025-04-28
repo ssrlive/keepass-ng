@@ -457,7 +457,7 @@ impl Group {
     }
 
     #[cfg(feature = "_merge")]
-    pub(crate) fn get_group_mut(&mut self, location: &NodeLocation, create_groups: bool) -> crate::Result<NodePtr> {
+    fn get_or_create_group(group: &NodePtr, location: &NodeLocation, create_groups: bool) -> crate::Result<NodePtr> {
         if location.is_empty() {
             return Err("Empty location.".into());
         }
@@ -466,25 +466,19 @@ impl Group {
         remaining_location.remove(0);
 
         if remaining_location.is_empty() {
-            let root = self
-                .weak_self
-                .as_ref()
-                .ok_or("Weak self is not set.")?
-                .upgrade()
-                .ok_or("Could not upgrade weak self.")?;
-            return Ok(root);
+            return Ok(group.clone());
         }
 
         let next_location = &remaining_location[0];
         let mut next_location_uuid = *next_location;
 
-        if !self.has_group(next_location_uuid) && create_groups {
+        if !with_node::<Group, _, _>(group, |g| g.has_group(next_location_uuid)).unwrap() && create_groups {
             let mut current_group: Option<NodePtr> = None;
             for i in (0..(remaining_location.len())).rev() {
                 let mut new_group = Group::new(&remaining_location[i].to_string());
                 new_group.set_uuid(remaining_location[i]);
                 if let Some(current_group) = current_group {
-                    let count = self.children.len();
+                    let count = group_get_children(group).map(|c| c.len()).unwrap_or(0);
                     new_group.add_child(current_group, count);
                 }
                 current_group = Some(rc_refcell_node(new_group));
@@ -492,31 +486,30 @@ impl Group {
 
             if let Some(current_group) = current_group {
                 next_location_uuid = current_group.borrow().get_uuid();
-                let count = self.children.len();
-                self.add_child(current_group, count);
+                let count = group_get_children(group).map_or(0, |c| c.len());
+                group_add_child(group, current_group, count)?;
             } else {
                 return Err("Could not create group.".into());
             }
         }
 
         let mut target = None;
-        for node in self.children.iter() {
+        for node in group_get_children(group).unwrap_or_default().iter() {
             if node_is_group(node) && node.borrow().get_uuid() == next_location_uuid {
-                target = Some(NodePtr::from(node));
+                target = Some(node.clone());
                 break;
             }
         }
 
-        if let Some(ref target) = target {
-            return with_node_mut::<Group, _, _>(target, |g| g.get_group_mut(&remaining_location, create_groups))
-                .unwrap_or(Err("Could not get group.".into()));
+        match &target {
+            Some(target) => Self::get_or_create_group(target, &remaining_location, create_groups),
+            None => Err("The group was not found.".into()),
         }
-        Err("The group was not found.".into())
     }
 
     #[cfg(feature = "_merge")]
-    pub(crate) fn insert_entry(&mut self, entry: NodePtr, location: &NodeLocation) -> crate::Result<()> {
-        let group = self.get_group_mut(location, true)?;
+    pub(crate) fn insert_entry(group: &NodePtr, entry: NodePtr, location: &NodeLocation) -> crate::Result<()> {
+        let group = Self::get_or_create_group(group, location, true)?;
         with_node_mut::<Group, _, _>(&group, |g| {
             let count = g.children.len();
             g.add_child(entry, count);
@@ -527,8 +520,8 @@ impl Group {
     }
 
     #[cfg(feature = "_merge")]
-    pub(crate) fn remove_entry(&mut self, uuid: Uuid, location: &NodeLocation) -> crate::Result<NodePtr> {
-        let group = self.get_group_mut(location, false)?;
+    pub(crate) fn remove_entry(group: &NodePtr, uuid: Uuid, location: &NodeLocation) -> crate::Result<NodePtr> {
+        let group = Self::get_or_create_group(group, location, false)?;
 
         let mut removed_entry: Option<NodePtr> = None;
         let mut new_nodes: Vec<NodePtr> = vec![];
@@ -668,12 +661,8 @@ impl Group {
                     event_type: MergeEventType::EntryLocationUpdated,
                     node_uuid: entry_uuid,
                 });
-                with_node_mut::<Group, _, _>(root, |g| {
-                    let _ = g.remove_entry(entry_uuid, &existing_entry_location)?;
-                    g.insert_entry(entry.borrow().duplicate(), entry_location)?;
-                    Ok::<(), crate::Error>(())
-                })
-                .ok_or("Could not remove entry")??;
+                Self::remove_entry(root, entry_uuid, &existing_entry_location)?;
+                Self::insert_entry(root, entry.borrow().duplicate(), entry_location)?;
             }
         }
 
@@ -926,9 +915,7 @@ mod group_tests {
         let destination_sub_group1_uuid = destination_sub_group1.borrow().get_uuid();
 
         let location = vec![destination_group_uuid, destination_sub_group1_uuid];
-        let removed_entry = with_node_mut::<Group, _, _>(&source_group, |g| g.remove_entry(entry_uuid, &location))
-            .unwrap()
-            .unwrap();
+        let removed_entry = Group::remove_entry(&source_group, entry_uuid, &location).unwrap();
 
         removed_entry.borrow_mut().get_times_mut().set_location_changed(Some(Times::now()));
         assert!(
@@ -944,9 +931,7 @@ mod group_tests {
 
         let location = vec![destination_group_uuid, destination_sub_group2_uuid];
 
-        with_node_mut::<Group, _, _>(&source_group, |g| g.insert_entry(removed_entry, &location))
-            .unwrap()
-            .unwrap();
+        Group::insert_entry(&source_group, removed_entry, &location).unwrap();
 
         let merge_result = Group::merge(&destination_group, &source_group).unwrap();
         assert_eq!(merge_result.warnings.len(), 0);
