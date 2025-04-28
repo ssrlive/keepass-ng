@@ -1,7 +1,5 @@
 use uuid::Uuid;
 
-pub(crate) type NodeLocation = Vec<Uuid>;
-
 #[derive(Debug, Clone)]
 pub enum MergeEventType {
     EntryCreated,
@@ -37,10 +35,10 @@ pub enum MergeError {
     GenericError(String),
 
     #[error("Could not find group at {0:?}")]
-    FindGroupError(NodeLocation),
+    FindGroupError(Vec<Uuid>),
 
     #[error("Could not find entry at {0:?}")]
-    FindEntryError(NodeLocation),
+    FindEntryError(Vec<Uuid>),
 
     #[error("Entries with UUID {0} have the same modification time but have diverged.")]
     EntryModificationTimeNotUpdated(String),
@@ -306,7 +304,7 @@ mod merge_tests {
         let modified_entry_location = Group::find_node_location(&destination_db.root, modified_entry_uuid);
         assert!(modified_entry_location.is_some());
 
-        let modified_entry = Group::find_entry(&destination_db.root, &vec![modified_entry_uuid]).unwrap();
+        let modified_entry = Group::find_entry(&destination_db.root, &[modified_entry_uuid]).unwrap();
         assert_eq!(modified_entry.borrow().get_title(), Some("modified_title"));
     }
 
@@ -720,8 +718,8 @@ mod merge_tests {
         source_db
             .relocate_node(
                 Uuid::parse_str(ENTRY2_ID).unwrap(),
-                &vec![Uuid::parse_str(GROUP1_ID).unwrap(), Uuid::parse_str(SUBGROUP1_ID).unwrap()],
-                &vec![Uuid::parse_str(GROUP2_ID).unwrap()],
+                &[Uuid::parse_str(GROUP1_ID).unwrap(), Uuid::parse_str(SUBGROUP1_ID).unwrap()],
+                &[Uuid::parse_str(GROUP2_ID).unwrap()],
                 new_location_changed_timestamp,
             )
             .unwrap();
@@ -755,7 +753,7 @@ mod merge_tests {
 
         let entry2 = Group::find_entry(
             &source_db.root,
-            &vec![
+            &[
                 Uuid::parse_str(GROUP1_ID).unwrap(),
                 Uuid::parse_str(SUBGROUP1_ID).unwrap(),
                 Uuid::parse_str(ENTRY2_ID).unwrap(),
@@ -773,15 +771,15 @@ mod merge_tests {
         source_db
             .relocate_node(
                 Uuid::parse_str(ENTRY2_ID).unwrap(),
-                &vec![Uuid::parse_str(GROUP1_ID).unwrap(), Uuid::parse_str(SUBGROUP1_ID).unwrap()],
-                &vec![Uuid::parse_str(GROUP2_ID).unwrap()],
+                &[Uuid::parse_str(GROUP1_ID).unwrap(), Uuid::parse_str(SUBGROUP1_ID).unwrap()],
+                &[Uuid::parse_str(GROUP2_ID).unwrap()],
                 new_location_changed_timestamp,
             )
             .unwrap();
 
         let entry2 = Group::find_entry(
             &destination_db.root,
-            &vec![
+            &[
                 Uuid::parse_str(GROUP1_ID).unwrap(),
                 Uuid::parse_str(SUBGROUP1_ID).unwrap(),
                 Uuid::parse_str(ENTRY2_ID).unwrap(),
@@ -824,7 +822,7 @@ mod merge_tests {
 
         let entry2 = Group::find_entry(
             &source_db.root,
-            &vec![
+            &[
                 Uuid::parse_str(GROUP1_ID).unwrap(),
                 Uuid::parse_str(SUBGROUP1_ID).unwrap(),
                 Uuid::parse_str(ENTRY2_ID).unwrap(),
@@ -842,8 +840,8 @@ mod merge_tests {
         destination_db
             .relocate_node(
                 Uuid::parse_str(ENTRY2_ID).unwrap(),
-                &vec![Uuid::parse_str(GROUP1_ID).unwrap(), Uuid::parse_str(SUBGROUP1_ID).unwrap()],
-                &vec![Uuid::parse_str(GROUP2_ID).unwrap()],
+                &[Uuid::parse_str(GROUP1_ID).unwrap(), Uuid::parse_str(SUBGROUP1_ID).unwrap()],
+                &[Uuid::parse_str(GROUP2_ID).unwrap()],
                 new_location_changed_timestamp,
             )
             .unwrap();
@@ -1142,8 +1140,8 @@ mod merge_tests {
         source_db
             .relocate_node(
                 Uuid::parse_str(SUBGROUP1_ID).unwrap(),
-                &vec![Uuid::parse_str(GROUP1_ID).unwrap()],
-                &vec![Uuid::parse_str(GROUP2_ID).unwrap()],
+                &[Uuid::parse_str(GROUP1_ID).unwrap()],
+                &[Uuid::parse_str(GROUP2_ID).unwrap()],
                 new_modification_timestamp,
             )
             .unwrap();
@@ -1189,8 +1187,8 @@ mod merge_tests {
         destination_db
             .relocate_node(
                 Uuid::parse_str(SUBGROUP1_ID).unwrap(),
-                &vec![Uuid::parse_str(GROUP1_ID).unwrap()],
-                &vec![Uuid::parse_str(GROUP2_ID).unwrap()],
+                &[Uuid::parse_str(GROUP1_ID).unwrap()],
+                &[Uuid::parse_str(GROUP2_ID).unwrap()],
                 new_location_changed_timestamp,
             )
             .unwrap();

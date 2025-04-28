@@ -2,7 +2,7 @@ use crate::db::{CustomData, IconId, Times, entry::Entry, node::*, rc_refcell_nod
 use uuid::Uuid;
 
 #[cfg(feature = "_merge")]
-use crate::db::merge::{MergeError, MergeEvent, MergeEventType, MergeLog, NodeLocation};
+use crate::db::merge::{MergeError, MergeEvent, MergeEventType, MergeLog};
 
 pub(crate) enum SearchField {
     #[cfg(any(test, feature = "_merge"))]
@@ -282,14 +282,14 @@ impl Group {
     }
 
     #[cfg(feature = "_merge")]
-    pub(crate) fn find_group(group: &NodePtr, path: &NodeLocation) -> Option<NodePtr> {
+    pub(crate) fn find_group(group: &NodePtr, path: &[Uuid]) -> Option<NodePtr> {
         let path: Vec<String> = path.iter().map(|p| p.to_string()).collect();
         let node_ref = Self::get_by_uuid(group, &path)?;
         if node_is_group(&node_ref) { Some(node_ref) } else { None }
     }
 
     #[cfg(feature = "_merge")]
-    pub(crate) fn find_entry(group: &NodePtr, path: &NodeLocation) -> Option<NodePtr> {
+    pub(crate) fn find_entry(group: &NodePtr, path: &[Uuid]) -> Option<NodePtr> {
         let path: Vec<String> = path.iter().map(|p| p.to_string()).collect();
         let node_ref = Self::get_by_uuid(group, &path)?;
         if node_is_entry(&node_ref) { Some(node_ref) } else { None }
@@ -332,7 +332,7 @@ impl Group {
     }
 
     #[cfg(feature = "_merge")]
-    pub(crate) fn find_node_location(parent: &NodePtr, id: Uuid) -> Option<NodeLocation> {
+    pub(crate) fn find_node_location(parent: &NodePtr, id: Uuid) -> Option<Vec<Uuid>> {
         let parent_uuid = parent.borrow().get_uuid();
         let mut current_location = vec![parent_uuid];
         for node in &group_get_children(parent).unwrap_or_default() {
@@ -452,12 +452,12 @@ impl Group {
     }
 
     #[cfg(feature = "_merge")]
-    fn get_or_create_group(group: &NodePtr, location: &NodeLocation, create_groups: bool) -> crate::Result<NodePtr> {
+    fn get_or_create_group(group: &NodePtr, location: &[Uuid], create_groups: bool) -> crate::Result<NodePtr> {
         if location.is_empty() {
             return Err("Empty location.".into());
         }
 
-        let mut remaining_location = location.clone();
+        let mut remaining_location = location.to_owned();
         remaining_location.remove(0);
 
         if remaining_location.is_empty() {
@@ -503,7 +503,7 @@ impl Group {
     }
 
     #[cfg(feature = "_merge")]
-    pub(crate) fn insert_entry(group: &NodePtr, entry: NodePtr, location: &NodeLocation) -> crate::Result<()> {
+    pub(crate) fn insert_entry(group: &NodePtr, entry: NodePtr, location: &[Uuid]) -> crate::Result<()> {
         let group = Self::get_or_create_group(group, location, true)?;
         with_node_mut::<Group, _, _>(&group, |g| {
             let count = g.children.len();
@@ -515,7 +515,7 @@ impl Group {
     }
 
     #[cfg(feature = "_merge")]
-    pub(crate) fn remove_entry(group: &NodePtr, uuid: Uuid, location: &NodeLocation) -> crate::Result<NodePtr> {
+    pub(crate) fn remove_entry(group: &NodePtr, uuid: Uuid, location: &[Uuid]) -> crate::Result<NodePtr> {
         let group = Self::get_or_create_group(group, location, false)?;
 
         let mut removed_entry: Option<NodePtr> = None;
@@ -552,7 +552,7 @@ impl Group {
     }
 
     #[cfg(feature = "_merge")]
-    pub(crate) fn find_entry_location(&self, uuid: Uuid) -> Option<NodeLocation> {
+    pub(crate) fn find_entry_location(&self, uuid: Uuid) -> Option<Vec<Uuid>> {
         let mut current_location = vec![self.uuid];
         for node in &self.children {
             if node_is_entry(node) {
@@ -570,12 +570,12 @@ impl Group {
     }
 
     #[cfg(feature = "_merge")]
-    pub(crate) fn add_entry(parent: &NodePtr, entry: NodePtr, location: &NodeLocation) -> crate::Result<()> {
+    pub(crate) fn add_entry(parent: &NodePtr, entry: NodePtr, location: &[Uuid]) -> crate::Result<()> {
         if location.is_empty() {
             panic!("TODO handle this with a Response.");
         }
 
-        let mut remaining_location = location.clone();
+        let mut remaining_location = location.to_owned();
         remaining_location.remove(0);
 
         if remaining_location.is_empty() {
@@ -616,7 +616,7 @@ impl Group {
     pub fn merge(root: &NodePtr, other_group: &NodePtr) -> crate::Result<MergeLog> {
         let mut log = MergeLog::default();
 
-        let other_entries = with_node::<Group, _, _>(other_group, |g| Ok(g.get_all_entries(&vec![])))
+        let other_entries = with_node::<Group, _, _>(other_group, |g| Ok(g.get_all_entries(&[])))
             .unwrap_or(Err(crate::Error::from("Could not downcast other group to group")))?;
 
         // Handle entry relocation.
@@ -732,9 +732,9 @@ impl Group {
     // Recursively get all the entries in the group, along with their
     // location.
     #[cfg(feature = "_merge")]
-    pub(crate) fn get_all_entries(&self, current_location: &NodeLocation) -> Vec<(NodePtr, NodeLocation)> {
-        let mut response: Vec<(NodePtr, NodeLocation)> = vec![];
-        let mut new_location = current_location.clone();
+    pub(crate) fn get_all_entries(&self, current_location: &[Uuid]) -> Vec<(NodePtr, Vec<Uuid>)> {
+        let mut response: Vec<(NodePtr, Vec<Uuid>)> = vec![];
+        let mut new_location = current_location.to_owned();
         new_location.push(self.uuid);
 
         for node in &self.children {
@@ -850,7 +850,7 @@ mod group_tests {
         let merge_result = Group::merge(&destination_group, &source_group).unwrap();
         assert_eq!(merge_result.warnings.len(), 0);
         assert_eq!(merge_result.events.len(), 1);
-        let destination_entries = with_node::<Group, _, _>(&destination_group, |g| g.get_all_entries(&vec![])).unwrap();
+        let destination_entries = with_node::<Group, _, _>(&destination_group, |g| g.get_all_entries(&[])).unwrap();
         assert_eq!(destination_entries.len(), 1);
         let (_created_entry, created_entry_location) = destination_entries.first().unwrap();
         println!("{:?}", created_entry_location);
@@ -876,7 +876,7 @@ mod group_tests {
         assert_eq!(merge_result.events.len(), 1);
 
         with_node::<Group, _, _>(&destination_group, |destination_group| {
-            let destination_entries = destination_group.get_all_entries(&vec![]);
+            let destination_entries = destination_group.get_all_entries(&[]);
             assert_eq!(destination_entries.len(), 1);
             let (_, created_entry_location) = destination_entries.first().unwrap();
             assert_eq!(created_entry_location.len(), 2);
@@ -900,9 +900,7 @@ mod group_tests {
 
         let source_group = destination_group.borrow().duplicate();
         assert_eq!(
-            with_node::<Group, _, _>(&source_group, |g| g.get_all_entries(&vec![]))
-                .unwrap()
-                .len(),
+            with_node::<Group, _, _>(&source_group, |g| g.get_all_entries(&[])).unwrap().len(),
             1
         );
 
@@ -914,7 +912,7 @@ mod group_tests {
 
         removed_entry.borrow_mut().get_times_mut().set_location_changed(Some(Times::now()));
         assert!(
-            with_node::<Group, _, _>(&source_group, |g| g.get_all_entries(&vec![]))
+            with_node::<Group, _, _>(&source_group, |g| g.get_all_entries(&[]))
                 .unwrap()
                 .is_empty()
         );
@@ -932,7 +930,7 @@ mod group_tests {
         assert_eq!(merge_result.warnings.len(), 0);
         assert_eq!(merge_result.events.len(), 1);
 
-        let destination_entries = with_node::<Group, _, _>(&destination_group, |g| g.get_all_entries(&vec![])).unwrap();
+        let destination_entries = with_node::<Group, _, _>(&destination_group, |g| g.get_all_entries(&[])).unwrap();
         assert_eq!(destination_entries.len(), 1);
         let (_moved_entry, moved_entry_location) = destination_entries.first().unwrap();
         assert_eq!(moved_entry_location.len(), 2);
@@ -974,7 +972,7 @@ mod group_tests {
         assert_eq!(merge_result.warnings.len(), 0);
         assert_eq!(merge_result.events.len(), 1);
 
-        let destination_entries = with_node::<Group, _, _>(&destination_group, |g| g.get_all_entries(&vec![])).unwrap();
+        let destination_entries = with_node::<Group, _, _>(&destination_group, |g| g.get_all_entries(&[])).unwrap();
         assert_eq!(destination_entries.len(), 1);
         let (_, created_entry_location) = destination_entries.first().unwrap();
         assert_eq!(created_entry_location.len(), 2);
