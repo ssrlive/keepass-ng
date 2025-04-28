@@ -19,8 +19,7 @@ Rust KeePass database file parser for KDB, KDBX3 and KDBX4, with experimental su
 ```rust
 use keepass_ng::{
     db::{node_is_group, with_node, Database, Entry, Group, Node, NodeIterator},
-    error::DatabaseOpenError,
-    DatabaseKey,
+    DatabaseKey, DatabaseOpenError,
 };
 use std::fs::File;
 

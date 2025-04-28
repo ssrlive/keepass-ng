@@ -1,8 +1,7 @@
 mod entry_tests {
     use keepass_ng::{
-        DatabaseKey,
+        DatabaseKey, DatabaseKeyError, DatabaseOpenError,
         db::{Database, Entry, Group, Node, with_node},
-        error::{DatabaseKeyError, DatabaseOpenError},
     };
     use std::{fs::File, path::Path};
     use uuid::uuid;
