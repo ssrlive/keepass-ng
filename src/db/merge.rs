@@ -79,11 +79,11 @@ mod merge_tests {
     };
 
     fn get_entry(db: &Database, path: &[&str]) -> NodePtr {
-        db.root.borrow().as_any().downcast_ref::<Group>().unwrap().get(path).unwrap()
+        Group::get(&db.root, path).unwrap()
     }
 
     fn get_group(db: &Database, path: &[&str]) -> NodePtr {
-        db.root.borrow().as_any().downcast_ref::<Group>().unwrap().get(path).unwrap()
+        Group::get(&db.root, path).unwrap()
     }
 
     fn get_all_groups(group: &NodePtr) -> Vec<NodePtr> {
@@ -306,9 +306,7 @@ mod merge_tests {
         let modified_entry_location = Group::find_node_location(&destination_db.root, modified_entry_uuid);
         assert!(modified_entry_location.is_some());
 
-        let modified_entry = with_node::<Group, _, _>(&destination_db.root, |group| group.find_entry(&vec![modified_entry_uuid]))
-            .unwrap()
-            .unwrap();
+        let modified_entry = Group::find_entry(&destination_db.root, &vec![modified_entry_uuid]).unwrap();
         assert_eq!(modified_entry.borrow().get_title(), Some("modified_title"));
     }
 
@@ -755,14 +753,14 @@ mod merge_tests {
         let group_count_before = get_all_groups(&destination_db.root).len();
         let entry_count_before = get_all_entries(&destination_db.root).len();
 
-        let entry2 = with_node::<Group, _, _>(&source_db.root, |group| {
-            group.find_entry(&vec![
+        let entry2 = Group::find_entry(
+            &source_db.root,
+            &vec![
                 Uuid::parse_str(GROUP1_ID).unwrap(),
                 Uuid::parse_str(SUBGROUP1_ID).unwrap(),
                 Uuid::parse_str(ENTRY2_ID).unwrap(),
-            ])
-        })
-        .unwrap()
+            ],
+        )
         .unwrap();
 
         with_node_mut::<Entry, _, _>(&entry2, |entry2| {
@@ -781,14 +779,14 @@ mod merge_tests {
             )
             .unwrap();
 
-        let entry2 = with_node::<Group, _, _>(&destination_db.root, |group| {
-            group.find_entry(&vec![
+        let entry2 = Group::find_entry(
+            &destination_db.root,
+            &vec![
                 Uuid::parse_str(GROUP1_ID).unwrap(),
                 Uuid::parse_str(SUBGROUP1_ID).unwrap(),
                 Uuid::parse_str(ENTRY2_ID).unwrap(),
-            ])
-        })
-        .unwrap()
+            ],
+        )
         .unwrap();
         with_node_mut::<Entry, _, _>(&entry2, |entry2| {
             entry2.set_field_and_commit("Title", "entry2_modified_in_destination");
@@ -824,14 +822,14 @@ mod merge_tests {
         let group_count_before = get_all_groups(&destination_db.root).len();
         let entry_count_before = get_all_entries(&destination_db.root).len();
 
-        let entry2 = with_node::<Group, _, _>(&source_db.root, |group| {
-            group.find_entry(&vec![
+        let entry2 = Group::find_entry(
+            &source_db.root,
+            &vec![
                 Uuid::parse_str(GROUP1_ID).unwrap(),
                 Uuid::parse_str(SUBGROUP1_ID).unwrap(),
                 Uuid::parse_str(ENTRY2_ID).unwrap(),
-            ])
-        })
-        .unwrap()
+            ],
+        )
         .unwrap();
         with_node_mut::<Entry, _, _>(&entry2, |entry2| {
             entry2.set_field_and_commit("Title", "entry2_modified_in_source");

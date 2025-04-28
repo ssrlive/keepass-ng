@@ -294,15 +294,14 @@ impl Database {
                 Some(l) => l,
                 None => continue,
             };
-            let parent_group = match with_node::<Group, _, _>(&self.root, |root| root.find_group(&entry_location)).unwrap() {
-                Some(g) => g,
-                None => return Err(MergeError::FindGroupError(entry_location)),
-            };
-            let entry = match with_node::<Group, _, _>(&parent_group, |pg| pg.find_entry(&vec![deleted_object.uuid])).unwrap() {
+            let parent_group = Group::find_group(&self.root, &entry_location).ok_or(MergeError::FindGroupError(entry_location))?;
+
+            let entry = match Group::find_entry(&parent_group, &vec![deleted_object.uuid]) {
                 Some(e) => e,
                 // This uuid might refer to a group, which will be handled later.
                 None => continue,
             };
+
             let entry_last_modification = match with_node::<Entry, _, _>(&entry, |e| e.get_times().get_last_modification()).unwrap() {
                 Some(t) => t,
                 None => {
@@ -338,12 +337,10 @@ impl Database {
                 Some(l) => l,
                 None => continue,
             };
-            let parent_group = match with_node::<Group, _, _>(&self.root, |root| root.find_group(&group_location)).unwrap() {
+            let parent_group = Group::find_group(&self.root, &group_location).ok_or(MergeError::FindGroupError(group_location))?;
+
+            let group = match Group::find_group(&parent_group, &vec![deleted_object.uuid]) {
                 Some(g) => g,
-                None => return Err(MergeError::FindGroupError(group_location)),
-            };
-            let group = match with_node::<Group, _, _>(&parent_group, |pg| pg.find_group(&vec![deleted_object.uuid])).unwrap() {
-                Some(e) => e,
                 None => {
                     // The node might be an entry, since we didn't necessarily removed all the
                     // entries that were in the deleted objects of the source database.
@@ -433,10 +430,8 @@ impl Database {
         if let Some(destination_group_location) = Self::find_node_location(&self.root, current_group.borrow().get_uuid()) {
             let mut destination_group_path = destination_group_location.clone();
             destination_group_path.push(current_group.borrow().get_uuid());
-            let destination_group = match with_node::<Group, _, _>(&self.root, |root| root.find_group(&destination_group_path)).unwrap() {
-                Some(g) => g,
-                None => return Err(MergeError::FindGroupError(destination_group_path)),
-            };
+            let destination_group =
+                Group::find_group(&self.root, &destination_group_path).ok_or(MergeError::FindGroupError(destination_group_path))?;
             let group_update_merge_events = Group::merge_with(&destination_group, current_group)?;
             log.append(&group_update_merge_events);
         }
@@ -450,9 +445,8 @@ impl Database {
                 existing_entry_location.push(other_entry_uuid);
                 // The entry already exists but is not at the right location. We might have to
                 // relocate it.
-                let existing_entry = with_node::<Group, _, _>(&self.root, |root| root.find_entry(&existing_entry_location))
-                    .unwrap()
-                    .unwrap()
+                let existing_entry = Group::find_entry(&self.root, &existing_entry_location)
+                    .ok_or(MergeError::FindEntryError(existing_entry_location.clone()))?
                     .borrow()
                     .duplicate();
                 // The entry already exists but is not at the right location. We might have to
@@ -509,10 +503,8 @@ impl Database {
                 if node_is_equals_to(&existing_entry, &merged_entry) {
                     continue;
                 }
-                let existing_entry = match with_node::<Group, _, _>(&self.root, |root| root.find_entry(&existing_entry_location)).unwrap() {
-                    Some(e) => e,
-                    None => return Err(MergeError::FindEntryError(existing_entry_location)),
-                };
+                let existing_entry =
+                    Group::find_entry(&self.root, &existing_entry_location).ok_or(MergeError::FindEntryError(existing_entry_location))?;
                 // *existing_entry = merged_entry.clone();
                 Entry::entry_replaced_with(&existing_entry, &merged_entry);
                 log.events.push(MergeEvent {
@@ -532,10 +524,9 @@ impl Database {
             // The entry doesn't exist in the destination, we create it
             // let new_entry = other_entry.to_owned().clone();
             let new_entry = other_entry.borrow().duplicate();
-            let new_entry_parent_group = match with_node::<Group, _, _>(&self.root, |root| root.find_group(current_group_path)).unwrap() {
-                Some(g) => g,
-                None => return Err(MergeError::FindGroupError(current_group_path.clone())),
-            };
+            let new_entry_parent_group =
+                Group::find_group(&self.root, current_group_path).ok_or(MergeError::FindGroupError(current_group_path.clone()))?;
+
             // new_entry_parent_group.add_child(new_entry.clone());
             group_add_child(&new_entry_parent_group, new_entry.clone(), 0).unwrap();
             // TODO should we update the time info for the entry?
@@ -561,9 +552,8 @@ impl Database {
                     existing_group_location.push(other_group_uuid);
                     // The group already exists but is not at the right location. We might have to
                     // relocate it.
-                    let existing_group = with_node::<Group, _, _>(&self.root, |root| root.find_group(&existing_group_location))
-                        .unwrap()
-                        .unwrap();
+                    let existing_group = Group::find_group(&self.root, &existing_group_location)
+                        .ok_or(MergeError::FindGroupError(existing_group_location))?;
                     let existing_group_location_changed =
                         match with_node::<Group, _, _>(&existing_group, |g| g.get_times().get_location_changed()).unwrap() {
                             Some(t) => t,
@@ -614,10 +604,8 @@ impl Database {
                 event_type: MergeEventType::GroupCreated,
                 node_uuid: new_group.borrow().get_uuid(),
             });
-            let new_group_parent_group = match with_node::<Group, _, _>(&self.root, |r| r.find_group(current_group_path)).unwrap() {
-                Some(g) => g,
-                None => return Err(MergeError::FindGroupError(current_group_path.clone())),
-            };
+            let new_group_parent_group =
+                Group::find_group(&self.root, current_group_path).ok_or(MergeError::FindGroupError(current_group_path.clone()))?;
             with_node_mut::<Group, _, _>(&new_group_parent_group, |g| g.add_child(new_group, 0)).unwrap();
             let new_merge_log = self.merge_group(&new_group_location, other_group, is_in_deleted_group)?;
             log.append(&new_merge_log);
@@ -632,20 +620,14 @@ impl Database {
         to: &NodeLocation,
         new_location_changed_timestamp: NaiveDateTime,
     ) -> Result<(), MergeError> {
-        let source_group = match with_node::<Group, _, _>(&self.root, |root| root.find_group(from)).unwrap() {
-            Some(g) => g,
-            None => return Err(MergeError::FindGroupError(from.to_vec())),
-        };
+        let source_group = Group::find_group(&self.root, from).ok_or(MergeError::FindGroupError(from.clone()))?;
         let relocated_node = with_node_mut::<Group, _, _>(&source_group, |s| s.remove_node(node_uuid)).unwrap()?;
         relocated_node
             .borrow_mut()
             .get_times_mut()
             .set_location_changed(Some(new_location_changed_timestamp));
 
-        let destination_group = match with_node::<Group, _, _>(&self.root, |root| root.find_group(to)).unwrap() {
-            Some(g) => g,
-            None => return Err(MergeError::FindGroupError(to.to_vec())),
-        };
+        let destination_group = Group::find_group(&self.root, to).ok_or(MergeError::FindGroupError(to.clone()))?;
         group_add_child(&destination_group, relocated_node, 0).unwrap();
         Ok(())
     }

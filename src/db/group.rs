@@ -245,58 +245,57 @@ impl Group {
     /// let mut file = File::open("tests/resources/test_db_with_password.kdbx").unwrap();
     /// let db = Database::open(&mut file, DatabaseKey::new().with_password("demopass")).unwrap();
     ///
-    /// let e = with_node::<Group, _, _>(&db.root, |root| root.get(&["General", "Sample Entry #2"]).unwrap()).unwrap();
+    /// let e = Group::get(&db.root, &["General", "Sample Entry #2"]).unwrap();
     /// with_node::<Entry, _, _>(&e, |e| {
     ///     println!("User: {}", e.get_username().unwrap());
     /// });
     /// ```
-    pub fn get(&self, path: &[&str]) -> Option<NodePtr> {
-        self.get_internal(path, SearchField::Title)
+    pub fn get(group: &NodePtr, path: &[&str]) -> Option<NodePtr> {
+        Self::get_internal(group, path, SearchField::Title)
     }
 
     #[cfg(any(test, feature = "_merge"))]
-    pub(crate) fn get_by_uuid<T: AsRef<str>>(&self, path: &[T]) -> Option<NodePtr> {
-        self.get_internal(path, SearchField::Uuid)
+    pub(crate) fn get_by_uuid<T: AsRef<str>>(group: &NodePtr, path: &[T]) -> Option<NodePtr> {
+        Self::get_internal(group, path, SearchField::Uuid)
     }
 
-    fn get_internal<T: AsRef<str>>(&self, path: &[T], search_field: SearchField) -> Option<NodePtr> {
+    fn get_internal<T: AsRef<str>>(group: &NodePtr, path: &[T], search_field: SearchField) -> Option<NodePtr> {
         if path.is_empty() {
-            let root = self.weak_self.as_ref()?.upgrade()?;
-            // log::error!("Empty path provided to get_internal");
-            Some(root)
+            Some(group.clone())
         } else if path.len() == 1 {
-            self.children
+            group_get_children(group)
+                .unwrap_or_default()
                 .iter()
                 .find_map(|node| match search_field.matches(node, path[0].as_ref()) {
-                    true => Some(node.into()),
+                    true => Some(node.clone()),
                     false => None,
                 })
         } else {
             let head = path[0].as_ref();
             let tail = &path[1..path.len()];
-            let head_group = self.children.iter().find_map(|node| {
+            let head_group = group_get_children(group).unwrap_or_default().iter().find_map(|node| {
                 if node_is_group(node) && search_field.matches(node, head) {
-                    Some(NodePtr::from(node))
+                    Some(node.clone())
                 } else {
                     None
                 }
             })?;
 
-            with_node::<Group, _, _>(&head_group, |g| g.get_internal(tail, search_field)).unwrap()
+            Self::get_internal(&head_group, tail, search_field)
         }
     }
 
     #[cfg(feature = "_merge")]
-    pub(crate) fn find_group(&self, path: &NodeLocation) -> Option<NodePtr> {
+    pub(crate) fn find_group(group: &NodePtr, path: &NodeLocation) -> Option<NodePtr> {
         let path: Vec<String> = path.iter().map(|p| p.to_string()).collect();
-        let node_ref = self.get_by_uuid(&path)?;
+        let node_ref = Self::get_by_uuid(group, &path)?;
         if node_is_group(&node_ref) { Some(node_ref) } else { None }
     }
 
     #[cfg(feature = "_merge")]
-    pub(crate) fn find_entry(&self, path: &NodeLocation) -> Option<NodePtr> {
+    pub(crate) fn find_entry(group: &NodePtr, path: &NodeLocation) -> Option<NodePtr> {
         let path: Vec<String> = path.iter().map(|p| p.to_string()).collect();
-        let node_ref = self.get_by_uuid(&path)?;
+        let node_ref = Self::get_by_uuid(group, &path)?;
         if node_is_entry(&node_ref) { Some(node_ref) } else { None }
     }
 
@@ -1082,13 +1081,10 @@ mod group_tests {
         group_add_child(&general_group, sample_entry, 0).unwrap();
         group_add_child(&db.root, general_group, 0).unwrap();
 
-        with_node::<Group, _, _>(&db.root, |g| {
-            assert!(g.get(&["General", "Sample Entry #2"]).is_some());
-            assert!(g.get(&["General"]).is_some());
-            assert!(g.get(&["Invalid Group"]).is_none());
-            assert!(g.get(&[]).is_some());
-        })
-        .unwrap();
+        assert!(Group::get(&db.root, &["General", "Sample Entry #2"]).is_some());
+        assert!(Group::get(&db.root, &["General"]).is_some());
+        assert!(Group::get(&db.root, &["Invalid Group"]).is_none());
+        assert!(Group::get(&db.root, &[]).is_some());
     }
 
     #[test]
@@ -1111,13 +1107,10 @@ mod group_tests {
         let invalid_path: [&str; 1] = [invalid_uuid.as_ref()];
         let empty_path: [&str; 0] = [];
 
-        with_node::<Group, _, _>(&db.root, |g| {
-            assert!(g.get_by_uuid(&group_path).is_some());
-            assert!(g.get_by_uuid(&entry_path).is_some());
-            assert!(g.get_by_uuid(&invalid_path).is_none());
-            assert!(g.get_by_uuid(&empty_path).is_some());
-        })
-        .unwrap();
+        assert!(Group::get_by_uuid(&db.root, &group_path).is_some());
+        assert!(Group::get_by_uuid(&db.root, &entry_path).is_some());
+        assert!(Group::get_by_uuid(&db.root, &invalid_path).is_none());
+        assert!(Group::get_by_uuid(&db.root, &empty_path).is_some());
 
         // Testing with owned versions of the UUIDs.
         let group_path = vec![general_group_uuid.clone()];
@@ -1125,12 +1118,9 @@ mod group_tests {
         let invalid_path = vec![invalid_uuid.clone()];
         let empty_path: Vec<String> = vec![];
 
-        with_node::<Group, _, _>(&db.root, |g| {
-            assert!(g.get_by_uuid(&group_path).is_some());
-            assert!(g.get_by_uuid(&entry_path).is_some());
-            assert!(g.get_by_uuid(&invalid_path).is_none());
-            assert!(g.get_by_uuid(&empty_path).is_some());
-        })
-        .unwrap();
+        assert!(Group::get_by_uuid(&db.root, &group_path).is_some());
+        assert!(Group::get_by_uuid(&db.root, &entry_path).is_some());
+        assert!(Group::get_by_uuid(&db.root, &invalid_path).is_none());
+        assert!(Group::get_by_uuid(&db.root, &empty_path).is_some());
     }
 }

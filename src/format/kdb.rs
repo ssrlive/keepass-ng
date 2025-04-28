@@ -231,15 +231,10 @@ fn parse_entries(root: &NodePtr, gid_map: &GidMap, header_num_entries: u32, data
                     .map(std::string::String::as_str)
                     .collect();
 
-                with_node::<Group, _, _>(root, |root| {
-                    if let Some(group) = root.get(group_path.as_slice()) {
-                        with_node_mut::<Group, _, _>(&group, |group| {
-                            let count = group.get_children().len();
-                            group.add_child(rc_refcell_node(entry), count);
-                            Ok::<(), DatabaseIntegrityError>(())
-                        })
-                        .ok_or(DatabaseIntegrityError::IncompleteKDBGroup)??;
-                    }
+                let group = Group::get(root, group_path.as_slice()).ok_or(DatabaseIntegrityError::IncompleteKDBGroup)?;
+                with_node_mut::<Group, _, _>(&group, |group| {
+                    let count = group.get_children().len();
+                    group.add_child(rc_refcell_node(entry), count);
                     Ok::<(), DatabaseIntegrityError>(())
                 })
                 .ok_or(DatabaseIntegrityError::IncompleteKDBGroup)??;
