@@ -292,10 +292,28 @@ impl Entry {
         self.update_history();
     }
 
-    fn set_unprotected_field_pair(&mut self, field_name: &str, field_value: Option<&str>) {
+    pub(crate) fn set_unprotected_field_pair(&mut self, field_name: &str, field_value: Option<&str>) {
         if let Some(field_value) = field_value {
-            self.fields
-                .insert(field_name.to_string(), Value::Unprotected(field_value.to_string()));
+            let v = Value::Unprotected(field_value.to_string());
+            self.fields.insert(field_name.to_string(), v);
+        } else {
+            self.fields.remove(field_name);
+        }
+    }
+
+    pub(crate) fn set_protected_field_pair<T: AsRef<[u8]>>(&mut self, field_name: &str, field_value: Option<T>) {
+        if let Some(field_value) = field_value {
+            let v = Value::Protected(SecStr::new(field_value.as_ref().to_vec()));
+            self.fields.insert(field_name.to_string(), v);
+        } else {
+            self.fields.remove(field_name);
+        }
+    }
+
+    pub(crate) fn set_binary_field_pair<T: AsRef<[u8]>>(&mut self, field_name: &str, field_value: Option<T>) {
+        if let Some(field_value) = field_value {
+            let v = Value::Bytes(field_value.as_ref().to_vec());
+            self.fields.insert(field_name.to_string(), v);
         } else {
             self.fields.remove(field_name);
         }
@@ -357,8 +375,7 @@ impl<'a> Entry {
     /// Convenience method for setting a TOTP to this entry
     #[cfg(feature = "totp")]
     pub fn set_otp(&mut self, value: &str) {
-        self.fields.insert("otp".to_string(), Value::Protected(value.as_bytes().into()));
-        // self.set_unprotected_field_pair("otp", Some(value));
+        self.set_protected_field_pair("otp", Some(value.as_bytes()));
     }
 
     /// Convenience method for getting the raw value of the 'otp' field
@@ -415,12 +432,7 @@ impl<'a> Entry {
     }
 
     pub fn set_password(&mut self, password: Option<&str>) {
-        if let Some(password) = password {
-            self.fields
-                .insert("Password".to_string(), Value::Protected(password.as_bytes().into()));
-        } else {
-            self.fields.remove("Password");
-        }
+        self.set_protected_field_pair("Password", password.map(|p| p.as_bytes()));
     }
 
     /// Convenience method for getting the value of the 'URL' field
@@ -624,22 +636,16 @@ impl History {
 
 #[cfg(test)]
 mod entry_tests {
-    use super::{Entry, Node, Value};
-    use secstr::SecStr;
+    use super::{Entry, Node};
     use std::{thread, time};
 
     #[test]
     fn byte_values() {
         let mut entry = Entry::default();
-        entry.fields.insert("a-bytes".to_string(), Value::Bytes(vec![1, 2, 3]));
+        entry.set_binary_field_pair("a-bytes", Some(&[1, 2, 3]));
 
-        entry
-            .fields
-            .insert("a-unprotected".to_string(), Value::Unprotected("asdf".to_string()));
-
-        entry
-            .fields
-            .insert("a-protected".to_string(), Value::Protected(SecStr::new("asdf".as_bytes().to_vec())));
+        entry.set_unprotected_field_pair("a-unprotected", Some("asdf"));
+        entry.set_protected_field_pair("a-protected", Some("asdf".as_bytes()));
 
         assert_eq!(entry.get_bytes("a-bytes"), Some(&[1, 2, 3][..]));
         assert_eq!(entry.get_bytes("a-unprotected"), None);
@@ -655,7 +661,7 @@ mod entry_tests {
         let mut entry = Entry::default();
         let mut last_modification_time = entry.times.get_last_modification().unwrap();
 
-        entry.fields.insert("Username".to_string(), Value::Unprotected("user".to_string()));
+        entry.set_username(Some("user"));
         // Making sure to wait 1 sec before update the history, to make
         // sure that we get a different modification timestamp.
         thread::sleep(time::Duration::from_secs(1));
@@ -714,12 +720,9 @@ mod entry_tests {
     #[test]
     fn totp() {
         let mut entry = Entry::default();
-        entry.fields.insert(
-            "otp".to_string(),
-            Value::Unprotected(
-                "otpauth://totp/ACME%20Co:john.doe@email.com?secret=HXDMVJECJJWSRB3HWIZR4IFUGFTMXBOZ&issuer=ACME%20Co&algorithm=SHA1&digits=6&period=30"
-                    .to_string(),
-            ),
+        entry.set_protected_field_pair(
+            "otp",
+            Some("otpauth://totp/ACME%20Co:john.doe@email.com?secret=HXDMVJECJJWSRB3HWIZR4IFUGFTMXBOZ&issuer=ACME%20Co&algorithm=SHA1&digits=6&period=30".as_bytes()),
         );
 
         assert!(entry.get_otp().is_ok());
@@ -728,6 +731,8 @@ mod entry_tests {
     #[cfg(feature = "serialization")]
     #[test]
     fn serialization() {
+        use super::Value;
+        use secstr::SecStr;
         assert_eq!(
             serde_json::to_string(&Value::Bytes(vec![65, 66, 67])).unwrap(),
             "[65,66,67]".to_string()

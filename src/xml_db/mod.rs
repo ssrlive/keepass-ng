@@ -49,11 +49,8 @@ mod tests {
         let mut entry = Entry::default();
 
         entry.set_title(Some("ASDF"));
-        entry.fields.insert("UserName".to_string(), Value::Unprotected("ghj".to_string()));
-        entry.fields.insert(
-            "Password".to_string(),
-            Value::Protected(std::str::from_utf8(b"klmno").unwrap().into()),
-        );
+        entry.set_username(Some("ghj"));
+        entry.set_password(Some("klmno"));
         entry.tags.push("test".to_string());
         entry.tags.push("keepass-ng".to_string());
         entry.times.set_expires(true);

@@ -202,15 +202,11 @@ fn parse_entries(root: &NodePtr, gid_map: &GidMap, header_num_entries: u32, data
             }
             0x0004 | 0x0005 | 0x0006 | 0x0008 | 0x000d => {
                 // Title/URL/UserName/Additional/BinaryDesc
-                entry
-                    .fields
-                    .insert(String::from(entry_name(field_type)), Value::Unprotected(from_utf8(field_value)));
+                entry.set_unprotected_field_pair(entry_name(field_type), Some(&from_utf8(field_value)));
             }
             0x0007 => {
                 // Password
-                entry
-                    .fields
-                    .insert(String::from("Password"), Value::Protected(from_utf8(field_value).into()));
+                entry.set_protected_field_pair("Password", Some(field_value));
             }
             0x0009..=0x000c => {
                 // Creation/LastMod/LastAccess/Expire
@@ -218,7 +214,7 @@ fn parse_entries(root: &NodePtr, gid_map: &GidMap, header_num_entries: u32, data
             }
             0x000e => {
                 // BinaryData
-                entry.fields.insert(String::from("BinaryData"), Value::Bytes(field_value.to_vec()));
+                entry.set_binary_field_pair("BinaryData", Some(field_value));
             }
             0xffff => {
                 ensure_length(field_type, field_size, 0)?;
