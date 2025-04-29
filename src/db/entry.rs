@@ -407,11 +407,12 @@ impl<'a> Entry {
         self.tags.as_mut()
     }
 
+    #[rustfmt::skip]
+    const EXCLUDED_FIELDS: [&'static str; 9] = ["Password", "BinaryData", "otp", "Title", "URL", "UserName", "Notes", "Additional", "BinaryDesc"];
+
     /// Set or remove additional attributes (custom string data)
     pub fn set_additional_attribute(&mut self, key: &str, value: Option<&str>) -> crate::Result<()> {
-        #[rustfmt::skip]
-        let excluded_fields = ["Password", "BinaryData", "otp", "Title", "URL", "UserName", "Notes", "Additional", "BinaryDesc"];
-        if excluded_fields.contains(&key) {
+        if Self::EXCLUDED_FIELDS.contains(&key) {
             return Err(format!("Cannot set additional attribute for field {}", key).into());
         }
         self.set_unprotected_field_pair(key, value);
@@ -420,6 +421,9 @@ impl<'a> Entry {
 
     /// Get an additional attribute (custom string data)
     pub fn get_additional_attribute(&self, key: &str) -> Option<&str> {
+        if Self::EXCLUDED_FIELDS.contains(&key) {
+            return None;
+        }
         self.get(key)
     }
 
