@@ -372,10 +372,15 @@ impl<'a> Entry {
         self.get_raw_otp_value().ok_or(TOTPError::NoRecord)?.parse()
     }
 
+    #[cfg(feature = "totp")]
+    pub fn set_otp(&mut self, otp: Option<&TOTP>) {
+        self.set_raw_otp_value(otp.map(|o| o.to_string()).as_deref());
+    }
+
     /// Convenience method for setting a TOTP to this entry
     #[cfg(feature = "totp")]
-    pub fn set_otp(&mut self, value: &str) {
-        self.set_protected_field_pair("otp", Some(value.as_bytes()));
+    pub fn set_raw_otp_value(&mut self, value: Option<&str>) {
+        self.set_protected_field_pair("otp", value);
     }
 
     /// Convenience method for getting the raw value of the 'otp' field
@@ -721,9 +726,8 @@ mod entry_tests {
     #[test]
     fn totp() {
         let mut entry = Entry::default();
-        entry.set_protected_field_pair(
-            "otp",
-            Some("otpauth://totp/ACME%20Co:john.doe@email.com?secret=HXDMVJECJJWSRB3HWIZR4IFUGFTMXBOZ&issuer=ACME%20Co&algorithm=SHA1&digits=6&period=30".as_bytes()),
+        entry.set_raw_otp_value(
+            Some("otpauth://totp/ACME%20Co:john.doe@email.com?secret=HXDMVJECJJWSRB3HWIZR4IFUGFTMXBOZ&issuer=ACME%20Co&algorithm=SHA1&digits=6&period=30"),
         );
 
         assert!(entry.get_otp().is_ok());
