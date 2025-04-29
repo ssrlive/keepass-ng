@@ -379,6 +379,7 @@ impl<'a> Entry {
     }
 
     /// Convenience method for getting the raw value of the 'otp' field
+    #[cfg(feature = "totp")]
     pub fn get_raw_otp_value(&'a self) -> Option<&'a str> {
         self.get("otp")
     }
