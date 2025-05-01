@@ -1,11 +1,11 @@
 use crate::db::{CustomData, IconId, Times, entry::Entry, node::*, rc_refcell_node};
 use uuid::Uuid;
 
-#[cfg(feature = "_merge")]
+#[cfg(feature = "merge")]
 use crate::db::merge::{MergeError, MergeEvent, MergeEventType, MergeLog};
 
 pub(crate) enum SearchField {
-    #[cfg(any(test, feature = "_merge"))]
+    #[cfg(any(test, feature = "merge"))]
     Uuid,
     Title,
 }
@@ -13,7 +13,7 @@ pub(crate) enum SearchField {
 impl SearchField {
     pub(crate) fn matches(&self, node: &NodePtr, field_value: &str) -> bool {
         match self {
-            #[cfg(any(test, feature = "_merge"))]
+            #[cfg(any(test, feature = "merge"))]
             SearchField::Uuid => node.borrow().get_uuid().to_string() == field_value,
             SearchField::Title => match node.borrow().get_title() {
                 Some(title) => title == field_value,
@@ -201,15 +201,9 @@ impl Group {
             return false;
         }
         self.children.iter().zip(other.children.iter()).all(|(a, b)| {
-            if let (Some(a), Some(b)) = (
-                a.borrow().as_any().downcast_ref::<Group>(),
-                b.borrow().as_any().downcast_ref::<Group>(),
-            ) {
+            if let (Some(a), Some(b)) = (a.borrow().downcast_ref::<Group>(), b.borrow().downcast_ref::<Group>()) {
                 a == b
-            } else if let (Some(a), Some(b)) = (
-                a.borrow().as_any().downcast_ref::<Entry>(),
-                b.borrow().as_any().downcast_ref::<Entry>(),
-            ) {
+            } else if let (Some(a), Some(b)) = (a.borrow().downcast_ref::<Entry>(), b.borrow().downcast_ref::<Entry>()) {
                 a == b
             } else {
                 false
@@ -250,7 +244,7 @@ impl Group {
         Self::get_internal(group, path, SearchField::Title)
     }
 
-    #[cfg(any(test, feature = "_merge"))]
+    #[cfg(any(test, feature = "merge"))]
     pub(crate) fn get_by_uuid<T: AsRef<str>>(group: &NodePtr, path: &[T]) -> Option<NodePtr> {
         Self::get_internal(group, path, SearchField::Uuid)
     }
@@ -281,14 +275,14 @@ impl Group {
         }
     }
 
-    #[cfg(feature = "_merge")]
+    #[cfg(feature = "merge")]
     pub(crate) fn find_group(group: &NodePtr, path: &[Uuid]) -> Option<NodePtr> {
         let path: Vec<String> = path.iter().map(|p| p.to_string()).collect();
         let node_ref = Self::get_by_uuid(group, &path)?;
         if node_is_group(&node_ref) { Some(node_ref) } else { None }
     }
 
-    #[cfg(feature = "_merge")]
+    #[cfg(feature = "merge")]
     pub(crate) fn find_entry(group: &NodePtr, path: &[Uuid]) -> Option<NodePtr> {
         let path: Vec<String> = path.iter().map(|p| p.to_string()).collect();
         let node_ref = Self::get_by_uuid(group, &path)?;
@@ -315,7 +309,7 @@ impl Group {
         response
     }
 
-    #[cfg(feature = "_merge")]
+    #[cfg(feature = "merge")]
     pub(crate) fn remove_node(&mut self, uuid: Uuid) -> Result<NodePtr, MergeError> {
         let mut removed_node = None;
         self.children.retain(|c| {
@@ -331,7 +325,7 @@ impl Group {
         Ok(node)
     }
 
-    #[cfg(feature = "_merge")]
+    #[cfg(feature = "merge")]
     pub(crate) fn find_node_location(parent: &NodePtr, id: Uuid) -> Option<Vec<Uuid>> {
         let parent_uuid = parent.borrow().get_uuid();
         let mut current_location = vec![parent_uuid];
@@ -356,7 +350,7 @@ impl Group {
         None
     }
 
-    #[cfg(feature = "_merge")]
+    #[cfg(feature = "merge")]
     pub(crate) fn merge_with(group: &NodePtr, other: &NodePtr) -> Result<MergeLog, MergeError> {
         let mut log = MergeLog::default();
 
@@ -364,9 +358,8 @@ impl Group {
 
         let other = other.borrow();
         let other = other
-            .as_any()
             .downcast_ref::<Group>()
-            .ok_or(MergeError::GenericError("Could not downcast other group to group".to_string()))?;
+            .ok_or(MergeError::GenericError("Could not downcast node to group".to_string()))?;
         let source_last_modification = match other.times.get_last_modification() {
             Some(t) => t,
             None => {
@@ -384,7 +377,7 @@ impl Group {
             }
         };
         if destination_last_modification == source_last_modification {
-            if group.borrow().as_any().downcast_ref::<Group>().unwrap()._has_diverged_from(other) {
+            if group.borrow().downcast_ref::<Group>().unwrap()._has_diverged_from(other) {
                 // This should never happen.
                 // This means that a group was updated without updating the last modification
                 // timestamp.
@@ -421,7 +414,7 @@ impl Group {
         Ok(log)
     }
 
-    #[cfg(feature = "_merge")]
+    #[cfg(feature = "merge")]
     pub(crate) fn _has_diverged_from(&self, other: &Group) -> bool {
         let new_times = Times::new();
         let mut self_purged = self.clone();
@@ -439,19 +432,19 @@ impl Group {
         self.children = children.into_iter().map(|c| c.into()).collect();
     }
 
-    #[cfg(feature = "_merge")]
+    #[cfg(feature = "merge")]
     fn replace_entry(root: &NodePtr, entry: &NodePtr) -> Option<()> {
         let uuid = entry.borrow().get_uuid();
         let target_entry = search_node_by_uuid_with_specific_type::<Entry>(root, uuid);
         Entry::entry_replaced_with(target_entry.as_ref()?, entry)
     }
 
-    #[cfg(feature = "_merge")]
+    #[cfg(feature = "merge")]
     pub(crate) fn has_group(&self, uuid: Uuid) -> bool {
         self.children.iter().any(|n| n.borrow().get_uuid() == uuid && node_is_group(n))
     }
 
-    #[cfg(feature = "_merge")]
+    #[cfg(feature = "merge")]
     fn get_or_create_group(group: &NodePtr, location: &[Uuid], create_groups: bool) -> crate::Result<NodePtr> {
         if location.is_empty() {
             return Err("Empty location.".into());
@@ -502,7 +495,7 @@ impl Group {
         }
     }
 
-    #[cfg(feature = "_merge")]
+    #[cfg(feature = "merge")]
     pub(crate) fn insert_entry(group: &NodePtr, entry: NodePtr, location: &[Uuid]) -> crate::Result<()> {
         let group = Self::get_or_create_group(group, location, true)?;
         with_node_mut::<Group, _, _>(&group, |g| {
@@ -514,7 +507,7 @@ impl Group {
         Ok(())
     }
 
-    #[cfg(feature = "_merge")]
+    #[cfg(feature = "merge")]
     pub(crate) fn remove_entry(group: &NodePtr, uuid: Uuid, location: &[Uuid]) -> crate::Result<NodePtr> {
         let group = Self::get_or_create_group(group, location, false)?;
 
@@ -551,7 +544,7 @@ impl Group {
         }
     }
 
-    #[cfg(feature = "_merge")]
+    #[cfg(feature = "merge")]
     pub(crate) fn find_entry_location(&self, uuid: Uuid) -> Option<Vec<Uuid>> {
         let mut current_location = vec![self.uuid];
         for node in &self.children {
@@ -559,7 +552,7 @@ impl Group {
                 if node.borrow().get_uuid() == uuid {
                     return Some(current_location);
                 }
-            } else if let Some(g) = node.borrow().as_any().downcast_ref::<Group>() {
+            } else if let Some(g) = node.borrow().downcast_ref::<Group>() {
                 if let Some(mut location) = g.find_entry_location(uuid) {
                     current_location.append(&mut location);
                     return Some(current_location);
@@ -569,7 +562,7 @@ impl Group {
         None
     }
 
-    #[cfg(feature = "_merge")]
+    #[cfg(feature = "merge")]
     pub(crate) fn add_entry(parent: &NodePtr, entry: NodePtr, location: &[Uuid]) -> crate::Result<()> {
         if location.is_empty() {
             panic!("TODO handle this with a Response.");
@@ -611,7 +604,7 @@ impl Group {
     }
 
     /// Merge this group with another group
-    #[cfg(feature = "_merge")]
+    #[cfg(feature = "merge")]
     #[allow(clippy::too_many_lines)]
     pub fn merge(root: &NodePtr, other_group: &NodePtr) -> crate::Result<MergeLog> {
         let mut log = MergeLog::default();
@@ -731,7 +724,7 @@ impl Group {
 
     // Recursively get all the entries in the group, along with their
     // location.
-    #[cfg(feature = "_merge")]
+    #[cfg(feature = "merge")]
     pub(crate) fn get_all_entries(&self, current_location: &[Uuid]) -> Vec<(NodePtr, Vec<Uuid>)> {
         let mut response: Vec<(NodePtr, Vec<Uuid>)> = vec![];
         let mut new_location = current_location.to_owned();
@@ -757,10 +750,10 @@ mod group_tests {
     use crate::db::{rc_refcell_node, *};
     use std::{thread, time};
 
-    #[cfg(feature = "_merge")]
+    #[cfg(feature = "merge")]
     use crate::db::entry::entry_set_field_and_commit;
 
-    #[cfg(feature = "_merge")]
+    #[cfg(feature = "merge")]
     #[test]
     fn test_merge_idempotence() {
         let destination_group = rc_refcell_node(Group::new("group1"));
@@ -802,7 +795,7 @@ mod group_tests {
         assert!(node_is_equals_to(&destination_group_just_after_merge, &destination_group));
     }
 
-    #[cfg(feature = "_merge")]
+    #[cfg(feature = "merge")]
     #[test]
     fn test_merge_add_new_entry() {
         let destination_group = rc_refcell_node(Group::new("group1"));
@@ -830,7 +823,7 @@ mod group_tests {
         assert_eq!(group_get_children(&destination_group).unwrap().len(), 1);
     }
 
-    #[cfg(feature = "_merge")]
+    #[cfg(feature = "merge")]
     #[test]
     fn test_merge_add_new_non_root_entry() {
         let destination_group = rc_refcell_node(Group::new("group1"));
@@ -857,7 +850,7 @@ mod group_tests {
         assert_eq!(created_entry_location.len(), 2);
     }
 
-    #[cfg(feature = "_merge")]
+    #[cfg(feature = "merge")]
     #[test]
     fn test_merge_add_new_entry_new_group() {
         let destination_group = rc_refcell_node(Group::new("group1"));
@@ -883,7 +876,7 @@ mod group_tests {
         });
     }
 
-    #[cfg(feature = "_merge")]
+    #[cfg(feature = "merge")]
     #[test]
     fn test_merge_entry_relocation_existing_group() {
         let entry = rc_refcell_node(Entry::default());
@@ -938,7 +931,7 @@ mod group_tests {
         assert_eq!(moved_entry_location[1], destination_sub_group2_uuid);
     }
 
-    #[cfg(feature = "_merge")]
+    #[cfg(feature = "merge")]
     #[test]
     fn test_merge_entry_relocation_new_group() {
         let entry = rc_refcell_node(Entry::default());
@@ -980,7 +973,7 @@ mod group_tests {
         assert_eq!(created_entry_location[1], uuid2);
     }
 
-    #[cfg(feature = "_merge")]
+    #[cfg(feature = "merge")]
     #[test]
     fn test_update_in_destination_no_conflict() {
         let destination_group = rc_refcell_node(Group::new("group1"));
@@ -1004,7 +997,7 @@ mod group_tests {
         assert_eq!(entry.borrow().get_title(), Some("entry1_updated"));
     }
 
-    #[cfg(feature = "_merge")]
+    #[cfg(feature = "merge")]
     #[test]
     fn test_update_in_source_no_conflict() {
         let destination_group = rc_refcell_node(Group::new("group1"));
@@ -1027,7 +1020,7 @@ mod group_tests {
         assert_eq!(entry.borrow().get_title(), Some("entry1_updated"));
     }
 
-    #[cfg(feature = "_merge")]
+    #[cfg(feature = "merge")]
     #[test]
     fn test_update_with_conflicts() {
         let destination_group = rc_refcell_node(Group::new("group1"));

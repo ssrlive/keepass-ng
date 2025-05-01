@@ -1,4 +1,4 @@
-#[cfg(feature = "_merge")]
+#[cfg(feature = "merge")]
 use crate::db::merge::{MergeError, MergeLog};
 #[cfg(feature = "totp")]
 use crate::db::otp::{TOTP, TOTPError};
@@ -140,7 +140,7 @@ impl Node for Entry {
     }
 }
 
-#[cfg(feature = "_merge")]
+#[cfg(feature = "merge")]
 #[allow(dead_code)]
 pub fn entry_set_field_and_commit(entry: &NodePtr, field_name: &str, field_value: &str) -> crate::Result<()> {
     with_node_mut::<Entry, _, _>(entry, |entry| {
@@ -160,7 +160,7 @@ impl Entry {
         self.history = None;
     }
 
-    #[cfg(feature = "_merge")]
+    #[cfg(feature = "merge")]
     pub(crate) fn merge(entry: &NodePtr, other: &NodePtr) -> Result<(Option<NodePtr>, MergeLog), MergeError> {
         let mut log = MergeLog::default();
         let source_last_modification = match with_node::<Entry, _, _>(other, |e| e.get_times().get_last_modification()).unwrap() {
@@ -206,7 +206,7 @@ impl Entry {
         Ok((Some(rc_refcell_node(merged_entry)), entry_merge_log))
     }
 
-    #[cfg(feature = "_merge")]
+    #[cfg(feature = "merge")]
     pub(crate) fn merge_history(&self, other: &Entry) -> Result<(Entry, MergeLog), MergeError> {
         let mut log = MergeLog::default();
         let mut source_history = match &other.history {
@@ -239,7 +239,7 @@ impl Entry {
     }
 
     // Convenience function used in when merging two entries
-    #[cfg(feature = "_merge")]
+    #[cfg(feature = "merge")]
     pub(crate) fn _has_diverged_from(&self, other_entry: &Entry) -> bool {
         let new_times = Times::default();
 
@@ -285,7 +285,7 @@ impl Entry {
     // 2. We wait a second before commiting the changes so that the timestamp is not the same
     //    as it previously was. This is necessary since the timestamps in the KDBX format
     //    do not preserve the msecs.
-    #[cfg(feature = "_merge")]
+    #[cfg(feature = "merge")]
     pub(crate) fn set_field_and_commit(&mut self, field_name: &str, field_value: &str) {
         self.set_unprotected_field_pair(field_name, Some(field_value));
         std::thread::sleep(std::time::Duration::from_secs(1));
@@ -582,7 +582,7 @@ impl History {
 
     // Determines if the entries of the history are
     // ordered by last modification time.
-    #[cfg(all(test, feature = "_merge"))]
+    #[cfg(all(test, feature = "merge"))]
     pub(crate) fn is_ordered(&self) -> bool {
         let mut last_modification_time: Option<chrono::NaiveDateTime> = None;
         for entry in &self.entries {
@@ -601,7 +601,7 @@ impl History {
     }
 
     // Merge both histories together.
-    #[cfg(feature = "_merge")]
+    #[cfg(feature = "merge")]
     pub(crate) fn merge_with(&mut self, other: &History) -> Result<MergeLog, MergeError> {
         let mut log = MergeLog::default();
         let mut new_history_entries: HashMap<chrono::NaiveDateTime, Entry> = HashMap::new();

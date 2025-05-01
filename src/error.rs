@@ -51,7 +51,7 @@ pub enum Error {
     #[error("ParseIconIdError {}", icon_id)]
     ParseIconIdError { icon_id: usize },
 
-    #[cfg(feature = "_merge")]
+    #[cfg(feature = "merge")]
     #[error("MergeError {0}")]
     MergeError(#[from] crate::db::merge::MergeError),
 

@@ -104,7 +104,7 @@ where
     T: 'static,
     F: FnOnce(&T) -> R,
 {
-    node.borrow().as_any().downcast_ref::<T>().map(f)
+    node.borrow().downcast_ref::<T>().map(f)
 }
 
 /// Get a mutable reference to a node if it is of the specified type
@@ -127,7 +127,7 @@ where
     T: 'static,
     F: FnOnce(&mut T) -> R,
 {
-    node.borrow_mut().as_any_mut().downcast_mut::<T>().map(f)
+    node.borrow_mut().downcast_mut::<T>().map(f)
 }
 
 pub fn node_is_entry(entry: &NodePtr) -> bool {
@@ -191,7 +191,7 @@ where
 }
 
 #[cfg(feature = "serialization")]
-pub trait Node: as_any::AsAny + std::fmt::Debug + erased_serde::Serialize {
+pub trait Node: std::any::Any + std::fmt::Debug + erased_serde::Serialize {
     fn duplicate(&self) -> NodePtr;
     fn get_uuid(&self) -> Uuid;
     fn set_uuid(&mut self, uuid: Uuid);
@@ -220,7 +220,7 @@ pub trait Node: as_any::AsAny + std::fmt::Debug + erased_serde::Serialize {
 erased_serde::serialize_trait_object!(Node);
 
 #[cfg(not(feature = "serialization"))]
-pub trait Node: as_any::AsAny + std::fmt::Debug {
+pub trait Node: std::any::Any + std::fmt::Debug {
     fn duplicate(&self) -> NodePtr;
     fn get_uuid(&self) -> Uuid;
     fn set_uuid(&mut self, uuid: Uuid);
@@ -235,6 +235,18 @@ pub trait Node: as_any::AsAny + std::fmt::Debug {
     fn get_times_mut(&mut self) -> &mut Times;
     fn get_parent(&self) -> Option<Uuid>;
     fn set_parent(&mut self, parent: Option<Uuid>);
+}
+
+impl dyn Node {
+    pub fn downcast_ref<T: 'static>(&self) -> Option<&T> {
+        (self as &dyn std::any::Any).downcast_ref()
+    }
+}
+
+impl dyn Node {
+    pub fn downcast_mut<T: 'static>(&mut self) -> Option<&mut T> {
+        (self as &mut dyn std::any::Any).downcast_mut()
+    }
 }
 
 pub struct NodeIterator {

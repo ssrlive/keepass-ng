@@ -3,7 +3,7 @@
 pub(crate) mod entry;
 pub(crate) mod group;
 pub(crate) mod iconid;
-#[cfg(feature = "_merge")]
+#[cfg(feature = "merge")]
 pub(crate) mod merge;
 pub(crate) mod meta;
 pub(crate) mod node;
@@ -23,10 +23,10 @@ use uuid::Uuid;
 #[cfg(feature = "totp")]
 pub use crate::db::otp::{TOTP, TOTPAlgorithm};
 
-#[cfg(feature = "_merge")]
+#[cfg(feature = "merge")]
 use crate::db::merge::{MergeError, MergeEvent, MergeEventType, MergeLog};
 
-#[cfg(feature = "_merge")]
+#[cfg(feature = "merge")]
 use std::collections::VecDeque;
 
 use crate::{
@@ -263,7 +263,7 @@ impl Database {
     /// Merge this database with another version of this same database.
     /// This function will use the UUIDs to detect that entries and groups are
     /// the same.
-    #[cfg(feature = "_merge")]
+    #[cfg(feature = "merge")]
     pub fn merge(&mut self, other: &Database) -> Result<MergeLog, MergeError> {
         let mut log = MergeLog::default();
         log.append(&self.merge_group(&[], &other.root, false)?);
@@ -271,7 +271,7 @@ impl Database {
         Ok(log)
     }
 
-    #[cfg(feature = "_merge")]
+    #[cfg(feature = "merge")]
     fn merge_deletions(&mut self, other: &Database) -> Result<MergeLog, MergeError> {
         // Utility function to search for a UUID in the VecDeque of deleted objects.
         let is_in_deleted_queue = |uuid: Uuid, deleted_groups_queue: &VecDeque<DeletedObject>| -> bool {
@@ -307,7 +307,7 @@ impl Database {
                 None => {
                     log.warnings.push(format!(
                         "Entry {} did not have a last modification timestamp",
-                        entry.borrow().as_any().downcast_ref::<Entry>().unwrap().uuid
+                        entry.borrow().downcast_ref::<Entry>().unwrap().uuid
                     ));
                     Times::now()
                 }
@@ -372,7 +372,7 @@ impl Database {
                 None => {
                     log.warnings.push(format!(
                         "Group {} did not have a last modification timestamp",
-                        group.borrow().as_any().downcast_ref::<Group>().unwrap().uuid
+                        group.borrow().downcast_ref::<Group>().unwrap().uuid
                     ));
                     Times::now()
                 }
@@ -390,7 +390,7 @@ impl Database {
         Ok(log)
     }
 
-    #[cfg(feature = "_merge")]
+    #[cfg(feature = "merge")]
     pub(crate) fn find_node_location(root: &NodePtr, id: Uuid) -> Option<Vec<Uuid>> {
         // let root_uuid = root.borrow().get_uuid();
         // let mut current_location = vec![root_uuid];
@@ -419,7 +419,7 @@ impl Database {
         None
     }
 
-    #[cfg(feature = "_merge")]
+    #[cfg(feature = "merge")]
     fn merge_group(&self, current_group_path: &[Uuid], current_group: &NodePtr, is_in_deleted_group: bool) -> Result<MergeLog, MergeError> {
         let mut log = MergeLog::default();
         if let Some(destination_group_location) = Self::find_node_location(&self.root, current_group.borrow().get_uuid()) {
@@ -530,7 +530,7 @@ impl Database {
                 node_uuid: new_entry.borrow().get_uuid(),
             });
         }
-        for other_group in &current_group.borrow().as_any().downcast_ref::<Group>().unwrap().groups() {
+        for other_group in &current_group.borrow().downcast_ref::<Group>().unwrap().groups() {
             let mut new_group_location = current_group_path.to_owned();
             let other_group_uuid = other_group.borrow().get_uuid();
             new_group_location.push(other_group_uuid);
@@ -607,7 +607,7 @@ impl Database {
         }
         Ok(log)
     }
-    #[cfg(feature = "_merge")]
+    #[cfg(feature = "merge")]
     fn relocate_node(
         &self,
         node_uuid: Uuid,
@@ -628,15 +628,15 @@ impl Database {
     }
 }
 
-#[cfg(feature = "_merge")]
+#[cfg(feature = "merge")]
 pub(crate) fn has_diverged_from(node: &NodePtr, other_node: &NodePtr) -> bool {
-    if let Some(entry) = node.borrow().as_any().downcast_ref::<Entry>() {
-        if let Some(other_entry) = other_node.borrow().as_any().downcast_ref::<Entry>() {
+    if let Some(entry) = node.borrow().downcast_ref::<Entry>() {
+        if let Some(other_entry) = other_node.borrow().downcast_ref::<Entry>() {
             return entry._has_diverged_from(other_entry);
         }
     }
-    if let Some(group) = node.borrow().as_any().downcast_ref::<Group>() {
-        if let Some(other_group) = other_node.borrow().as_any().downcast_ref::<Group>() {
+    if let Some(group) = node.borrow().downcast_ref::<Group>() {
+        if let Some(other_group) = other_node.borrow().downcast_ref::<Group>() {
             return group._has_diverged_from(other_group);
         }
     }
