@@ -1,12 +1,12 @@
-#[cfg(feature = "merge")]
-use crate::db::merge::{MergeError, MergeLog};
 #[cfg(feature = "totp")]
 use crate::db::otp::{TOTP, TOTPError};
 use crate::db::{
     Color, CustomData, IconId, Times,
     node::{Node, NodePtr},
-    rc_refcell_node, with_node, with_node_mut,
+    rc_refcell_node,
 };
+#[cfg(feature = "merge")]
+use crate::db::{merge::MergeError, merge::MergeLog, with_node, with_node_mut};
 use secstr::SecStr;
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -319,32 +319,27 @@ impl Entry {
         }
     }
 
-    #[allow(dead_code)]
-    pub(crate) fn entry_replaced_with(entry: &NodePtr, other: &NodePtr) -> Option<()> {
+    #[cfg(feature = "merge")]
+    pub(crate) fn replaced_with(&mut self, other: &NodePtr) -> bool {
         let mut success = false;
-        with_node_mut::<Entry, _, _>(entry, |entry| {
-            with_node::<Entry, _, _>(other, |other| {
-                entry.uuid = other.uuid;
-                entry.fields = other.fields.clone();
-                entry.autotype = other.autotype.clone();
-                entry.tags = other.tags.clone();
-                entry.times = other.times.clone();
-                entry.custom_data = other.custom_data.clone();
-                entry.icon_id = other.icon_id;
-                entry.custom_icon_uuid = other.custom_icon_uuid;
-                entry.foreground_color = other.foreground_color;
-                entry.background_color = other.background_color;
-                entry.override_url = other.override_url.clone();
-                entry.quality_check = other.quality_check;
-                entry.history = other.history.clone();
-                // entry.parent = other.parent;
-                success = true;
-            });
+        with_node::<Entry, _, _>(other, |other| {
+            self.uuid = other.uuid;
+            self.fields = other.fields.clone();
+            self.autotype = other.autotype.clone();
+            self.tags = other.tags.clone();
+            self.times = other.times.clone();
+            self.custom_data = other.custom_data.clone();
+            self.icon_id = other.icon_id;
+            self.custom_icon_uuid = other.custom_icon_uuid;
+            self.foreground_color = other.foreground_color;
+            self.background_color = other.background_color;
+            self.override_url = other.override_url.clone();
+            self.quality_check = other.quality_check;
+            self.history = other.history.clone();
+            // self.parent = other.parent;
+            success = true;
         });
-        if !success {
-            return None;
-        }
-        Some(())
+        success
     }
 }
 

@@ -90,7 +90,7 @@ pub fn dump_kdbx4(db: &Database, db_key: &DatabaseKey, writer: &mut dyn Write) -
     .dump(&db.header_attachments, &mut payload)?;
 
     // after inner header is one XML document
-    crate::xml_db::dump::dump(db, &mut *inner_cipher, &mut payload)?;
+    db.dump(&mut *inner_cipher, &mut payload)?;
 
     let payload_compressed = db.config.compression_config.get_compression().compress(&payload)?;
 

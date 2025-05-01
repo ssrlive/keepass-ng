@@ -501,7 +501,7 @@ impl Database {
                 let existing_entry =
                     Group::find_entry(&self.root, &existing_entry_location).ok_or(MergeError::FindEntryError(existing_entry_location))?;
                 // *existing_entry = merged_entry.clone();
-                Entry::entry_replaced_with(&existing_entry, &merged_entry);
+                with_node_mut::<Entry, _, _>(&existing_entry, |e| e.replaced_with(&merged_entry)).unwrap();
                 log.events.push(MergeEvent {
                     event_type: MergeEventType::EntryUpdated,
                     node_uuid: merged_entry.borrow().get_uuid(),

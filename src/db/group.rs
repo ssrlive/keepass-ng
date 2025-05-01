@@ -433,10 +433,12 @@ impl Group {
     }
 
     #[cfg(feature = "merge")]
-    fn replace_entry(root: &NodePtr, entry: &NodePtr) -> Option<()> {
+    fn replace_entry(root: &NodePtr, entry: &NodePtr) -> bool {
         let uuid = entry.borrow().get_uuid();
-        let target_entry = search_node_by_uuid_with_specific_type::<Entry>(root, uuid);
-        Entry::entry_replaced_with(target_entry.as_ref()?, entry)
+        if let Some(target_entry) = search_node_by_uuid_with_specific_type::<Entry>(root, uuid) {
+            return with_node_mut::<Entry, _, _>(&target_entry, |e| e.replaced_with(entry)).unwrap_or(false);
+        }
+        false
     }
 
     #[cfg(feature = "merge")]
@@ -701,7 +703,7 @@ impl Group {
                     continue;
                 }
 
-                Group::replace_entry(root, &merged_entry).ok_or("Could not replace entry")?;
+                Group::replace_entry(root, &merged_entry);
 
                 log.events.push(MergeEvent {
                     event_type: MergeEventType::EntryUpdated,
