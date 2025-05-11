@@ -138,15 +138,15 @@ impl KDBX4OuterHeader {
         writer.write_u8(HEADER_KDF_PARAMS)?;
         writer.write_with_len(&vd_buffer)?;
 
-        writer.write_u8(HEADER_END)?;
-        writer.write_with_len(&[])?;
-
         if let Some(pcd) = &self.public_custom_data {
             let mut vd_buffer = Vec::new();
             pcd.dump(&mut vd_buffer)?;
             writer.write_u8(HEADER_PUBLIC_CUSTOM_DATA)?;
             writer.write_with_len(&vd_buffer)?;
         }
+
+        writer.write_u8(HEADER_END)?;
+        writer.write_with_len(&[])?;
 
         Ok(())
     }

@@ -898,11 +898,16 @@ mod database_tests {
     #[test]
     fn test_save() -> Result<()> {
         use crate::{
-            db::Group,
-            db::{group_add_child, rc_refcell_node},
+            db::{Group, group_add_child, rc_refcell_node},
+            variant_dictionary::VariantDictionary,
         };
 
-        let db = Database::new(DatabaseConfig::default());
+        let mut db = Database::new(DatabaseConfig::default());
+
+        let mut public_custom_data = VariantDictionary::new();
+        public_custom_data.set("example", 42);
+
+        db.config.public_custom_data = Some(public_custom_data);
 
         group_add_child(&db.root, rc_refcell_node(Entry::default()), 0).unwrap();
         group_add_child(&db.root, rc_refcell_node(Entry::default()), 1).unwrap();
