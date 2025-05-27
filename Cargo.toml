@@ -22,6 +22,53 @@ include = ["src/", "README.md", "LICENSE"]
 [package.metadata.docs.rs]
 all-features = true
 
+[[bin]]
+# parse a KeePass database and output as a JSON document
+name = "kp-dump-json"
+required-features = ["utilities"]
+
+[[bin]]
+# decrypt a KeePass database and output the inner XML document
+name = "kp-dump-xml"
+required-features = ["utilities"]
+
+[[bin]]
+# Purge the history items in the Database entries
+name = "kp-purge-history"
+required-features = ["utilities", "save_kdbx4"]
+
+[[bin]]
+# decrypt a KeePass database and show the contained data
+name = "kp-show-db"
+required-features = ["utilities"]
+
+[[bin]]
+# decrypt a KeePass database and show the TOTP value for an entry
+name = "kp-show-otp"
+required-features = ["utilities"]
+
+[[bin]]
+# get the version of a KeePass database file
+name = "kp-get-version"
+required-features = ["utilities"]
+
+[[bin]]
+# parse and write a KeePass database (to check if all fields are kept)
+name = "kp-rewrite"
+required-features = ["utilities", "save_kdbx4"]
+
+[[bin]]
+name = "kp-yk-add"
+required-features = ["utilities", "save_kdbx4", "challenge_response"]
+
+[[bin]]
+name = "kp-yk-remove"
+required-features = ["utilities", "save_kdbx4", "challenge_response"]
+
+[[bin]]
+name = "kp-yk-recover"
+required-features = ["utilities", "save_kdbx4", "challenge_response"]
+
 [features]
 utilities = ["clap", "rpassword", "serialization", "totp"]
 serialization = ["serde", "serde_json", "chrono/serde", "erased-serde"]
@@ -71,50 +118,3 @@ url = { version = "2", optional = true }
 uuid = { version = "1", features = ["v4", "serde"] }
 xml-rs = "0.8"
 zeroize = { version = "1", features = ["zeroize_derive"] }
-
-[[bin]]
-# parse a KeePass database and output as a JSON document
-name = "kp-dump-json"
-required-features = ["utilities"]
-
-[[bin]]
-# decrypt a KeePass database and output the inner XML document
-name = "kp-dump-xml"
-required-features = ["utilities"]
-
-[[bin]]
-# Purge the history items in the Database entries
-name = "kp-purge-history"
-required-features = ["utilities", "save_kdbx4"]
-
-[[bin]]
-# decrypt a KeePass database and show the contained data
-name = "kp-show-db"
-required-features = ["utilities"]
-
-[[bin]]
-# decrypt a KeePass database and show the TOTP value for an entry
-name = "kp-show-otp"
-required-features = ["utilities"]
-
-[[bin]]
-# get the version of a KeePass database file
-name = "kp-get-version"
-required-features = ["utilities"]
-
-[[bin]]
-# parse and write a KeePass database (to check if all fields are kept)
-name = "kp-rewrite"
-required-features = ["utilities", "save_kdbx4"]
-
-[[bin]]
-name = "kp-yk-add"
-required-features = ["utilities", "save_kdbx4", "challenge_response"]
-
-[[bin]]
-name = "kp-yk-remove"
-required-features = ["utilities", "save_kdbx4", "challenge_response"]
-
-[[bin]]
-name = "kp-yk-recover"
-required-features = ["utilities", "save_kdbx4", "challenge_response"]

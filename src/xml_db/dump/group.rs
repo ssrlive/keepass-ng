@@ -57,8 +57,7 @@ impl DumpXml for Group {
 
 impl DumpXml for NodePtr {
     fn dump_xml<E: std::io::Write>(&self, writer: &mut EventWriter<E>, inner_cipher: &mut dyn Cipher) -> Result<(), xml::writer::Error> {
-        use std::io::{Error, ErrorKind::Other};
-        let err = xml::writer::Error::Io(Error::new(Other, "Node is neither an entry nor a group"));
+        let err = xml::writer::Error::Io(std::io::Error::other("Node is neither an entry nor a group"));
         let _ = with_node::<Group, _, _>(self, |g| g.dump_xml(writer, inner_cipher))
             .or_else(|| with_node::<Entry, _, _>(self, |e| e.dump_xml(writer, inner_cipher)))
             .ok_or(err)?;
