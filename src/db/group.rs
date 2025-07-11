@@ -525,7 +525,7 @@ impl Group {
             for node in g.children.iter() {
                 if node_is_entry(node) {
                     let node_uuid = node.borrow().get_uuid();
-                    println!("Saw entry {}", node_uuid);
+                    println!("Saw entry {node_uuid}");
                     if node_uuid != uuid {
                         new_nodes.push(NodePtr::from(node));
                         continue;
@@ -554,11 +554,11 @@ impl Group {
                 if node.borrow().get_uuid() == uuid {
                     return Some(current_location);
                 }
-            } else if let Some(g) = node.borrow().downcast_ref::<Group>() {
-                if let Some(mut location) = g.find_entry_location(uuid) {
-                    current_location.append(&mut location);
-                    return Some(current_location);
-                }
+            } else if let Some(g) = node.borrow().downcast_ref::<Group>()
+                && let Some(mut location) = g.find_entry_location(uuid)
+            {
+                current_location.append(&mut location);
+                return Some(current_location);
             }
         }
         None
@@ -585,7 +585,7 @@ impl Group {
 
         let next_location = remaining_location[0];
 
-        println!("Searching for group {:?}", next_location);
+        println!("Searching for group {next_location:?}");
         for node in group_get_children(parent).unwrap_or_default() {
             if node_is_group(&node) {
                 if node.borrow().get_uuid() != next_location {
@@ -848,7 +848,7 @@ mod group_tests {
         let destination_entries = with_node::<Group, _, _>(&destination_group, |g| g.get_all_entries(&[])).unwrap();
         assert_eq!(destination_entries.len(), 1);
         let (_created_entry, created_entry_location) = destination_entries.first().unwrap();
-        println!("{:?}", created_entry_location);
+        println!("{created_entry_location:?}");
         assert_eq!(created_entry_location.len(), 2);
     }
 

@@ -16,6 +16,6 @@ pub fn main() -> Result<(), BoxError> {
     let mut source = File::open(args.in_kdbx)?;
 
     let version = Database::get_version(&mut source)?;
-    println!("{}", version);
+    println!("{version}");
     Ok(())
 }

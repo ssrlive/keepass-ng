@@ -16,7 +16,7 @@ impl std::fmt::Display for IconId {
         ];
 
         let emoji = EMOJIS.get(self.0).unwrap_or(&"");
-        write!(f, "{}", emoji)
+        write!(f, "{emoji}")
     }
 }
 

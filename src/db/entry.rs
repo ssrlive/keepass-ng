@@ -408,7 +408,7 @@ impl<'a> Entry {
     /// Set or remove additional attributes (custom string data)
     pub fn set_additional_attribute(&mut self, key: &str, value: Option<&str>) -> crate::Result<()> {
         if Self::EXCLUDED_FIELDS.contains(&key) {
-            return Err(format!("Cannot set additional attribute for field {}", key).into());
+            return Err(format!("Cannot set additional attribute for field {key}").into());
         }
         self.set_unprotected_field_pair(key, value);
         Ok(())

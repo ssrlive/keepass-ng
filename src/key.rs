@@ -121,7 +121,7 @@ impl ChallengeResponseKey {
             }
             ChallengeResponseKey::YubikeyChallenge(yubikey, slot_number) => {
                 let mut challenge_response_client = ChallengeResponse::new()
-                    .map_err(|e| DatabaseKeyError::ChallengeResponseKeyError(format!("Could not search for yubikey: {}", e)))?;
+                    .map_err(|e| DatabaseKeyError::ChallengeResponseKeyError(format!("Could not search for yubikey: {e}")))?;
                 let slot = parse_yubikey_slot(slot_number)?;
 
                 let yubikey_device = match challenge_response_client.find_device_from_serial(yubikey.serial_number) {
@@ -195,8 +195,7 @@ impl ChallengeResponseKey {
             }
         }
         Err(DatabaseKeyError::ChallengeResponseKeyError(format!(
-            "Could not find yubikey with serial number {}",
-            serial_number
+            "Could not find yubikey with serial number {serial_number}"
         )))
     }
 }

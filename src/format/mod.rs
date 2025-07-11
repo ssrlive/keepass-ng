@@ -94,8 +94,8 @@ impl std::fmt::Display for DatabaseVersion {
         match self {
             DatabaseVersion::KDB(_) => write!(f, "KDB"),
             DatabaseVersion::KDB2(_) => write!(f, "KDBX2"),
-            DatabaseVersion::KDB3(minor_version) => write!(f, "KDBX3.{}", minor_version),
-            DatabaseVersion::KDB4(minor_version) => write!(f, "KDBX4.{}", minor_version),
+            DatabaseVersion::KDB3(minor_version) => write!(f, "KDBX3.{minor_version}"),
+            DatabaseVersion::KDB4(minor_version) => write!(f, "KDBX4.{minor_version}"),
         }
     }
 }

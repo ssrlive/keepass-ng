@@ -47,7 +47,7 @@ mod entry_tests {
             assert_eq!(e.get_url(), None);
             assert!(!e.get_times().get_expires());
             if let Some(t) = e.get_times().get_expiry_time() {
-                assert_eq!(format!("{}", t), "2016-01-28 12:25:36");
+                assert_eq!(format!("{t}"), "2016-01-28 12:25:36");
             } else {
                 panic!("Expected an ExpiryTime");
             }
@@ -74,7 +74,7 @@ mod entry_tests {
             assert_eq!(e.get_tags(), &vec!["keepass-rs".to_string(), "test".to_string()]);
             assert!(e.get_times().get_expires());
             if let Some(t) = e.get_times().get_expiry_time() {
-                assert_eq!(format!("{}", t), "2021-04-10 16:53:18");
+                assert_eq!(format!("{t}"), "2021-04-10 16:53:18");
             } else {
                 panic!("Expected an ExpiryTime");
             }

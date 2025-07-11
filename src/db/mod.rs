@@ -461,7 +461,7 @@ impl Database {
                             Some(t) => t,
                             None => {
                                 log.warnings
-                                    .push(format!("Entry {} did not have a location updated timestamp", other_entry_uuid));
+                                    .push(format!("Entry {other_entry_uuid} did not have a location updated timestamp"));
                                 Times::now()
                             }
                         };
@@ -630,15 +630,15 @@ impl Database {
 
 #[cfg(feature = "merge")]
 pub(crate) fn has_diverged_from(node: &NodePtr, other_node: &NodePtr) -> bool {
-    if let Some(entry) = node.borrow().downcast_ref::<Entry>() {
-        if let Some(other_entry) = other_node.borrow().downcast_ref::<Entry>() {
-            return entry._has_diverged_from(other_entry);
-        }
+    if let Some(entry) = node.borrow().downcast_ref::<Entry>()
+        && let Some(other_entry) = other_node.borrow().downcast_ref::<Entry>()
+    {
+        return entry._has_diverged_from(other_entry);
     }
-    if let Some(group) = node.borrow().downcast_ref::<Group>() {
-        if let Some(other_group) = other_node.borrow().downcast_ref::<Group>() {
-            return group._has_diverged_from(other_group);
-        }
+    if let Some(group) = node.borrow().downcast_ref::<Group>()
+        && let Some(other_group) = other_node.borrow().downcast_ref::<Group>()
+    {
+        return group._has_diverged_from(other_group);
     }
     false
 }

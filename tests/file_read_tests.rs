@@ -14,7 +14,7 @@ mod file_read_tests {
         let key = DatabaseKey::new().with_password("demopass");
         let db = Database::open(&mut File::open(path)?, key)?;
 
-        println!("{:?} DB Opened", db);
+        println!("{db:?} DB Opened");
         assert_eq!(db.root.borrow().get_title().unwrap(), "sample");
         assert_eq!(group_get_children(&db.root).unwrap().len(), 5);
 
@@ -29,7 +29,7 @@ mod file_read_tests {
                 let title = e.get_title().unwrap_or("(no title)");
                 let user = e.get_username().unwrap_or("(no user)");
                 let pass = e.get_password().unwrap_or("(no password)");
-                println!("Entry '{0}': '{1}' : '{2}'", title, user, pass);
+                println!("Entry '{title}': '{user}' : '{pass}'");
                 total_entries += 1;
             });
         }
@@ -37,7 +37,7 @@ mod file_read_tests {
         assert_eq!(total_groups, 5);
         assert_eq!(total_entries, 6);
 
-        println!("{:?}", db);
+        println!("{db:?}");
 
         Ok(())
     }
@@ -49,7 +49,7 @@ mod file_read_tests {
         let key = DatabaseKey::new().with_keyfile(&mut File::open(kf_path)?)?;
         let db = Database::open(&mut File::open(path)?, key)?;
 
-        println!("{:?} DB Opened", db);
+        println!("{db:?} DB Opened");
         assert_eq!(db.root.borrow().get_title().unwrap(), "Root");
         assert_eq!(group_get_children(&db.root).unwrap().len(), 1);
 
@@ -64,7 +64,7 @@ mod file_read_tests {
                 let title = e.get_title().unwrap_or("(no title)");
                 let user = e.get_username().unwrap_or("(no user)");
                 let pass = e.get_password().unwrap_or("(no password)");
-                println!("Entry '{0}': '{1}' : '{2}'", title, user, pass);
+                println!("Entry '{title}': '{user}' : '{pass}'");
                 total_entries += 1;
             });
         }
@@ -72,7 +72,7 @@ mod file_read_tests {
         assert_eq!(total_groups, 1);
         assert_eq!(total_entries, 1);
 
-        println!("{:?}", db);
+        println!("{db:?}");
 
         Ok(())
     }
@@ -84,7 +84,7 @@ mod file_read_tests {
         let key = DatabaseKey::new().with_keyfile(&mut File::open(kf_path)?)?;
         let db = Database::open(&mut File::open(path)?, key)?;
 
-        println!("{:?} DB Opened", db);
+        println!("{db:?} DB Opened");
         assert_eq!(db.root.borrow().get_title().unwrap(), "Root");
         assert_eq!(group_get_children(&db.root).unwrap().len(), 4);
 
@@ -99,7 +99,7 @@ mod file_read_tests {
                 let title = e.get_title().unwrap_or("(no title)");
                 let user = e.get_username().unwrap_or("(no user)");
                 let pass = e.get_password().unwrap_or("(no password)");
-                println!("Entry '{0}': '{1}' : '{2}'", title, user, pass);
+                println!("Entry '{title}': '{user}' : '{pass}'");
                 total_entries += 1;
             });
         }
@@ -107,7 +107,7 @@ mod file_read_tests {
         assert_eq!(total_groups, 5);
         assert_eq!(total_entries, 6);
 
-        println!("{:?}", db);
+        println!("{db:?}");
 
         Ok(())
     }
@@ -119,7 +119,7 @@ mod file_read_tests {
         let key = DatabaseKey::new().with_password("demopass");
         let db = Database::open(&mut File::open(path)?, key)?;
 
-        println!("{:?} DB Opened", db);
+        println!("{db:?} DB Opened");
         assert_eq!(db.root.borrow().get_title().unwrap(), "Root");
         assert_eq!(group_get_children(&db.root).unwrap().len(), 2);
 
@@ -133,7 +133,7 @@ mod file_read_tests {
         let key = DatabaseKey::new().with_password("demopass");
         let db = Database::open(&mut File::open(path)?, key)?;
 
-        println!("{:?} DB Opened", db);
+        println!("{db:?} DB Opened");
         assert_eq!(db.root.borrow().get_title().unwrap(), "Root");
         assert_eq!(group_get_children(&db.root).unwrap().len(), 2);
 
@@ -146,7 +146,7 @@ mod file_read_tests {
         let key = DatabaseKey::new().with_password("demopass");
         let db = Database::open(&mut File::open(path)?, key)?;
 
-        println!("{:?} DB Opened", db);
+        println!("{db:?} DB Opened");
         assert_eq!(db.root.borrow().get_title().unwrap(), "Root");
         assert_eq!(group_get_children(&db.root).unwrap().len(), 1);
 
@@ -160,7 +160,7 @@ mod file_read_tests {
         let key = DatabaseKey::new().with_password("demopass");
         let db = Database::open(&mut File::open(path)?, key)?;
 
-        println!("{:?} DB Opened", db);
+        println!("{db:?} DB Opened");
         assert_eq!(db.root.borrow().get_title().unwrap(), "Root");
         assert_eq!(group_get_children(&db.root).unwrap().len(), 1);
 
@@ -174,7 +174,7 @@ mod file_read_tests {
         let key = DatabaseKey::new().with_password("demopass");
         let db = Database::open(&mut File::open(path)?, key)?;
 
-        println!("{:?} DB Opened", db);
+        println!("{db:?} DB Opened");
         assert_eq!(db.root.borrow().get_title().unwrap(), "Root");
         assert_eq!(group_get_children(&db.root).unwrap().len(), 1);
 
@@ -188,7 +188,7 @@ mod file_read_tests {
         let key = DatabaseKey::new().with_password("demopass");
         let db = Database::open(&mut File::open(path)?, key)?;
 
-        println!("{:?} DB Opened", db);
+        println!("{db:?} DB Opened");
         assert_eq!(db.root.borrow().get_title().unwrap(), "Root");
         assert_eq!(group_get_children(&db.root).unwrap().len(), 1);
 
@@ -202,7 +202,7 @@ mod file_read_tests {
         let key = DatabaseKey::new().with_password("demopass");
         let db = Database::open(&mut File::open(path)?, key)?;
 
-        println!("{:?} DB Opened", db);
+        println!("{db:?} DB Opened");
         assert_eq!(db.root.borrow().get_title().unwrap(), "Root");
         assert_eq!(group_get_children(&db.root).unwrap().len(), 1);
 
@@ -217,7 +217,7 @@ mod file_read_tests {
         let key = DatabaseKey::new().with_keyfile(&mut File::open(kf_path)?)?;
         let db = Database::open(&mut File::open(path)?, key)?;
 
-        println!("{:?} DB Opened", db);
+        println!("{db:?} DB Opened");
         assert_eq!(db.root.borrow().get_title().unwrap(), "Root");
         assert_eq!(group_get_children(&db.root).unwrap().len(), 1);
 
@@ -266,7 +266,7 @@ mod file_read_tests {
         let key = DatabaseKey::new().with_password("foobar");
         let db = Database::open(&mut File::open(path)?, key)?;
 
-        println!("{:?} DB Opened", db);
+        println!("{db:?} DB Opened");
         assert_eq!(db.root.borrow().get_title().unwrap(), "Root");
         assert_eq!(group_get_children(&db.root).unwrap().len(), 3);
 
@@ -281,7 +281,7 @@ mod file_read_tests {
                 let title = e.get_title().unwrap_or("(no title)");
                 let user = e.get_username().unwrap_or("(no user)");
                 let pass = e.get_password().unwrap_or("(no password)");
-                println!("Entry '{0}': '{1}' : '{2}'", title, user, pass);
+                println!("Entry '{title}': '{user}' : '{pass}'");
                 total_entries += 1;
             });
         }
@@ -289,7 +289,7 @@ mod file_read_tests {
         assert_eq!(total_groups, 12);
         assert_eq!(total_entries, 5);
 
-        println!("{:?}", db);
+        println!("{db:?}");
 
         Ok(())
     }
@@ -300,7 +300,7 @@ mod file_read_tests {
         let key = DatabaseKey::new().with_password("samplepassword");
         let db = Database::open(&mut File::open(path)?, key)?;
 
-        println!("{:?} DB Opened", db);
+        println!("{db:?} DB Opened");
         assert_eq!(group_get_children(&db.root).unwrap().len(), 1);
 
         let mut total_groups = 0;
@@ -314,7 +314,7 @@ mod file_read_tests {
                 let title = e.get_title().unwrap_or("(no title)");
                 let user = e.get_username().unwrap_or("(no user)");
                 let pass = e.get_password().unwrap_or("(no password)");
-                println!("Entry '{0}': '{1}' : '{2}'", title, user, pass);
+                println!("Entry '{title}': '{user}' : '{pass}'");
                 total_entries += 1;
             });
         }
@@ -322,7 +322,7 @@ mod file_read_tests {
         assert_eq!(total_groups, 1);
         assert_eq!(total_entries, 1);
 
-        println!("{:?}", db);
+        println!("{db:?}");
         Ok(())
     }
 
@@ -333,7 +333,7 @@ mod file_read_tests {
         let key = DatabaseKey::new().with_password("demopass");
         let db = Database::open(&mut File::open(path)?, key)?;
 
-        println!("{:?} DB Opened", db);
+        println!("{db:?} DB Opened");
 
         assert_eq!(db.root.borrow().get_title().unwrap(), "Root");
         let recycle_bin_uuid = db.get_recycle_bin().unwrap().borrow().get_uuid();
@@ -376,7 +376,7 @@ mod file_read_tests {
 
         let db = Database::open(&mut File::open(path)?, DatabaseKey::new().with_password("demopass"))?;
 
-        println!("{:?} DB Opened", db);
+        println!("{db:?} DB Opened");
 
         assert_eq!(db.root.borrow().get_title(), None);
 
@@ -407,7 +407,7 @@ mod file_read_tests {
 
         let db = Database::open(&mut File::open(path)?, DatabaseKey::new().with_password("demopass"))?;
 
-        println!("{:?} DB Opened", db);
+        println!("{db:?} DB Opened");
 
         assert_eq!(db.root.borrow().get_title(), Some("Root"));
         assert_eq!(group_get_children(&db.root).unwrap().len(), 2);

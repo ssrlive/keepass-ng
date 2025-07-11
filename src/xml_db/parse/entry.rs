@@ -197,31 +197,31 @@ impl FromXml for Value {
     ) -> Result<Self::Parses, XmlParseError> {
         let open_tag = iterator.next().ok_or(XmlParseError::Eof)?;
 
-        if let SimpleXmlEvent::Start(ref tag, ref attributes) = open_tag {
-            if tag == "Value" {
-                let protected: bool = attributes
-                    .get("Protected")
-                    .map_or(Ok(false), |v| v.to_lowercase().parse::<bool>())?;
+        if let SimpleXmlEvent::Start(ref tag, ref attributes) = open_tag
+            && tag == "Value"
+        {
+            let protected: bool = attributes
+                .get("Protected")
+                .map_or(Ok(false), |v| v.to_lowercase().parse::<bool>())?;
 
-                let content = Option::<String>::from_xml(iterator, inner_cipher)?.unwrap_or(String::new());
-                let decoded_content = decode_xml(&content);
+            let content = Option::<String>::from_xml(iterator, inner_cipher)?.unwrap_or(String::new());
+            let decoded_content = decode_xml(&content);
 
-                let value = if protected {
-                    let buf = base64_engine::STANDARD.decode(&decoded_content)?;
-                    let buf_decrypted = inner_cipher.decrypt(&buf)?;
-                    let value = String::from_utf8_lossy(&buf_decrypted).to_string();
-                    Value::Protected(SecStr::from(value))
-                } else {
-                    Value::Unprotected(decoded_content)
-                };
+            let value = if protected {
+                let buf = base64_engine::STANDARD.decode(&decoded_content)?;
+                let buf_decrypted = inner_cipher.decrypt(&buf)?;
+                let value = String::from_utf8_lossy(&buf_decrypted).to_string();
+                Value::Protected(SecStr::from(value))
+            } else {
+                Value::Unprotected(decoded_content)
+            };
 
-                let close_value_tag = iterator.next().ok_or(XmlParseError::Eof)?;
-                if !matches!(close_value_tag, SimpleXmlEvent::End(ref tag) if tag == "Value") {
-                    return Err(bad_event("Close Value tag", close_value_tag));
-                }
-
-                return Ok(value);
+            let close_value_tag = iterator.next().ok_or(XmlParseError::Eof)?;
+            if !matches!(close_value_tag, SimpleXmlEvent::End(ref tag) if tag == "Value") {
+                return Err(bad_event("Close Value tag", close_value_tag));
             }
+
+            return Ok(value);
         }
         Err(bad_event("Open value tag", open_tag))
     }
