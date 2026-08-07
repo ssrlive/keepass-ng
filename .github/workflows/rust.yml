@@ -1,14 +1,12 @@
 name: Rust
 
-on:
-  [push, pull_request, workflow_dispatch]
+on: [push, pull_request, workflow_dispatch]
 
 env:
   CARGO_TERM_COLOR: always
 
 jobs:
   testing:
-
     strategy:
       fail-fast: false
       matrix:
@@ -20,51 +18,61 @@ jobs:
     runs-on: ${{ matrix.host_os }}
 
     steps:
-    - uses: actions/checkout@v4
-    - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
 
-    - name: Rustfmt
-      if: ${{ !cancelled() }}
-      uses: actions-rs/cargo@v1
-      with:
-        command: fmt
-        args: --all -- --check
+      - name: Rustfmt
+        if: ${{ !cancelled() }}
+        uses: actions-rs/cargo@v1
+        with:
+          command: fmt
+          args: --all -- --check
 
-    - name: Clippy
-      if: ${{ !cancelled() }}
-      run: |
-        cargo clippy --all-features --all-targets -- -D warnings
-        cargo clean
-        cargo clippy --no-default-features --all-targets -- -D warnings
-        cargo clean
-  
-    - name: check --all-features
-      if: ${{ !cancelled() }}
-      uses: actions-rs/cargo@v1
-      with:
-        command: check
-        args: --all-features
+      - name: Clippy
+        if: ${{ !cancelled() }}
+        run: |
+          cargo clippy --all-features --all-targets -- -D warnings
+          cargo clean
+          cargo clippy --no-default-features --all-targets -- -D warnings
+          cargo clean
 
-    - name: Build
-      if: ${{ !cancelled() }}
-      run: |
-        cargo build --verbose --all-features
-        cargo clean
-        cargo build --verbose --no-default-features
-        cargo clean
+      - name: check --all-features
+        if: ${{ !cancelled() }}
+        uses: actions-rs/cargo@v1
+        with:
+          command: check
+          args: --all-features
 
-    - name: Run tests
-      if: ${{ !cancelled() }}
-      shell: bash
-      run: |
-        cargo test --verbose --all-features
-        cargo clean
-        cargo test --verbose --no-default-features
-        cargo clean
+      - name: Build
+        if: ${{ !cancelled() }}
+        run: |
+          cargo build --verbose --all-features
+          cargo clean
+          cargo build --verbose --no-default-features
+          cargo clean
 
-    - name: Abort on error
-      if: ${{ failure() }}
-      run: echo "Some of jobs failed" && false
+      - name: Run tests
+        if: ${{ !cancelled() }}
+        shell: bash
+        run: |
+          cargo test --verbose --all-features
+          cargo clean
+          cargo test --verbose --no-default-features
+          cargo clean
+
+  wasm-test:
+    name: WASM Target Test Suite
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@stable
+      - run: rustup target add wasm32-wasip1
+      - run: cargo install wasmtime-cli
+      - name: run wasm tests
+        run: |
+          export CARGO_TARGET_WASM32_WASIP1_RUNNER="wasmtime --dir=."
+          export RUSTFLAGS=""
+          cargo test --release --target wasm32-wasip1 --features "save_kdbx4 merge utilities"
 
   semver:
     name: Check semver
