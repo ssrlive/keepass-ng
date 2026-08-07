@@ -30,7 +30,7 @@ fn parse_xml_keyfile(xml: &[u8]) -> Result<KeyElement, DatabaseKeyError> {
     let mut tag_stack = Vec::new();
 
     let mut key_version: Option<String> = None;
-    let mut key_value: Option<String> = None;
+    let mut key_value = String::new();
 
     for ev in parser {
         match ev? {
@@ -50,7 +50,7 @@ fn parse_xml_keyfile(xml: &[u8]) -> Result<KeyElement, DatabaseKeyError> {
                 }
 
                 if tag_stack == ["KeyFile", "Key", "Data"] {
-                    key_value = Some(s);
+                    key_value.push_str(&s);
                     continue;
                 }
             }
@@ -58,16 +58,21 @@ fn parse_xml_keyfile(xml: &[u8]) -> Result<KeyElement, DatabaseKeyError> {
         }
     }
 
-    let key_value = match key_value {
-        Some(k) => k,
-        None => return Err(DatabaseKeyError::InvalidKeyFile),
-    };
+    if key_value.is_empty() {
+        return Err(DatabaseKeyError::InvalidKeyFile);
+    }
+
     let key_bytes = key_value.as_bytes().to_vec();
 
     if key_version == Some("2.0".to_string()) {
         // TODO we should also validate the integrity of a v2 keyfile using the hash value
 
-        let trimmed_key = key_value.trim().replace(" ", "").replace("\n", "").replace("\r", "");
+        let trimmed_key = key_value
+            .trim()
+            .replace(" ", "")
+            .replace("\n", "")
+            .replace("\t", "")
+            .replace("\r", "");
 
         return if let Ok(key) = hex::decode(&trimmed_key) {
             Ok(key)
