@@ -8,7 +8,7 @@ use crate::{
 };
 
 use byteorder::{ByteOrder, LittleEndian};
-use cipher::generic_array::GenericArray;
+use cipher::Array;
 
 use std::{collections::HashMap, convert::TryInto, str};
 
@@ -278,7 +278,7 @@ pub(crate) fn parse_kdb(data: &[u8], db_key: &DatabaseKey) -> Result<Database, D
     let key_elements: Vec<&[u8]> = key_elements.iter().map(|v| &v[..]).collect();
     let composite_key = if key_elements.len() == 1 {
         let key_element: [u8; 32] = key_elements[0].try_into().unwrap();
-        GenericArray::from(key_element) // single pass of SHA256, already done before the call to parse()
+        Array::from(key_element) // single pass of SHA256, already done before the call to parse()
     } else {
         calculate_sha256(&key_elements) // second pass of SHA256
     };

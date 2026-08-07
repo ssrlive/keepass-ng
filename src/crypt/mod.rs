@@ -1,11 +1,12 @@
 #[cfg(feature = "challenge_response")]
-use cipher::generic_array::typenum::U20;
-use cipher::generic_array::{
-    GenericArray,
+use cipher::typenum::U20;
+
+use cipher::{
+    Array,
     typenum::{U32, U64},
 };
 
-use hmac::{Hmac, Mac};
+use hmac::{Hmac, KeyInit, Mac};
 #[cfg(feature = "challenge_response")]
 use sha1::Sha1;
 use sha2::{Digest, Sha256, Sha512};
@@ -15,7 +16,7 @@ use crate::error::CryptographyError;
 pub(crate) mod ciphers;
 pub(crate) mod kdf;
 
-pub(crate) fn calculate_hmac(elements: &[&[u8]], key: &[u8]) -> Result<GenericArray<u8, U32>, CryptographyError> {
+pub(crate) fn calculate_hmac(elements: &[&[u8]], key: &[u8]) -> Result<Array<u8, U32>, CryptographyError> {
     type HmacSha256 = Hmac<Sha256>;
     let mut mac = HmacSha256::new_from_slice(key)?;
 
@@ -28,7 +29,7 @@ pub(crate) fn calculate_hmac(elements: &[&[u8]], key: &[u8]) -> Result<GenericAr
 }
 
 #[cfg(feature = "challenge_response")]
-pub(crate) fn calculate_hmac_sha1(elements: &[&[u8]], key: &[u8]) -> Result<GenericArray<u8, U20>, CryptographyError> {
+pub(crate) fn calculate_hmac_sha1(elements: &[&[u8]], key: &[u8]) -> Result<Array<u8, U20>, CryptographyError> {
     type HmacSha1 = Hmac<Sha1>;
     let mut mac = HmacSha1::new_from_slice(key)?;
 
@@ -40,7 +41,7 @@ pub(crate) fn calculate_hmac_sha1(elements: &[&[u8]], key: &[u8]) -> Result<Gene
     Ok(result.into_bytes())
 }
 
-pub(crate) fn calculate_sha256(elements: &[&[u8]]) -> GenericArray<u8, U32> {
+pub(crate) fn calculate_sha256(elements: &[&[u8]]) -> Array<u8, U32> {
     let mut digest = Sha256::new();
 
     for element in elements {
@@ -50,7 +51,7 @@ pub(crate) fn calculate_sha256(elements: &[&[u8]]) -> GenericArray<u8, U32> {
     digest.finalize()
 }
 
-pub(crate) fn calculate_sha512(elements: &[&[u8]]) -> GenericArray<u8, U64> {
+pub(crate) fn calculate_sha512(elements: &[&[u8]]) -> Array<u8, U64> {
     let mut digest = Sha512::new();
 
     for element in elements {

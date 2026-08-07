@@ -103,6 +103,7 @@ pub enum ChallengeResponseKey {
     YubikeyChallenge(Yubikey, String),
 }
 
+#[cfg(feature = "challenge_response")]
 #[derive(Debug, Clone, PartialEq, Zeroize, ZeroizeOnDrop)]
 pub struct Yubikey {
     pub serial_number: u32,

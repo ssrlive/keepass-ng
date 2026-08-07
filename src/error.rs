@@ -305,7 +305,7 @@ pub enum CryptographyError {
     InvalidLength(#[from] cipher::InvalidLength),
 
     #[error(transparent)]
-    Unpadding(#[from] cipher::block_padding::UnpadError),
+    Unpadding(#[from] cipher::block_padding::Error),
 
     #[error(transparent)]
     Padding(#[from] cipher::inout::PadError),
