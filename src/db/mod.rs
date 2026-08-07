@@ -666,6 +666,18 @@ pub const CREATION_TIME_TAG_NAME: &str = "CreationTime";
 pub const LAST_ACCESS_TIME_TAG_NAME: &str = "LastAccessTime";
 pub const LOCATION_CHANGED_TAG_NAME: &str = "LocationChanged";
 
+#[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
+fn now_timestamp() -> i64 {
+    // Use JS Date.now() to get the current time in milliseconds, then convert it to seconds.
+    let millis = js_sys::Date::now();
+    (millis / 1000.0) as i64
+}
+
+#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
+fn now_timestamp() -> i64 {
+    chrono::Utc::now().timestamp()
+}
+
 impl Times {
     fn get(&self, key: &str) -> Option<NaiveDateTime> {
         self.times.get(key).copied()
@@ -740,7 +752,7 @@ impl Times {
     // Returns the current time, without the nanoseconds since
     // the last leap second.
     pub fn now() -> NaiveDateTime {
-        let now = chrono::Utc::now().timestamp();
+        let now = now_timestamp();
         chrono::DateTime::from_timestamp(now, 0).unwrap().naive_utc()
     }
 

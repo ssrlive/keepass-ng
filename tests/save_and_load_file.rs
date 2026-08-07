@@ -22,12 +22,11 @@ fn save_and_load_file_roundtrip() -> Result<(), Box<dyn std::error::Error>> {
     group_add_child(&group_node, entry_node, 0)?;
     group_add_child(&db.root, group_node, 0)?;
 
-    let mut path = std::env::temp_dir();
-    path.push(format!("keepass-ng-save_and_load-{}.kdbx", std::process::id()));
+    let path = "keepass-ng-save_and_load.kdbx";
     let key = DatabaseKey::new().with_password("demopass");
 
-    db.save(&mut File::create(&path)?, key.clone())?;
-    let db = Database::open(&mut File::open(&path)?, key)?;
+    db.save(&mut File::create(path)?, key.clone())?;
+    let db = Database::open(&mut File::open(path)?, key)?;
 
     let mut saw_group = false;
     let mut saw_entry = false;
@@ -52,6 +51,6 @@ fn save_and_load_file_roundtrip() -> Result<(), Box<dyn std::error::Error>> {
     assert!(saw_group, "Expected to find the saved group");
     assert!(saw_entry, "Expected to find the saved entry");
 
-    let _ = std::fs::remove_file(&path);
+    let _ = std::fs::remove_file(path);
     Ok(())
 }

@@ -45,6 +45,13 @@ pub struct Argon2Kdf {
 
 impl Kdf for Argon2Kdf {
     fn transform_key(&self, composite_key: &Array<u8, U32>) -> Result<Array<u8, U32>, CryptographyError> {
+        // Disable Argon2 multithreading on wasm32 targets to avoid panics on platforms without thread support.
+        let thread_mode = if cfg!(target_arch = "wasm32") {
+            argon2::ThreadMode::Sequential
+        } else {
+            argon2::ThreadMode::Parallel
+        };
+
         #[allow(clippy::cast_possible_truncation)]
         let config = argon2::Config {
             ad: &[],
@@ -52,7 +59,7 @@ impl Kdf for Argon2Kdf {
             lanes: self.parallelism,
             mem_cost: (self.memory / 1024) as u32,
             secret: &[],
-            thread_mode: argon2::ThreadMode::from_threads(self.parallelism),
+            thread_mode,
             time_cost: self.iterations as u32,
             variant: self.variant,
             version: self.version,

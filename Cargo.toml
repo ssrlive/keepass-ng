@@ -99,7 +99,7 @@ cipher = { version = "0.5.2", features = ["alloc", "block-padding"] }
 clap = { version = "4.6.6", optional = true, features = ["derive"] }
 erased-serde = { version = "0.4.10", optional = true }
 flate2 = "1.1.9"
-getrandom = { version = "0.4.3", features = ["std"] }
+getrandom = { version = "0.4.3", features = ["std", "wasm_js"] }
 hex = { version = "0.4.3" }
 hex-literal = "1.1.0"
 hmac = "0.13.0"
@@ -115,6 +115,9 @@ thiserror = "2.0.19"
 totp-lite = { version = "2.0.1", optional = true }
 twofish = "0.8.0"
 url = { version = "2.5.8", optional = true }
-uuid = { version = "1.24.0", features = ["v4", "serde"] }
+uuid = { version = "1.24.0", features = ["v4", "serde", "js"] }
 xml-rs = "1.0.0"
 zeroize = { version = "1.9.0", features = ["zeroize_derive"] }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+js-sys = "0.3"
