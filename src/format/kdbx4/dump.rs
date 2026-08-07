@@ -7,17 +7,16 @@ use crate::{
     db::{Database, HeaderAttachment},
     error::DatabaseSaveError,
     format::{
-        DatabaseVersion,
+        DatabaseVersion, hmac_block_stream,
+        io::WriteLengthTaggedExt,
         kdbx4::{
             HEADER_COMPRESSION_ID, HEADER_ENCRYPTION_IV, HEADER_END, HEADER_KDF_PARAMS, HEADER_MASTER_SEED, HEADER_MASTER_SEED_SIZE,
             HEADER_OUTER_ENCRYPTION_ID, INNER_HEADER_BINARY_ATTACHMENTS, INNER_HEADER_END, INNER_HEADER_RANDOM_STREAM_ID,
             INNER_HEADER_RANDOM_STREAM_KEY, KDBX4InnerHeader, KDBX4OuterHeader,
         },
+        variant_dictionary::VariantDictionary,
     },
-    hmac_block_stream,
-    io::WriteLengthTaggedExt,
     key::DatabaseKey,
-    variant_dictionary::VariantDictionary,
 };
 
 use super::HEADER_PUBLIC_CUSTOM_DATA;

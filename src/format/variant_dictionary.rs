@@ -1,6 +1,6 @@
 use crate::error::VariantDictionaryError;
 #[cfg(feature = "save_kdbx4")]
-use crate::io::WriteLengthTaggedExt;
+use crate::format::io::WriteLengthTaggedExt;
 #[cfg(feature = "save_kdbx4")]
 use byteorder::WriteBytesExt;
 use byteorder::{ByteOrder, LittleEndian};

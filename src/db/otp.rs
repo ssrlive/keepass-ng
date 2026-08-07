@@ -1,3 +1,4 @@
+use crate::db::Entry;
 use base32;
 use std::time::{Duration, SystemTime, SystemTimeError, UNIX_EPOCH};
 use totp_lite::{Sha1, Sha256, Sha512, totp_custom};
@@ -182,6 +183,27 @@ impl TOTP {
 
     pub fn get_secret(&self) -> String {
         base32::encode(base32::Alphabet::Rfc4648 { padding: true }, &self.secret)
+    }
+}
+
+impl<'a> Entry {
+    /// Convenience method for getting a TOTP from this entry
+    pub fn get_otp(&'a self) -> Result<TOTP, TOTPError> {
+        self.get_raw_otp_value().ok_or(TOTPError::NoRecord)?.parse()
+    }
+
+    pub fn set_otp(&mut self, otp: Option<&TOTP>) {
+        self.set_raw_otp_value(otp.map(|o| o.to_string()).as_deref());
+    }
+
+    /// Convenience method for setting a TOTP to this entry
+    pub fn set_raw_otp_value(&mut self, value: Option<&str>) {
+        self.set_protected_field_pair("otp", value);
+    }
+
+    /// Convenience method for getting the raw value of the 'otp' field
+    pub fn get_raw_otp_value(&'a self) -> Option<&'a str> {
+        self.get("otp")
     }
 }
 

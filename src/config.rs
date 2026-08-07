@@ -12,8 +12,7 @@ use crate::{
     compression,
     crypt::{ciphers, kdf},
     error::{CompressionConfigError, CryptographyError, InnerCipherConfigError, KdfConfigError, OuterCipherConfigError},
-    format::KDBX4_CURRENT_MINOR_VERSION,
-    variant_dictionary::VariantDictionary,
+    format::{KDBX4_CURRENT_MINOR_VERSION, variant_dictionary::VariantDictionary},
 };
 
 const _CIPHERSUITE_AES128: [u8; 16] = hex!("61ab05a1946441c38d743a563df8dd35");

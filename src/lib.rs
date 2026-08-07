@@ -7,12 +7,7 @@ pub(crate) mod crypt;
 pub mod db;
 pub(crate) mod error;
 pub(crate) mod format;
-pub(crate) mod hmac_block_stream;
-#[cfg(feature = "save_kdbx4")]
-mod io;
 mod key;
-pub(crate) mod variant_dictionary;
-pub(crate) mod xml_db;
 
 #[cfg(feature = "challenge_response")]
 pub use self::key::ChallengeResponseKey;

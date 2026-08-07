@@ -13,16 +13,15 @@ use crate::{
     db::{Database, HeaderAttachment, rc_refcell_node},
     error::{DatabaseIntegrityError, DatabaseKeyError, DatabaseOpenError},
     format::{
-        DatabaseVersion,
+        DatabaseVersion, hmac_block_stream,
         kdbx4::{
             HEADER_COMMENT, HEADER_COMPRESSION_ID, HEADER_ENCRYPTION_IV, HEADER_END, HEADER_KDF_PARAMS, HEADER_MASTER_SEED,
             HEADER_OUTER_ENCRYPTION_ID, HEADER_PUBLIC_CUSTOM_DATA, INNER_HEADER_BINARY_ATTACHMENTS, INNER_HEADER_END,
             INNER_HEADER_RANDOM_STREAM_ID, INNER_HEADER_RANDOM_STREAM_KEY, KDBX4OuterHeader,
         },
+        variant_dictionary::VariantDictionary,
     },
-    hmac_block_stream,
     key::DatabaseKey,
-    variant_dictionary::VariantDictionary,
 };
 
 use super::KDBX4InnerHeader;
@@ -40,7 +39,7 @@ impl From<&[u8]> for HeaderAttachment {
 pub(crate) fn parse_kdbx4(data: &[u8], db_key: &DatabaseKey) -> Result<Database, DatabaseOpenError> {
     let (config, header_attachments, mut inner_decryptor, xml) = decrypt_kdbx4(data, db_key)?;
 
-    let database_content = crate::xml_db::parse::parse(&xml, &mut *inner_decryptor)?;
+    let database_content = crate::format::xml_db::parse::parse(&xml, &mut *inner_decryptor)?;
 
     let db = Database {
         config,

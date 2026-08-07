@@ -13,7 +13,7 @@ use crate::{
     crypt::ciphers::Cipher,
     db::{Color, CustomData, CustomDataItem, CustomDataItemDenormalized, DeletedObject, DeletedObjects, Group, Meta, Times, Value},
     error::XmlParseError,
-    xml_db::get_epoch_baseline,
+    format::xml_db::get_epoch_baseline,
 };
 
 /// Parse a `KeePass` timestamp string
@@ -548,18 +548,18 @@ mod parse_test {
         config::InnerCipherConfig,
         crypt::ciphers::PlainCipher,
         db::{AutoType, AutoTypeAssociation, CustomData, CustomDataItemDenormalized, Entry, History, Times, Value},
-        xml_db::parse::{DeletedObject, DeletedObjects, IgnoreSubfield, Root, entry::StringField},
+        format::xml_db::parse::{DeletedObject, DeletedObjects, IgnoreSubfield, Root, entry::StringField},
     };
 
     use super::{FromXml, KeePassXml, SimpleTag, XmlParseError, entry::BinaryField, parse, parse_from_bytes};
 
-    pub(crate) fn parse_test_xml<P: FromXml>(xml: &str) -> Result<<P as FromXml>::Parses, XmlParseError> {
+    pub(crate) fn parse_test_xml<P: FromXml>(xml: &str) -> Result<P::Parses, XmlParseError> {
         parse_from_bytes::<P>(xml.as_bytes(), &mut PlainCipher)
     }
 
     #[test]
     fn test_custom_xml_fields() -> Result<(), XmlParseError> {
-        let xml = include_bytes!("../../../tests/resources/inner_xml_with_custom_fields.xml");
+        let xml = include_bytes!("../../../../tests/resources/inner_xml_with_custom_fields.xml");
 
         let mut inner_cipher = InnerCipherConfig::Plain.get_cipher(&[]);
 

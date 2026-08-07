@@ -14,18 +14,13 @@ mod tests {
     use crate::{
         config::{DatabaseConfig, InnerCipherConfig},
         db::{
-            AutoType, AutoTypeAssociation, BinaryAttachment, CustomData, CustomDataItem, Database, DeletedObject, Entry, Group, Meta,
-            Times, Value,
-            entry::History,
-            group_get_children,
-            iconid::IconId,
-            meta::{BinaryAttachments, CustomIcons, Icon, MemoryProtection},
-            node::*,
+            AutoType, AutoTypeAssociation, BinaryAttachment, BinaryAttachments, CustomData, CustomDataItem, CustomIcons, Database,
+            DeletedObject, Entry, Group, History, Icon, IconId, MemoryProtection, Meta, Times, Value, group_get_children, node::*,
             node_is_equals_to, rc_refcell_node,
         },
         format::kdbx4,
+        format::xml_db::dump::DumpXml,
         key::DatabaseKey,
-        xml_db::dump::DumpXml,
     };
     use chrono::NaiveDateTime;
     use secstr::SecStr;

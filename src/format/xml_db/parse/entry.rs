@@ -1,7 +1,7 @@
 use crate::{
     crypt::ciphers::Cipher,
     db::{AutoType, AutoTypeAssociation, Color, Entry, History, Times, Value, iconid::IconId},
-    xml_db::parse::{CustomData, FromXml, IgnoreSubfield, SimpleTag, SimpleXmlEvent, XmlParseError, bad_event},
+    format::xml_db::parse::{CustomData, FromXml, IgnoreSubfield, SimpleTag, SimpleXmlEvent, XmlParseError, bad_event},
 };
 use base64::{Engine as _, engine::general_purpose as base64_engine};
 use secstr::SecStr;
