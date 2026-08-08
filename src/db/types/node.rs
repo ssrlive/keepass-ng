@@ -26,7 +26,14 @@ impl serde::ser::Serialize for SerializableNodePtr {
     where
         S: serde::ser::Serializer,
     {
-        self.node_ptr.borrow().serialize(serializer)
+        let node = self.node_ptr.borrow();
+        if let Some(entry) = node.downcast_ref::<Entry>() {
+            return serde::Serialize::serialize(entry, serializer);
+        }
+        if let Some(group) = node.downcast_ref::<Group>() {
+            return serde::Serialize::serialize(group, serializer);
+        }
+        Err(serde::ser::Error::custom("unsupported node type"))
     }
 }
 
@@ -190,8 +197,7 @@ where
         .find(|n| n.borrow().get_uuid() == uuid)
 }
 
-#[cfg(feature = "serialization")]
-pub trait Node: std::any::Any + std::fmt::Debug + erased_serde::Serialize {
+pub trait Node: std::any::Any + std::fmt::Debug {
     fn duplicate(&self) -> NodePtr;
     fn get_uuid(&self) -> Uuid;
     fn set_uuid(&mut self, uuid: Uuid);
@@ -216,34 +222,11 @@ pub trait Node: std::any::Any + std::fmt::Debug + erased_serde::Serialize {
     fn set_parent(&mut self, parent: Option<Uuid>);
 }
 
-#[cfg(feature = "serialization")]
-erased_serde::serialize_trait_object!(Node);
-
-#[cfg(not(feature = "serialization"))]
-pub trait Node: std::any::Any + std::fmt::Debug {
-    fn duplicate(&self) -> NodePtr;
-    fn get_uuid(&self) -> Uuid;
-    fn set_uuid(&mut self, uuid: Uuid);
-    fn get_title(&self) -> Option<&str>;
-    fn set_title(&mut self, title: Option<&str>);
-    fn get_notes(&self) -> Option<&str>;
-    fn set_notes(&mut self, notes: Option<&str>);
-    fn get_icon_id(&self) -> Option<IconId>;
-    fn set_icon_id(&mut self, icon_id: Option<IconId>);
-    fn get_custom_icon_uuid(&self) -> Option<Uuid>;
-    fn get_times(&self) -> &Times;
-    fn get_times_mut(&mut self) -> &mut Times;
-    fn get_parent(&self) -> Option<Uuid>;
-    fn set_parent(&mut self, parent: Option<Uuid>);
-}
-
 impl dyn Node {
     pub fn downcast_ref<T: 'static>(&self) -> Option<&T> {
         (self as &dyn std::any::Any).downcast_ref()
     }
-}
 
-impl dyn Node {
     pub fn downcast_mut<T: 'static>(&mut self) -> Option<&mut T> {
         (self as &mut dyn std::any::Any).downcast_mut()
     }

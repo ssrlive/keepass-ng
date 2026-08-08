@@ -71,7 +71,7 @@ required-features = ["utilities", "save_kdbx4", "challenge_response"]
 
 [features]
 utilities = ["clap", "rpassword", "serialization", "totp"]
-serialization = ["serde", "serde_json", "chrono/serde", "erased-serde"]
+serialization = ["serde", "serde_json", "chrono/serde"]
 totp = ["totp-lite", "url", "base32"]
 save_kdbx4 = []
 challenge_response = ["sha1", "dep:challenge_response"]
@@ -97,7 +97,6 @@ chrono = { version = "0.4.45", default-features = false, features = [
 ] }
 cipher = { version = "0.5.2", features = ["alloc", "block-padding"] }
 clap = { version = "4.6.6", optional = true, features = ["derive"] }
-erased-serde = { version = "0.4.10", optional = true }
 flate2 = "1.1.9"
 getrandom = { version = "0.4.3", features = ["std", "wasm_js"] }
 hex = { version = "0.4.3" }
