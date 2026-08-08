@@ -4,12 +4,12 @@ mod parse;
 
 use crate::{
     config::{CompressionConfig, InnerCipherConfig, KdfConfig, OuterCipherConfig},
-    format::DatabaseVersion,
     format::variant_dictionary::VariantDictionary,
 };
 
 #[cfg(feature = "save_kdbx4")]
 pub(crate) use crate::format::kdbx4::dump::dump_kdbx4;
+pub use crate::format::kdbx4::parse::{Kdbx4InnerHeaderError, Kdbx4OpenError, Kdbx4OuterHeaderError};
 pub(crate) use crate::format::kdbx4::parse::{decrypt_kdbx4, parse_kdbx4};
 
 /// Size for a master seed in bytes
@@ -43,7 +43,6 @@ pub const INNER_HEADER_RANDOM_STREAM_KEY: u8 = 0x02;
 pub const INNER_HEADER_BINARY_ATTACHMENTS: u8 = 0x03;
 
 struct KDBX4OuterHeader {
-    version: DatabaseVersion,
     outer_cipher_config: OuterCipherConfig,
     compression_config: CompressionConfig,
     master_seed: Vec<u8>,
@@ -65,7 +64,7 @@ mod kdbx4_tests {
     use crate::{
         config::{CompressionConfig, DatabaseConfig, InnerCipherConfig, KdfConfig, OuterCipherConfig},
         db::{Database, Entry, Group, HeaderAttachment, group_add_child, node::*},
-        format::{KDBX4_CURRENT_MINOR_VERSION, kdbx4::dump::dump_kdbx4},
+        format::{DatabaseVersion, KDBX4_CURRENT_MINOR_VERSION, kdbx4::dump::dump_kdbx4},
         key::DatabaseKey,
     };
 

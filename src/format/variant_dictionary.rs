@@ -1,4 +1,3 @@
-use crate::error::VariantDictionaryError;
 #[cfg(feature = "save_kdbx4")]
 use crate::format::io::WriteLengthTaggedExt;
 #[cfg(feature = "save_kdbx4")]
@@ -18,6 +17,21 @@ pub const I32_TYPE_ID: u8 = 0x0c;
 pub const I64_TYPE_ID: u8 = 0x0d;
 pub const STR_TYPE_ID: u8 = 0x18;
 pub const BYTES_TYPE_ID: u8 = 0x42;
+
+/// Errors while parsing a `VariantDictionary`.
+#[derive(Debug, thiserror::Error)]
+pub enum VariantDictionaryError {
+    #[error("Invalid variant dictionary version: {}", version)]
+    InvalidVersion { version: u16 },
+    #[error("Invalid value type: {}", value_type)]
+    InvalidValueType { value_type: u8 },
+    #[error("Missing key: {}", key)]
+    MissingKey { key: String },
+    #[error("Mistyped value: {}", key)]
+    Mistyped { key: String },
+    #[error("VariantDictionary did not end with null byte, when it should")]
+    NotTerminated,
+}
 
 #[derive(Debug, PartialEq, Eq, Clone, Default)]
 #[cfg_attr(feature = "serialization", derive(serde::Serialize))]

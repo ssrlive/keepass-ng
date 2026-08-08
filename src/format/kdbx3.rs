@@ -2,12 +2,12 @@ use crate::{
     config::{CompressionConfig, DatabaseConfig, InnerCipherConfig, KdfConfig, OuterCipherConfig},
     crypt::{calculate_sha256, ciphers::Cipher},
     db::{Database, rc_refcell_node},
-    error::{BlockStreamError, DatabaseIntegrityError, DatabaseKeyError, DatabaseOpenError},
-    format::{DatabaseVersion, kdbx_header_field_id::KDBXHeaderFieldID},
+    error::{DatabaseIntegrityError, DatabaseKeyError, DatabaseOpenError},
+    format::{DatabaseVersion, DatabaseVersionParseError, kdbx_header_field_id::KDBXHeaderFieldID},
     key::DatabaseKey,
 };
 use byteorder::{ByteOrder, LittleEndian};
-use std::convert::{TryFrom, TryInto};
+use std::convert::TryFrom;
 
 #[derive(Debug)]
 struct KDBX3Header {
@@ -26,7 +26,7 @@ struct KDBX3Header {
     body_start: usize,
 }
 
-fn parse_outer_header(data: &[u8]) -> Result<KDBX3Header, DatabaseOpenError> {
+fn parse_outer_header(data: &[u8]) -> Result<KDBX3Header, Kdbx3OuterHeaderError> {
     let mut outer_cipher: Option<OuterCipherConfig> = None;
     let mut compression: Option<CompressionConfig> = None;
     let mut master_seed: Option<Vec<u8>> = None;
@@ -52,16 +52,21 @@ fn parse_outer_header(data: &[u8]) -> Result<KDBX3Header, DatabaseOpenError> {
         //   field_buffer: [u8; field_length]       // the entry buffer
         // )
 
-        let err = DatabaseIntegrityError::IncompleteKDBEntry;
-        let field_id: KDBXHeaderFieldID = data.get(pos).ok_or(err)?.try_into()?;
+        let field_id: KDBXHeaderFieldID = data
+            .get(pos)
+            .ok_or(Kdbx3OuterHeaderError::IncompleteOuterHeader("Header field"))
+            .and_then(|field_id| {
+                KDBXHeaderFieldID::try_from(field_id).map_err(|_| Kdbx3OuterHeaderError::InvalidOuterHeaderEntry(*field_id))
+            })?;
 
         let field_length = data
             .get((pos + 1)..(pos + 3))
-            .ok_or(DatabaseIntegrityError::IncompleteKDBEntry)
+            .ok_or(Kdbx3OuterHeaderError::IncompleteOuterHeader("Field length"))
             .map(LittleEndian::read_u16)? as usize;
 
-        let err = DatabaseIntegrityError::IncompleteKDBEntry;
-        let field_buffer = data.get((pos + 3)..(pos + 3 + field_length)).ok_or(err)?;
+        let field_buffer = data
+            .get((pos + 3)..(pos + 3 + field_length))
+            .ok_or(Kdbx3OuterHeaderError::IncompleteOuterHeader("Field value"))?;
 
         pos += 3 + field_length;
 
@@ -77,13 +82,12 @@ fn parse_outer_header(data: &[u8]) -> Result<KDBX3Header, DatabaseOpenError> {
             // CIPHERID - a UUID specifying which cipher suite
             //            should be used to encrypt the payload
             KDBXHeaderFieldID::CipherID => {
-                outer_cipher = Some(OuterCipherConfig::try_from(field_buffer).map_err(DatabaseIntegrityError::from)?);
+                outer_cipher = Some(OuterCipherConfig::try_from(field_buffer)?);
             }
 
             // COMPRESSIONFLAGS - first byte determines compression of payload
             KDBXHeaderFieldID::CompressionFlags => {
-                compression =
-                    Some(CompressionConfig::try_from(LittleEndian::read_u32(field_buffer)).map_err(DatabaseIntegrityError::from)?);
+                compression = Some(CompressionConfig::try_from(LittleEndian::read_u32(field_buffer))?);
             }
 
             // MASTERSEED - Master seed for deriving the master key
@@ -107,12 +111,11 @@ fn parse_outer_header(data: &[u8]) -> Result<KDBX3Header, DatabaseOpenError> {
             // INNERRANDOMSTREAMID - specifies which cipher suite
             //                       to use for decrypting the inner protected values
             KDBXHeaderFieldID::InnerRandomStreamID => {
-                inner_random_stream_id =
-                    Some(InnerCipherConfig::try_from(LittleEndian::read_u32(field_buffer)).map_err(DatabaseIntegrityError::from)?);
+                inner_random_stream_id = Some(InnerCipherConfig::try_from(LittleEndian::read_u32(field_buffer))?);
             }
 
             _ => {
-                return Err(DatabaseIntegrityError::InvalidKDBXHeaderFieldID { field_id: field_id.into() }.into());
+                return Err(Kdbx3OuterHeaderError::InvalidOuterHeaderEntry(field_id.into()));
             }
         };
     }
@@ -120,8 +123,8 @@ fn parse_outer_header(data: &[u8]) -> Result<KDBX3Header, DatabaseOpenError> {
     // at this point, the header needs to be fully defined - unwrap options and return errors if
     // something is missing
 
-    fn get_or_err<T>(v: Option<T>, err: &str) -> Result<T, DatabaseIntegrityError> {
-        v.ok_or_else(|| DatabaseIntegrityError::IncompleteOuterHeader { missing_field: err.into() })
+    fn get_or_err<T>(v: Option<T>, err: &'static str) -> Result<T, Kdbx3OuterHeaderError> {
+        v.ok_or(Kdbx3OuterHeaderError::IncompleteOuterHeader(err))
     }
 
     let outer_cipher = get_or_err(outer_cipher, "Outer Cipher ID")?;
@@ -151,12 +154,32 @@ fn parse_outer_header(data: &[u8]) -> Result<KDBX3Header, DatabaseOpenError> {
     })
 }
 
+#[derive(Debug, thiserror::Error)]
+pub enum Kdbx3OuterHeaderError {
+    #[error(transparent)]
+    InnerCipher(#[from] crate::config::InnerCipherConfigError),
+
+    #[error(transparent)]
+    OuterCipher(#[from] crate::config::OuterCipherConfigError),
+
+    #[error(transparent)]
+    Compression(#[from] crate::config::CompressionConfigError),
+
+    #[error("Encountered invalid outer header entry with type {0}")]
+    InvalidOuterHeaderEntry(u8),
+
+    #[error("Outer header is missing {0}")]
+    IncompleteOuterHeader(&'static str),
+}
+
 /// Open, decrypt and parse a `KeePass` database from a source and a password
 pub(crate) fn parse_kdbx3(data: &[u8], db_key: &DatabaseKey) -> Result<Database, DatabaseOpenError> {
     let (config, mut inner_decryptor, xml) = decrypt_kdbx3(data, db_key)?;
 
     // Parse XML data blocks
-    let database_content = crate::format::xml_db::parse::parse(&xml, &mut *inner_decryptor).map_err(DatabaseIntegrityError::from)?;
+    let database_content = crate::format::xml_db::parse::parse(&xml, &mut *inner_decryptor)
+        .map_err(Kdbx3OpenError::from)
+        .map_err(DatabaseIntegrityError::from)?;
 
     let db = Database {
         config,
@@ -172,8 +195,12 @@ pub(crate) fn parse_kdbx3(data: &[u8], db_key: &DatabaseKey) -> Result<Database,
 /// Open and decrypt a `KeePass` KDBX3 database from a source and a password
 #[allow(clippy::type_complexity)]
 pub(crate) fn decrypt_kdbx3(data: &[u8], db_key: &DatabaseKey) -> Result<(DatabaseConfig, Box<dyn Cipher>, Vec<u8>), DatabaseOpenError> {
-    let version = DatabaseVersion::parse(data)?;
-    let header = parse_outer_header(data)?;
+    let version = DatabaseVersion::parse(data)
+        .map_err(Kdbx3OpenError::from)
+        .map_err(DatabaseIntegrityError::from)?;
+    let header = parse_outer_header(data)
+        .map_err(Kdbx3OpenError::from)
+        .map_err(DatabaseIntegrityError::from)?;
 
     // Derive stream key for decrypting inner protected values and set up decryption context
     let stream_key = calculate_sha256(&[header.inner_random_stream_key.as_ref()]);
@@ -254,7 +281,7 @@ pub(crate) fn decrypt_kdbx3(data: &[u8], db_key: &DatabaseKey) -> Result<(Databa
         // Test block hash
         let block_hash_check = calculate_sha256(&[block_buffer_compressed]);
         if block_hash != block_hash_check.as_slice() {
-            return Err(BlockStreamError::BlockHashMismatch { block_index }.into());
+            return Err(DatabaseIntegrityError::from(Kdbx3OpenError::BlockHashMismatch(block_index)).into());
         }
 
         // Decompress block_buffer_compressed
@@ -267,4 +294,19 @@ pub(crate) fn decrypt_kdbx3(data: &[u8], db_key: &DatabaseKey) -> Result<(Databa
     let xml = compression.decompress(&buf)?;
 
     Ok((config, inner_decryptor, xml))
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum Kdbx3OpenError {
+    #[error(transparent)]
+    Version(#[from] DatabaseVersionParseError),
+
+    #[error(transparent)]
+    OuterHeader(#[from] Kdbx3OuterHeaderError),
+
+    #[error("block hash mismatch at block index {0}")]
+    BlockHashMismatch(usize),
+
+    #[error(transparent)]
+    Xml(#[from] crate::format::xml_db::parse::XmlParseError),
 }

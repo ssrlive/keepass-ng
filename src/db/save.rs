@@ -1,10 +1,26 @@
 use crate::{DatabaseKey, db::types::Database, format::DatabaseVersion};
 
+/// Errors occurring when saving a database.
+#[derive(Debug, thiserror::Error)]
+pub enum DatabaseSaveError {
+    #[error("Saving this database version is not supported")]
+    UnsupportedVersion,
+    #[error("Error while generating XML")]
+    Xml(#[from] xml::writer::Error),
+    #[error(transparent)]
+    Io(#[from] std::io::Error),
+    #[error(transparent)]
+    Key(#[from] crate::key::DatabaseKeyError),
+    #[error(transparent)]
+    Cryptography(#[from] crate::crypt::CryptographyError),
+    #[error(transparent)]
+    Random(#[from] getrandom::Error),
+}
+
 impl Database {
     /// Save a database to a `std::io::Write`
     #[cfg(feature = "save_kdbx4")]
-    pub fn save(&self, destination: &mut dyn std::io::Write, key: DatabaseKey) -> Result<(), crate::error::DatabaseSaveError> {
-        use crate::error::DatabaseSaveError;
+    pub fn save(&self, destination: &mut dyn std::io::Write, key: DatabaseKey) -> Result<(), DatabaseSaveError> {
         use crate::format::kdbx4::dump_kdbx4;
 
         match self.config.version {

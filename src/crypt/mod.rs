@@ -11,7 +11,21 @@ use hmac::{Hmac, KeyInit, Mac};
 use sha1::Sha1;
 use sha2::{Digest, Sha256, Sha512};
 
-use crate::error::CryptographyError;
+/// Errors while performing cryptographic operations.
+#[derive(Debug, thiserror::Error)]
+pub enum CryptographyError {
+    #[error(transparent)]
+    InvalidLength(#[from] cipher::InvalidLength),
+
+    #[error(transparent)]
+    Unpadding(#[from] cipher::block_padding::Error),
+
+    #[error(transparent)]
+    Padding(#[from] cipher::inout::PadError),
+
+    #[error(transparent)]
+    Argon2(#[from] argon2::Error),
+}
 
 pub(crate) mod ciphers;
 pub(crate) mod kdf;

@@ -4,6 +4,8 @@ mod types;
 
 mod open;
 
+pub use crate::db::open::{DatabaseIntegrityError, DatabaseOpenError};
+
 pub(crate) mod iconid;
 
 #[cfg(feature = "merge")]
@@ -15,9 +17,12 @@ pub(crate) mod otp;
 #[cfg(feature = "save_kdbx4")]
 mod save;
 
+#[cfg(feature = "save_kdbx4")]
+pub use crate::db::save::DatabaseSaveError;
+
 pub use crate::db::iconid::IconId;
 pub use crate::db::types::*;
-pub use crate::key::DatabaseKey;
+pub use crate::key::{DatabaseKey, DatabaseKeyError};
 
 #[cfg(feature = "totp")]
 pub use crate::db::otp::{TOTP, TOTPAlgorithm, TOTPError};

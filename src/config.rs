@@ -11,7 +11,7 @@ use crate::crypt::ciphers::Cipher;
 use crate::{
     compression,
     crypt::{ciphers, kdf},
-    error::{CompressionConfigError, CryptographyError, InnerCipherConfigError, KdfConfigError, OuterCipherConfigError},
+    error::{CryptographyError, VariantDictionaryError},
     format::{KDBX4_CURRENT_MINOR_VERSION, variant_dictionary::VariantDictionary},
 };
 
@@ -76,6 +76,16 @@ pub enum OuterCipherConfig {
     ChaCha20,
 }
 
+/// Errors with the configuration of the outer encryption.
+#[derive(Debug, thiserror::Error)]
+pub enum OuterCipherConfigError {
+    #[error(transparent)]
+    Cryptography(#[from] CryptographyError),
+
+    #[error("Invalid outer cipher ID: {:?}", cid)]
+    InvalidOuterCipherID { cid: Vec<u8> },
+}
+
 impl OuterCipherConfig {
     pub(crate) fn get_cipher(&self, key: &[u8], iv: &[u8]) -> Result<Box<dyn ciphers::Cipher>, CryptographyError> {
         match self {
@@ -126,6 +136,16 @@ pub enum InnerCipherConfig {
     Plain,
     Salsa20,
     ChaCha20,
+}
+
+/// Errors with the configuration of the inner encryption.
+#[derive(Debug, thiserror::Error)]
+pub enum InnerCipherConfigError {
+    #[error(transparent)]
+    Cryptography(#[from] CryptographyError),
+
+    #[error("Invalid inner cipher ID: {}", cid)]
+    InvalidInnerCipherID { cid: u32 },
 }
 
 impl InnerCipherConfig {
@@ -205,6 +225,19 @@ pub enum KdfConfig {
         #[cfg_attr(feature = "serialization", serde(serialize_with = "serialize_argon2_version"))]
         version: argon2::Version,
     },
+}
+
+/// Errors with the configuration of the key derivation function.
+#[derive(Debug, thiserror::Error)]
+pub enum KdfConfigError {
+    #[error("Invalid KDF version: {}", version)]
+    InvalidKDFVersion { version: u32 },
+
+    #[error("Invalid KDF UUID: {:?}", uuid)]
+    InvalidKDFUUID { uuid: Vec<u8> },
+
+    #[error(transparent)]
+    VariantDictionary(#[from] VariantDictionaryError),
 }
 
 #[cfg(feature = "serialization")]
@@ -387,6 +420,13 @@ impl TryFrom<VariantDictionary> for (KdfConfig, Vec<u8>) {
 pub enum CompressionConfig {
     None,
     GZip,
+}
+
+/// Errors with the configuration of the compression algorithm.
+#[derive(Debug, thiserror::Error)]
+pub enum CompressionConfigError {
+    #[error("Invalid compression algorithm: {}", cid)]
+    InvalidCompressionSuite { cid: u32 },
 }
 
 impl CompressionConfig {

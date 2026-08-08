@@ -45,8 +45,10 @@ pub fn dump_kdbx4(db: &Database, db_key: &DatabaseKey, writer: &mut dyn Write) -
 
     // dump the outer header - need to buffer so that SHA256 can be computed
     let mut header_data = Vec::new();
+
+    db.config.version.dump(&mut header_data)?;
+
     KDBX4OuterHeader {
-        version: db.config.version.clone(),
         outer_cipher_config: db.config.outer_cipher_config.clone(),
         compression_config: db.config.compression_config.clone(),
         master_seed: master_seed.clone(),
@@ -116,8 +118,6 @@ impl HeaderAttachment {
 impl KDBX4OuterHeader {
     #[allow(dead_code)]
     fn dump(&self, writer: &mut dyn Write) -> Result<(), DatabaseSaveError> {
-        self.version.dump(writer)?;
-
         writer.write_u8(HEADER_OUTER_ENCRYPTION_ID)?;
         writer.write_with_len(&self.outer_cipher_config.dump())?;
 

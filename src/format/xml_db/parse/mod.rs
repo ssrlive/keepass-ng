@@ -12,7 +12,6 @@ use xml::{EventReader, name::OwnedName, reader::XmlEvent};
 use crate::{
     crypt::ciphers::Cipher,
     db::{Color, CustomData, CustomDataItem, CustomDataItemDenormalized, DeletedObject, DeletedObjects, Group, Meta, Times, Value},
-    error::XmlParseError,
     format::xml_db::get_epoch_baseline,
 };
 
@@ -54,6 +53,33 @@ pub enum SimpleXmlEvent {
     End(String),
     Characters(String),
     Err(xml::reader::Error),
+}
+
+/// Errors while parsing the XML document inside a `KeePass` database.
+#[derive(Debug, thiserror::Error)]
+pub enum XmlParseError {
+    #[error(transparent)]
+    Xml(#[from] xml::reader::Error),
+    #[error(transparent)]
+    Base64(#[from] base64::DecodeError),
+    #[error(transparent)]
+    TimestampFormat(#[from] chrono::ParseError),
+    #[error(transparent)]
+    IntFormat(#[from] std::num::ParseIntError),
+    #[error(transparent)]
+    BoolFormat(#[from] std::str::ParseBoolError),
+    #[error(transparent)]
+    Uuid(#[from] uuid::Error),
+    #[error(transparent)]
+    Color(#[from] crate::db::ParseColorError),
+    #[error(transparent)]
+    Cryptography(#[from] crate::crypt::CryptographyError),
+    #[error("Decompression error: {}", _0)]
+    Compression(#[source] std::io::Error),
+    #[error("Bad XML event: expected {}, got {:?}", expected, event)]
+    BadEvent { expected: &'static str, event: SimpleXmlEvent },
+    #[error("Unexpected end of XML document")]
+    Eof,
 }
 
 pub(crate) fn bad_event(expected: &'static str, event: SimpleXmlEvent) -> XmlParseError {

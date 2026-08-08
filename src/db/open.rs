@@ -1,14 +1,124 @@
 use crate::db::types::Database;
 use crate::{
     DatabaseKey,
-    error::{DatabaseIntegrityError, DatabaseOpenError},
+    error::{
+        BlockStreamError, CompressionConfigError, CryptographyError, DatabaseKeyError, InnerCipherConfigError, KdfConfigError,
+        OuterCipherConfigError, VariantDictionaryError, XmlParseError,
+    },
     format::{
-        DatabaseVersion,
+        DatabaseVersion, DatabaseVersionParseError,
+        kdb::KdbOpenError,
         kdb::parse_kdb,
-        kdbx3::{decrypt_kdbx3, parse_kdbx3},
-        kdbx4::{decrypt_kdbx4, parse_kdbx4},
+        kdbx3::{Kdbx3OpenError, decrypt_kdbx3, parse_kdbx3},
+        kdbx4::{Kdbx4OpenError, decrypt_kdbx4, parse_kdbx4},
     },
 };
+
+/// Errors upon reading a database.
+#[derive(Debug, thiserror::Error)]
+pub enum DatabaseOpenError {
+    #[error(transparent)]
+    Io(#[from] std::io::Error),
+
+    #[error(transparent)]
+    Key(#[from] DatabaseKeyError),
+
+    #[error(transparent)]
+    DatabaseIntegrity(#[from] DatabaseIntegrityError),
+
+    #[error(transparent)]
+    Version(#[from] DatabaseVersionParseError),
+
+    #[error("Opening this database version is not supported")]
+    UnsupportedVersion,
+}
+
+/// Errors stemming from corrupted databases.
+#[derive(Debug, thiserror::Error)]
+pub enum DatabaseIntegrityError {
+    #[error(transparent)]
+    Kdb(#[from] KdbOpenError),
+
+    #[error(transparent)]
+    Kdbx3(#[from] Kdbx3OpenError),
+
+    #[error(transparent)]
+    Kdbx4(#[from] Kdbx4OpenError),
+
+    #[error(transparent)]
+    Version(#[from] DatabaseVersionParseError),
+
+    #[error("Invalid KDBX identifier")]
+    InvalidKDBXIdentifier,
+
+    #[error("Invalid KDBX version: {}.{}.{}", version, file_major_version, file_minor_version)]
+    InvalidKDBXVersion {
+        version: u32,
+        file_major_version: u32,
+        file_minor_version: u32,
+    },
+
+    #[error("Invalid header size: {}", size)]
+    InvalidFixedHeader { size: usize },
+
+    #[error("Invalid field length for type {}: {} (expected {})", field_type, field_size, expected_field_size)]
+    InvalidKDBFieldLength {
+        field_type: u16,
+        field_size: u32,
+        expected_field_size: u32,
+    },
+
+    #[error("Missing group level")]
+    MissingKDBGroupLevel,
+    #[error("Invalid KDBX header field ID: {}", field_id)]
+    InvalidKDBXHeaderFieldID { field_id: u8 },
+    #[error("Invalid group level {} (current level {})", group_level, current_level)]
+    InvalidKDBGroupLevel { group_level: u16, current_level: u16 },
+    #[error("Missing group ID")]
+    MissingKDBGroupId,
+    #[error("Invalid group ID {}", group_id)]
+    InvalidKDBGroupId { group_id: u32 },
+    #[error("Invalid group field type: {}", field_type)]
+    InvalidKDBGroupFieldType { field_type: u16 },
+    #[error("Invalid entry field type: {}", field_type)]
+    InvalidKDBEntryFieldType { field_type: u16 },
+    #[error("Incomplete group")]
+    IncompleteKDBGroup,
+    #[error("Incomplete entry")]
+    IncompleteKDBEntry,
+    #[error("Invalid fixed cipher ID: {}", cid)]
+    InvalidFixedCipherID { cid: u32 },
+    #[error("Header hash masmatch")]
+    HeaderHashMismatch,
+    #[error("Invalid outer header entry: {}", entry_type)]
+    InvalidOuterHeaderEntry { entry_type: u8 },
+    #[error("Incomplete outer header: Missing {}", missing_field)]
+    IncompleteOuterHeader { missing_field: String },
+    #[error("Invalid inner header entry: {}", entry_type)]
+    InvalidInnerHeaderEntry { entry_type: u8 },
+    #[error("Incomplete outer header: Missing {}", missing_field)]
+    IncompleteInnerHeader { missing_field: String },
+
+    #[error(transparent)]
+    Cryptography(#[from] CryptographyError),
+    #[error(transparent)]
+    Xml(#[from] XmlParseError),
+    #[error(transparent)]
+    OuterCipher(#[from] OuterCipherConfigError),
+    #[error(transparent)]
+    InnerCipher(#[from] InnerCipherConfigError),
+    #[error(transparent)]
+    Compression(#[from] CompressionConfigError),
+    #[error(transparent)]
+    BlockStream(#[from] BlockStreamError),
+    #[error(transparent)]
+    VariantDictionary(#[from] VariantDictionaryError),
+    #[error(transparent)]
+    KdfSettings(#[from] KdfConfigError),
+    #[error(transparent)]
+    Io(#[from] std::io::Error),
+}
+
 impl Database {
     /// Parse a database from a `std::io::Read`
     pub fn open(source: &mut dyn std::io::Read, key: DatabaseKey) -> Result<Database, DatabaseOpenError> {
@@ -50,6 +160,6 @@ impl Database {
     pub fn get_version(source: &mut dyn std::io::Read) -> Result<DatabaseVersion, DatabaseIntegrityError> {
         let mut data = vec![0; DatabaseVersion::get_version_header_size()];
         _ = source.read(&mut data)?;
-        DatabaseVersion::parse(data.as_ref())
+        Ok(DatabaseVersion::parse(data.as_ref())?)
     }
 }

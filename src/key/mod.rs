@@ -5,16 +5,34 @@ use xml::name::OwnedName;
 use xml::reader::{EventReader, XmlEvent};
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
-use crate::{crypt::calculate_sha256, error::DatabaseKeyError};
+use crate::crypt::calculate_sha256;
 
 pub type KeyElement = Vec<u8>;
 pub type KeyElements = Vec<KeyElement>;
+
+/// Errors related to the database key.
+#[derive(Debug, thiserror::Error)]
+pub enum DatabaseKeyError {
+    #[error("Incorrect key")]
+    IncorrectKey,
+    #[error(transparent)]
+    Cryptography(#[from] crate::crypt::CryptographyError),
+    #[error(transparent)]
+    Io(#[from] std::io::Error),
+    #[error(transparent)]
+    Xml(#[from] xml::reader::Error),
+    #[error("Could not obtain a key from the keyfile")]
+    InvalidKeyFile,
+    #[cfg(feature = "challenge_response")]
+    #[error(transparent)]
+    ChallengeResponse(#[from] yubikey::ChallengeResponseKeyError),
+}
 
 #[cfg(feature = "challenge_response")]
 mod yubikey;
 
 #[cfg(feature = "challenge_response")]
-pub use yubikey::ChallengeResponseKey;
+pub use yubikey::{ChallengeResponseKey, ChallengeResponseKeyError};
 
 fn parse_xml_keyfile(xml: &[u8]) -> Result<KeyElement, DatabaseKeyError> {
     let parser = EventReader::new(xml);
@@ -175,9 +193,7 @@ impl DatabaseKey {
         if let Some(result) = &self.challenge_response_result {
             out.push(calculate_sha256(&[result]).as_slice().to_vec());
         } else if self.challenge_response_key.is_some() {
-            return Err(DatabaseKeyError::ChallengeResponseKeyError(
-                "Challenge-response was not performed".to_string(),
-            ));
+            return Err(DatabaseKeyError::ChallengeResponse(ChallengeResponseKeyError::NotPerformed));
         }
 
         Ok(out)

@@ -1,5 +1,8 @@
-use crate::error::ParseColorError;
 use std::str::FromStr;
+
+#[derive(Debug, thiserror::Error)]
+#[error("Cannot parse color: '{}'", .0)]
+pub struct ParseColorError(pub String);
 
 /// A color value for the Database, or Entry
 #[derive(Debug, Default, PartialEq, Eq, Clone, Copy)]

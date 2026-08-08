@@ -50,11 +50,11 @@ fn from_utf8(data: &[u8]) -> String {
     String::from_utf8_lossy(data).trim_end_matches('\0').to_owned()
 }
 
-fn ensure_length(field_type: u16, field_size: u32, expected_field_size: u32) -> Result<(), DatabaseIntegrityError> {
+fn ensure_length(field_type: u16, field_size: u32, expected_field_size: u32) -> Result<(), KdbOpenError> {
     if field_size == expected_field_size {
         Ok(())
     } else {
-        Err(DatabaseIntegrityError::InvalidKDBFieldLength {
+        Err(KdbOpenError::InvalidFieldLength {
             field_type,
             field_size,
             expected_field_size,
@@ -92,7 +92,7 @@ fn collapse_tail_groups(branch: &mut Vec<NodePtr>, level: usize, root: &NodePtr)
 // A map from a GroupId to a path identifying (by name) a group in the group tree.
 type GidMap = HashMap<u32, Vec<String>>;
 
-fn parse_groups(root: &NodePtr, header_num_groups: u32, data: &mut &[u8]) -> Result<GidMap, DatabaseIntegrityError> {
+fn parse_groups(root: &NodePtr, header_num_groups: u32, data: &mut &[u8]) -> Result<GidMap, KdbOpenError> {
     // Loop over group TLVs
     let mut gid_map: HashMap<u32, Vec<String>> = HashMap::new(); // the gid to group path map
     let mut branch: Vec<NodePtr> = Vec::new(); // the current branch in the group tree
@@ -131,13 +131,16 @@ fn parse_groups(root: &NodePtr, header_num_groups: u32, data: &mut &[u8]) -> Res
             0xffff => {
                 ensure_length(field_type, field_size, 0)?;
 
-                let level = level.ok_or(DatabaseIntegrityError::MissingKDBGroupLevel)? as usize;
+                let level = level.ok_or(KdbOpenError::InvalidGroupLevel {
+                    current: None,
+                    expected: branch.len() as u16,
+                })? as usize;
 
                 // Update the current group tree branch (collapse previous sub-branch, initiate
                 // current sub-branch)
                 if level < branch.len() {
                     group_path.truncate(level);
-                    collapse_tail_groups(&mut branch, level, root).ok_or(DatabaseIntegrityError::IncompleteKDBGroup)?;
+                    collapse_tail_groups(&mut branch, level, root).ok_or(KdbOpenError::IncompleteGroup)?;
                 }
                 if level == branch.len() {
                     group_path.push(group.borrow().get_title().unwrap_or("").to_string());
@@ -145,36 +148,36 @@ fn parse_groups(root: &NodePtr, header_num_groups: u32, data: &mut &[u8]) -> Res
                 } else {
                     // Level is beyond the current depth, missing intermediate levels?
                     #[allow(clippy::cast_possible_truncation)]
-                    return Err(DatabaseIntegrityError::InvalidKDBGroupLevel {
-                        group_level: level as u16,
-                        current_level: branch.len() as u16,
+                    return Err(KdbOpenError::InvalidGroupLevel {
+                        current: Some(level as u16),
+                        expected: branch.len() as u16,
                     });
                 }
 
                 // Update the GroupId map and reset state for the next group
-                let group_id = gid.ok_or(DatabaseIntegrityError::MissingKDBGroupId)?;
+                let group_id = gid.ok_or(KdbOpenError::InvalidGroupId(None))?;
                 gid_map.insert(group_id, group_path.clone());
                 group = rc_refcell_node(Group::new(""));
                 gid = None;
                 num_groups += 1;
             }
             _ => {
-                return Err(DatabaseIntegrityError::InvalidKDBGroupFieldType { field_type });
+                return Err(KdbOpenError::InvalidGroupFieldType(field_type));
             }
         }
 
         *data = &data[6 + field_size as usize..];
     }
     if gid.is_some() {
-        return Err(DatabaseIntegrityError::IncompleteKDBGroup);
+        return Err(KdbOpenError::IncompleteGroup);
     }
     // Collapse last group tree branch into the root
-    collapse_tail_groups(&mut branch, 0, root).ok_or(DatabaseIntegrityError::IncompleteKDBGroup)?;
+    collapse_tail_groups(&mut branch, 0, root).ok_or(KdbOpenError::IncompleteGroup)?;
 
     Ok(gid_map)
 }
 
-fn parse_entries(root: &NodePtr, gid_map: &GidMap, header_num_entries: u32, data: &mut &[u8]) -> Result<(), DatabaseIntegrityError> {
+fn parse_entries(root: &NodePtr, gid_map: &GidMap, header_num_entries: u32, data: &mut &[u8]) -> Result<(), KdbOpenError> {
     // Loop over entry TLVs
     let mut entry = Entry::default(); // the current entry
     let mut gid: Option<u32> = None; // the current entry's group id
@@ -219,41 +222,41 @@ fn parse_entries(root: &NodePtr, gid_map: &GidMap, header_num_entries: u32, data
             0xffff => {
                 ensure_length(field_type, field_size, 0)?;
 
-                let group_id = gid.ok_or(DatabaseIntegrityError::MissingKDBGroupId)?;
+                let group_id = gid.ok_or(KdbOpenError::EntryMissingGroupId)?;
                 let group_path: Vec<&str> = gid_map
                     .get(&group_id)
-                    .ok_or(DatabaseIntegrityError::InvalidKDBGroupId { group_id })?
+                    .ok_or(KdbOpenError::InvalidGroupId(Some(group_id)))?
                     .iter()
                     .map(std::string::String::as_str)
                     .collect();
 
-                let group = Group::get(root, group_path.as_slice()).ok_or(DatabaseIntegrityError::IncompleteKDBGroup)?;
+                let group = Group::get(root, group_path.as_slice()).ok_or(KdbOpenError::IncompleteGroup)?;
                 with_node_mut::<Group, _, _>(&group, |group| {
                     let count = group.get_children().len();
                     group.add_child(rc_refcell_node(entry), count);
-                    Ok::<(), DatabaseIntegrityError>(())
+                    Ok::<(), KdbOpenError>(())
                 })
-                .ok_or(DatabaseIntegrityError::IncompleteKDBGroup)??;
+                .ok_or(KdbOpenError::IncompleteGroup)??;
 
                 entry = Entry::default();
                 gid = None;
                 num_entries += 1;
             }
             _ => {
-                return Err(DatabaseIntegrityError::InvalidKDBEntryFieldType { field_type });
+                return Err(KdbOpenError::InvalidEntryFieldType(field_type));
             }
         }
 
         *data = &data[6 + field_size as usize..];
     }
     if gid.is_some() {
-        return Err(DatabaseIntegrityError::IncompleteKDBEntry);
+        return Err(KdbOpenError::IncompleteEntry);
     }
 
     Ok(())
 }
 
-fn parse_db(header: &KDBHeader, data: &[u8]) -> Result<NodePtr, DatabaseIntegrityError> {
+fn parse_db(header: &KDBHeader, data: &[u8]) -> Result<NodePtr, KdbOpenError> {
     let root = rc_refcell_node(Group::new("Root"));
 
     let mut pos = data;
@@ -297,7 +300,7 @@ pub(crate) fn parse_kdb(data: &[u8], db_key: &DatabaseKey) -> Result<Database, D
     } else if header.flags & 8 != 0 {
         OuterCipherConfig::Twofish
     } else {
-        return Err(DatabaseIntegrityError::InvalidFixedCipherID { cid: header.flags }.into());
+        return Err(DatabaseIntegrityError::from(KdbOpenError::InvalidFixedCipherID(header.flags)).into());
     };
 
     // Decrypt payload
@@ -313,7 +316,7 @@ pub(crate) fn parse_kdb(data: &[u8], db_key: &DatabaseKey) -> Result<Database, D
         return Err(DatabaseKeyError::IncorrectKey.into());
     }
 
-    let root_group = parse_db(&header, payload)?;
+    let root_group = parse_db(&header, payload).map_err(DatabaseIntegrityError::from)?;
 
     let config = DatabaseConfig {
         version,
@@ -331,4 +334,39 @@ pub(crate) fn parse_kdb(data: &[u8], db_key: &DatabaseKey) -> Result<Database, D
         deleted_objects: DeletedObjects::default(),
         meta: Meta::new(),
     })
+}
+
+/// Errors that can occur when opening a KeePass 1 database
+#[derive(Debug, thiserror::Error)]
+pub enum KdbOpenError {
+    #[error("Field of type {field_type} has invalid length {field_size}, expected {expected_field_size}")]
+    InvalidFieldLength {
+        field_type: u16,
+        field_size: u32,
+        expected_field_size: u32,
+    },
+
+    #[error("Invalid group level: got {current:?}, expected {expected}")]
+    InvalidGroupLevel { current: Option<u16>, expected: u16 },
+
+    #[error("Invalid group ID: {0:?}")]
+    InvalidGroupId(Option<u32>),
+
+    #[error("Invalid group field type: {0}")]
+    InvalidGroupFieldType(u16),
+
+    #[error("Group was not terminated before end of file")]
+    IncompleteGroup,
+
+    #[error("Entry is missing group ID")]
+    EntryMissingGroupId,
+
+    #[error("Invalid entry field type: {0}")]
+    InvalidEntryFieldType(u16),
+
+    #[error("Entry was not terminated before end of file")]
+    IncompleteEntry,
+
+    #[error("Invalid fixed cipher ID: {0}")]
+    InvalidFixedCipherID(u32),
 }

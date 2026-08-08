@@ -1,9 +1,18 @@
-use crate::error::BlockStreamError;
-#[cfg(feature = "save_kdbx4")]
-use crate::error::CryptographyError;
+use crate::crypt::CryptographyError;
 use byteorder::{ByteOrder, LittleEndian};
 use cipher::{Array, typenum::U64};
 use hex_literal::hex;
+
+/// Errors reading from the HMAC block stream.
+#[derive(Debug, thiserror::Error)]
+pub enum BlockStreamError {
+    #[error(transparent)]
+    Cryptography(#[from] CryptographyError),
+    #[error("Block hash mismatch for block {}", block_index)]
+    BlockHashMismatch { block_index: u64 },
+    #[error("unexpected end of file")]
+    Eof,
+}
 
 pub const HMAC_KEY_END: [u8; 1] = hex!("01");
 
