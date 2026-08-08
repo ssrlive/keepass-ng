@@ -81,11 +81,11 @@ impl Database {
     }
 
     fn merge_deletions(&mut self, other: &Database) -> Result<MergeLog, MergeError> {
-        // Utility function to search for a UUID in the VecDeque of deleted objects.
-        let is_in_deleted_queue = |uuid: Uuid, deleted_groups_queue: &VecDeque<DeletedObject>| -> bool {
-            for deleted_object in deleted_groups_queue {
+        // Utility function to search for a UUID in the deletion queue.
+        let is_in_deleted_queue = |uuid: Uuid, deleted_groups_queue: &VecDeque<(Uuid, NaiveDateTime)>| -> bool {
+            for (deleted_uuid, _) in deleted_groups_queue {
                 // This group still has a child group, but it is not going to be deleted.
-                if deleted_object.uuid == uuid {
+                if *deleted_uuid == uuid {
                     return true;
                 }
             }
@@ -94,17 +94,18 @@ impl Database {
         let mut log = MergeLog::default();
         let mut new_deleted_objects = self.deleted_objects.clone();
         // We start by deleting the entries, since we will only remove groups if they are empty.
-        for deleted_object in &other.deleted_objects.objects {
-            if new_deleted_objects.contains(deleted_object.uuid) {
+        for (uuid, deletion_time) in &other.deleted_objects {
+            let deletion_time = deletion_time.unwrap_or_else(Times::now);
+            if new_deleted_objects.contains_key(uuid) {
                 continue;
             }
-            let entry_location = match Self::find_node_location(&self.root, deleted_object.uuid) {
+            let entry_location = match Self::find_node_location(&self.root, *uuid) {
                 Some(l) => l,
                 None => continue,
             };
             let parent_group = Group::find_group(&self.root, &entry_location).ok_or(MergeError::FindGroupError(entry_location))?;
 
-            let entry = match Group::find_entry(&parent_group, &[deleted_object.uuid]) {
+            let entry = match Group::find_entry(&parent_group, &[*uuid]) {
                 Some(e) => e,
                 // This uuid might refer to a group, which will be handled later.
                 None => continue,
@@ -120,34 +121,34 @@ impl Database {
                     Times::now()
                 }
             };
-            if entry_last_modification < deleted_object.deletion_time {
-                with_node_mut::<Group, _, _>(&parent_group, |pg| pg.remove_node(deleted_object.uuid)).unwrap()?;
+            if entry_last_modification < deletion_time {
+                with_node_mut::<Group, _, _>(&parent_group, |pg| pg.remove_node(*uuid)).unwrap()?;
                 log.events.push(MergeEvent {
                     event_type: MergeEventType::EntryDeleted,
-                    node_uuid: deleted_object.uuid,
+                    node_uuid: *uuid,
                 });
-                new_deleted_objects.objects.push(deleted_object.clone());
+                new_deleted_objects.insert(*uuid, Some(deletion_time));
             }
         }
-        let mut deleted_groups_queue: VecDeque<DeletedObject> = vec![].into();
-        for deleted_object in &other.deleted_objects.objects {
-            if new_deleted_objects.contains(deleted_object.uuid) {
+        let mut deleted_groups_queue: VecDeque<(Uuid, NaiveDateTime)> = VecDeque::new();
+        for (uuid, deletion_time) in &other.deleted_objects {
+            if new_deleted_objects.contains_key(uuid) {
                 continue;
             }
-            deleted_groups_queue.push_back(deleted_object.clone());
+            deleted_groups_queue.push_back((*uuid, deletion_time.unwrap_or_else(Times::now)));
         }
         while !deleted_groups_queue.is_empty() {
-            let deleted_object = deleted_groups_queue.pop_front().unwrap();
-            if new_deleted_objects.contains(deleted_object.uuid) {
+            let (deleted_uuid, deletion_time) = deleted_groups_queue.pop_front().unwrap();
+            if new_deleted_objects.contains_key(&deleted_uuid) {
                 continue;
             }
-            let group_location = match Self::find_node_location(&self.root, deleted_object.uuid) {
+            let group_location = match Self::find_node_location(&self.root, deleted_uuid) {
                 Some(l) => l,
                 None => continue,
             };
             let parent_group = Group::find_group(&self.root, &group_location).ok_or(MergeError::FindGroupError(group_location))?;
 
-            let group = match Group::find_group(&parent_group, &[deleted_object.uuid]) {
+            let group = match Group::find_group(&parent_group, &[deleted_uuid]) {
                 Some(g) => g,
                 None => {
                     // The node might be an entry, since we didn't necessarily removed all the
@@ -161,14 +162,14 @@ impl Database {
             }
             // This group still has a child group that might get deleted in the future, so we delay
             // decision to delete it or not.
-            if !with_node::<Group, _, _>(&group, |g| g.groups())
-                .unwrap()
-                .iter()
-                .filter(|&g| !is_in_deleted_queue(g.borrow().get_uuid(), &deleted_groups_queue))
-                .collect::<Vec<_>>()
-                .is_empty()
+            if with_node::<Group, _, _>(&group, |g| {
+                g.groups()
+                    .iter()
+                    .any(|child| is_in_deleted_queue(child.borrow().get_uuid(), &deleted_groups_queue))
+            })
+            .unwrap()
             {
-                deleted_groups_queue.push_back(deleted_object.clone());
+                deleted_groups_queue.push_back((deleted_uuid, deletion_time));
                 continue;
             }
             // This group still a groups that won't be deleted, so we don't delete it.
@@ -185,13 +186,13 @@ impl Database {
                     Times::now()
                 }
             };
-            if group_last_modification < deleted_object.deletion_time {
-                with_node_mut::<Group, _, _>(&parent_group, |pg| pg.remove_node(deleted_object.uuid)).unwrap()?;
+            if group_last_modification < deletion_time {
+                with_node_mut::<Group, _, _>(&parent_group, |pg| pg.remove_node(deleted_uuid)).unwrap()?;
                 log.events.push(MergeEvent {
                     event_type: MergeEventType::GroupDeleted,
-                    node_uuid: deleted_object.uuid,
+                    node_uuid: deleted_uuid,
                 });
-                new_deleted_objects.objects.push(deleted_object.clone());
+                new_deleted_objects.insert(deleted_uuid, Some(deletion_time));
             }
         }
         self.deleted_objects = new_deleted_objects;
@@ -315,7 +316,7 @@ impl Database {
                 log.append(&entry_merge_log);
                 continue;
             }
-            if self.deleted_objects.contains(other_entry_uuid) {
+            if self.deleted_objects.contains_key(&other_entry_uuid) {
                 continue;
             }
             // We don't create new entries that exist under a deleted group.
@@ -340,7 +341,7 @@ impl Database {
             let mut new_group_location = current_group_path.to_owned();
             let other_group_uuid = other_group.borrow().get_uuid();
             new_group_location.push(other_group_uuid);
-            if self.deleted_objects.contains(other_group_uuid) || is_in_deleted_group {
+            if self.deleted_objects.contains_key(&other_group_uuid) || is_in_deleted_group {
                 let new_merge_log = self.merge_group(&new_group_location, other_group, true)?;
                 log.append(&new_merge_log);
                 continue;
@@ -551,8 +552,8 @@ impl Group {
             }
             group.is_expanded = other.is_expanded;
             group.default_autotype_sequence = other.default_autotype_sequence.clone();
-            group.enable_autotype = other.enable_autotype.clone();
-            group.enable_searching = other.enable_searching.clone();
+            group.enable_autotype = other.enable_autotype;
+            group.enable_searching = other.enable_searching;
             group.last_top_visible_entry = other.last_top_visible_entry;
         })
         .unwrap();
@@ -1028,7 +1029,7 @@ impl Entry {
             self.times = other.times.clone();
             self.custom_data = other.custom_data.clone();
             self.icon_id = other.icon_id;
-            self.custom_icon_uuid = other.custom_icon_uuid;
+            self.custom_icon = other.custom_icon.clone();
             self.foreground_color = other.foreground_color;
             self.background_color = other.background_color;
             self.override_url = other.override_url.clone();
@@ -1286,10 +1287,7 @@ mod merge_tests {
         deleted_entry.set_field_and_commit("Title", "deleted_entry");
         group_add_child(&source_db.root, rc_refcell_node(deleted_entry), 0).unwrap();
 
-        destination_db.deleted_objects.objects.push(crate::db::DeletedObject {
-            uuid: deleted_entry_uuid,
-            deletion_time: Times::now(),
-        });
+        destination_db.deleted_objects.insert(deleted_entry_uuid, Some(Times::now()));
 
         let merge_result = destination_db.merge(&source_db).unwrap();
         assert_eq!(merge_result.warnings.len(), 0);
@@ -1323,10 +1321,7 @@ mod merge_tests {
         let entry_count_before = get_all_entries(&destination_db.root).len();
         let group_count_before = get_all_groups(&destination_db.root).len();
 
-        destination_db.deleted_objects.objects.push(crate::db::DeletedObject {
-            uuid: deleted_group_uuid,
-            deletion_time: Times::now(),
-        });
+        destination_db.deleted_objects.insert(deleted_group_uuid, Some(Times::now()));
 
         let merge_result = destination_db.merge(&source_db).unwrap();
         assert_eq!(merge_result.warnings.len(), 0);
@@ -1359,10 +1354,7 @@ mod merge_tests {
         let deleted_group_uuid = deleted_group.uuid;
         group_add_child(&source_db.root, rc_refcell_node(deleted_group), 0).unwrap();
 
-        destination_db.deleted_objects.objects.push(crate::db::DeletedObject {
-            uuid: deleted_group_uuid,
-            deletion_time: Times::now(),
-        });
+        destination_db.deleted_objects.insert(deleted_group_uuid, Some(Times::now()));
 
         let merge_result = destination_db.merge(&source_db).unwrap();
         assert_eq!(merge_result.warnings.len(), 0);
@@ -1391,10 +1383,7 @@ mod merge_tests {
         let group_count_before = get_all_groups(&destination_db.root).len();
 
         thread::sleep(time::Duration::from_secs(1));
-        source_db.deleted_objects.objects.push(crate::db::DeletedObject {
-            uuid: deleted_entry_uuid,
-            deletion_time: Times::now(),
-        });
+        source_db.deleted_objects.insert(deleted_entry_uuid, Some(Times::now()));
 
         let merge_result = destination_db.merge(&source_db).unwrap();
         assert_eq!(merge_result.warnings.len(), 0);
@@ -1408,7 +1397,7 @@ mod merge_tests {
         let new_entry = Group::find_node_location(&destination_db.root, deleted_entry_uuid);
         assert!(new_entry.is_none());
 
-        assert!(destination_db.deleted_objects.contains(deleted_entry_uuid));
+        assert!(destination_db.deleted_objects.contains_key(&deleted_entry_uuid));
     }
 
     #[test]
@@ -1424,10 +1413,7 @@ mod merge_tests {
         let group_count_before = get_all_groups(&destination_db.root).len();
 
         thread::sleep(time::Duration::from_secs(1));
-        source_db.deleted_objects.objects.push(crate::db::DeletedObject {
-            uuid: deleted_group_uuid,
-            deletion_time: Times::now(),
-        });
+        source_db.deleted_objects.insert(deleted_group_uuid, Some(Times::now()));
 
         let merge_result = destination_db.merge(&source_db).unwrap();
         assert_eq!(merge_result.warnings.len(), 0);
@@ -1441,7 +1427,7 @@ mod merge_tests {
         let deleted_group = Group::find_node_location(&destination_db.root, deleted_group_uuid);
         assert!(deleted_group.is_none());
 
-        assert!(destination_db.deleted_objects.contains(deleted_group_uuid));
+        assert!(destination_db.deleted_objects.contains_key(&deleted_group_uuid));
     }
 
     #[test]
@@ -1452,10 +1438,7 @@ mod merge_tests {
         let deleted_entry_uuid = Uuid::new_v4();
 
         thread::sleep(time::Duration::from_secs(1));
-        source_db.deleted_objects.objects.push(crate::db::DeletedObject {
-            uuid: deleted_entry_uuid,
-            deletion_time: Times::now(),
-        });
+        source_db.deleted_objects.insert(deleted_entry_uuid, Some(Times::now()));
 
         thread::sleep(time::Duration::from_secs(1));
         let mut deleted_entry = Entry::default();
@@ -1478,7 +1461,7 @@ mod merge_tests {
         let new_entry = Group::find_node_location(&destination_db.root, deleted_entry_uuid);
         assert!(new_entry.is_some());
 
-        assert!(!destination_db.deleted_objects.contains(deleted_entry_uuid));
+        assert!(!destination_db.deleted_objects.contains_key(&deleted_entry_uuid));
     }
 
     #[test]
@@ -1506,18 +1489,9 @@ mod merge_tests {
         group_add_child(&destination_db.root, rc_refcell_node(deleted_group), 0).unwrap();
 
         thread::sleep(time::Duration::from_secs(1));
-        source_db.deleted_objects.objects.push(crate::db::DeletedObject {
-            uuid: deleted_entry_uuid,
-            deletion_time: Times::now(),
-        });
-        source_db.deleted_objects.objects.push(crate::db::DeletedObject {
-            uuid: deleted_subgroup_uuid,
-            deletion_time: Times::now(),
-        });
-        source_db.deleted_objects.objects.push(crate::db::DeletedObject {
-            uuid: deleted_group_uuid,
-            deletion_time: Times::now(),
-        });
+        source_db.deleted_objects.insert(deleted_entry_uuid, Some(Times::now()));
+        source_db.deleted_objects.insert(deleted_subgroup_uuid, Some(Times::now()));
+        source_db.deleted_objects.insert(deleted_group_uuid, Some(Times::now()));
 
         let entry_count_before = get_all_entries(&destination_db.root).len();
         let group_count_before = get_all_groups(&destination_db.root).len();
@@ -1538,9 +1512,9 @@ mod merge_tests {
         let deleted_group = Group::find_node_location(&destination_db.root, deleted_group_uuid);
         assert!(deleted_group.is_none());
 
-        assert!(destination_db.deleted_objects.contains(deleted_entry_uuid));
-        assert!(destination_db.deleted_objects.contains(deleted_subgroup_uuid));
-        assert!(destination_db.deleted_objects.contains(deleted_group_uuid));
+        assert!(destination_db.deleted_objects.contains_key(&deleted_entry_uuid));
+        assert!(destination_db.deleted_objects.contains_key(&deleted_subgroup_uuid));
+        assert!(destination_db.deleted_objects.contains_key(&deleted_group_uuid));
     }
 
     #[test]
@@ -1562,18 +1536,9 @@ mod merge_tests {
         deleted_subgroup.add_child(rc_refcell_node(deleted_entry), 0);
 
         thread::sleep(time::Duration::from_secs(1));
-        source_db.deleted_objects.objects.push(crate::db::DeletedObject {
-            uuid: deleted_entry_uuid,
-            deletion_time: Times::now(),
-        });
-        source_db.deleted_objects.objects.push(crate::db::DeletedObject {
-            uuid: deleted_subgroup_uuid,
-            deletion_time: Times::now(),
-        });
-        source_db.deleted_objects.objects.push(crate::db::DeletedObject {
-            uuid: deleted_group_uuid,
-            deletion_time: Times::now(),
-        });
+        source_db.deleted_objects.insert(deleted_entry_uuid, Some(Times::now()));
+        source_db.deleted_objects.insert(deleted_subgroup_uuid, Some(Times::now()));
+        source_db.deleted_objects.insert(deleted_group_uuid, Some(Times::now()));
 
         thread::sleep(time::Duration::from_secs(1));
         let mut deleted_group = Group::new("deleted_group");
@@ -1601,9 +1566,9 @@ mod merge_tests {
         let deleted_group = Group::find_node_location(&destination_db.root, deleted_group_uuid);
         assert!(deleted_group.is_some());
 
-        assert!(destination_db.deleted_objects.contains(deleted_entry_uuid));
-        assert!(destination_db.deleted_objects.contains(deleted_subgroup_uuid));
-        assert!(!destination_db.deleted_objects.contains(deleted_group_uuid));
+        assert!(destination_db.deleted_objects.contains_key(&deleted_entry_uuid));
+        assert!(destination_db.deleted_objects.contains_key(&deleted_subgroup_uuid));
+        assert!(!destination_db.deleted_objects.contains_key(&deleted_group_uuid));
     }
 
     #[test]
@@ -1614,10 +1579,7 @@ mod merge_tests {
         let deleted_group_uuid = Uuid::new_v4();
 
         thread::sleep(time::Duration::from_secs(1));
-        source_db.deleted_objects.objects.push(crate::db::DeletedObject {
-            uuid: deleted_group_uuid,
-            deletion_time: Times::now(),
-        });
+        source_db.deleted_objects.insert(deleted_group_uuid, Some(Times::now()));
 
         thread::sleep(time::Duration::from_secs(1));
         let mut deleted_group = Group::new("deleted_group");
@@ -1639,7 +1601,7 @@ mod merge_tests {
         let deleted_group = Group::find_node_location(&destination_db.root, deleted_group_uuid);
         assert!(deleted_group.is_some());
 
-        assert!(!destination_db.deleted_objects.contains(deleted_group_uuid));
+        assert!(!destination_db.deleted_objects.contains_key(&deleted_group_uuid));
     }
 
     #[test]
@@ -1660,10 +1622,7 @@ mod merge_tests {
         let group_count_before = get_all_groups(&destination_db.root).len();
 
         thread::sleep(time::Duration::from_secs(1));
-        source_db.deleted_objects.objects.push(crate::db::DeletedObject {
-            uuid: deleted_group_uuid,
-            deletion_time: Times::now(),
-        });
+        source_db.deleted_objects.insert(deleted_group_uuid, Some(Times::now()));
 
         let merge_result = destination_db.merge(&source_db).unwrap();
         assert_eq!(merge_result.warnings.len(), 0);
@@ -1679,8 +1638,8 @@ mod merge_tests {
         let new_entry = Group::find_node_location(&destination_db.root, new_entry_uuid);
         assert!(new_entry.is_some());
 
-        assert!(!destination_db.deleted_objects.contains(deleted_group_uuid));
-        assert!(!destination_db.deleted_objects.contains(new_entry_uuid));
+        assert!(!destination_db.deleted_objects.contains_key(&deleted_group_uuid));
+        assert!(!destination_db.deleted_objects.contains_key(&new_entry_uuid));
     }
 
     #[test]

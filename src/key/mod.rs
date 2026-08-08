@@ -1,8 +1,7 @@
 use std::io::Read;
 
 use base64::{Engine as _, engine::general_purpose as base64_engine};
-use xml::name::OwnedName;
-use xml::reader::{EventReader, XmlEvent};
+use serde::Deserialize;
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
 use crate::crypt::calculate_sha256;
@@ -20,7 +19,7 @@ pub enum DatabaseKeyError {
     #[error(transparent)]
     Io(#[from] std::io::Error),
     #[error(transparent)]
-    Xml(#[from] xml::reader::Error),
+    Xml(#[from] quick_xml::DeError),
     #[error("Could not obtain a key from the keyfile")]
     InvalidKeyFile,
     #[cfg(feature = "challenge_response")]
@@ -35,38 +34,29 @@ mod yubikey;
 pub use yubikey::{ChallengeResponseKey, ChallengeResponseKeyError};
 
 fn parse_xml_keyfile(xml: &[u8]) -> Result<KeyElement, DatabaseKeyError> {
-    let parser = EventReader::new(xml);
-
-    let mut tag_stack = Vec::new();
-
-    let mut key_version: Option<String> = None;
-    let mut key_value = String::new();
-
-    for ev in parser {
-        match ev? {
-            XmlEvent::StartElement {
-                name: OwnedName { ref local_name, .. },
-                ..
-            } => {
-                tag_stack.push(local_name.clone());
-            }
-            XmlEvent::EndElement { .. } => {
-                tag_stack.pop();
-            }
-            XmlEvent::Characters(s) => {
-                if tag_stack == ["KeyFile", "Meta", "Version"] {
-                    key_version = Some(s);
-                    continue;
-                }
-
-                if tag_stack == ["KeyFile", "Key", "Data"] {
-                    key_value.push_str(&s);
-                    continue;
-                }
-            }
-            _ => {}
-        }
+    #[derive(Deserialize)]
+    struct KeyFileXml {
+        #[serde(rename = "Meta", default)]
+        meta: Option<KeyMetaXml>,
+        #[serde(rename = "Key", default)]
+        key: Option<KeyDataXml>,
     }
+
+    #[derive(Deserialize)]
+    struct KeyMetaXml {
+        #[serde(rename = "Version", default)]
+        version: Option<String>,
+    }
+
+    #[derive(Deserialize)]
+    struct KeyDataXml {
+        #[serde(rename = "Data", default)]
+        data: Option<String>,
+    }
+
+    let parsed: KeyFileXml = quick_xml::de::from_reader(xml)?;
+    let key_version = parsed.meta.and_then(|meta| meta.version);
+    let key_value = parsed.key.and_then(|key| key.data).unwrap_or_default();
 
     if key_value.is_empty() {
         return Err(DatabaseKeyError::InvalidKeyFile);

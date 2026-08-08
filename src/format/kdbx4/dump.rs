@@ -4,7 +4,7 @@ use byteorder::{LittleEndian, WriteBytesExt};
 
 use crate::{
     crypt,
-    db::{Database, HeaderAttachment},
+    db::{Attachment, Database},
     error::DatabaseSaveError,
     format::{
         DatabaseVersion, hmac_block_stream,
@@ -84,14 +84,15 @@ pub fn dump_kdbx4(db: &Database, db_key: &DatabaseKey, writer: &mut dyn Write) -
 
     // dump inner header into buffer
     let mut payload = Vec::new();
+    let (attachments, xml) = crate::format::xml_db::to_xml_bytes(db, &mut *inner_cipher).map_err(std::io::Error::other)?;
     KDBX4InnerHeader {
         inner_random_stream: db.config.inner_cipher_config.clone(),
         inner_random_stream_key,
     }
-    .dump(&db.header_attachments, &mut payload)?;
+    .dump(&attachments, &mut payload)?;
 
     // after inner header is one XML document
-    db.dump(&mut *inner_cipher, &mut payload)?;
+    payload.extend_from_slice(&xml);
 
     let payload_compressed = db.config.compression_config.get_compression().compress(&payload)?;
 
@@ -107,16 +108,15 @@ pub fn dump_kdbx4(db: &Database, db_key: &DatabaseKey, writer: &mut dyn Write) -
     Ok(())
 }
 
-impl HeaderAttachment {
+impl Attachment {
     fn dump(&self, writer: &mut dyn Write) -> Result<(), std::io::Error> {
-        writer.write_u8(self.flags)?;
-        _ = writer.write(&self.content)?;
+        writer.write_u8(u8::from(self.data.is_protected()))?;
+        _ = writer.write(&self.data)?;
         Ok(())
     }
 }
 
 impl KDBX4OuterHeader {
-    #[allow(dead_code)]
     fn dump(&self, writer: &mut dyn Write) -> Result<(), DatabaseSaveError> {
         writer.write_u8(HEADER_OUTER_ENCRYPTION_ID)?;
         writer.write_with_len(&self.outer_cipher_config.dump())?;
@@ -152,8 +152,7 @@ impl KDBX4OuterHeader {
 }
 
 impl KDBX4InnerHeader {
-    #[allow(dead_code)]
-    fn dump(&self, header_attachments: &[HeaderAttachment], writer: &mut dyn Write) -> Result<(), DatabaseSaveError> {
+    fn dump(&self, header_attachments: &[Attachment], writer: &mut dyn Write) -> Result<(), DatabaseSaveError> {
         _ = writer.write(&[INNER_HEADER_RANDOM_STREAM_ID])?;
         writer.write_u32::<LittleEndian>(4)?;
         writer.write_u32::<LittleEndian>(self.inner_random_stream.dump())?;
@@ -164,7 +163,7 @@ impl KDBX4InnerHeader {
         for attachment in header_attachments {
             writer.write_u8(INNER_HEADER_BINARY_ATTACHMENTS)?;
             #[allow(clippy::cast_possible_truncation)]
-            writer.write_u32::<LittleEndian>((attachment.content.len() + 1) as u32)?;
+            writer.write_u32::<LittleEndian>((attachment.data.len() + 1) as u32)?;
             attachment.dump(writer)?;
         }
 

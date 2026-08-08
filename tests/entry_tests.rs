@@ -28,7 +28,7 @@ mod entry_tests {
             assert_eq!(e.get_times().get_expiry_time(), Some(et));
 
             if let Some(at) = e.get_autotype() {
-                if let Some(ref s) = at.sequence {
+                if let Some(ref s) = at.default_sequence {
                     assert_eq!(s, "{USERNAME}{TAB}{TAB}{PASSWORD}{ENTER}");
                 } else {
                     panic!("Expected a sequence")

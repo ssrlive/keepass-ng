@@ -329,9 +329,8 @@ pub(crate) fn parse_kdb(data: &[u8], db_key: &DatabaseKey) -> Result<Database, D
 
     Ok(Database {
         config,
-        header_attachments: Vec::default(),
         root: root_group.into(),
-        deleted_objects: DeletedObjects::default(),
+        deleted_objects: Default::default(),
         meta: Meta::new(),
     })
 }

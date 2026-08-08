@@ -1,4 +1,5 @@
-use crate::db::{CustomData, IconId, Times, entry::Entry, node::*, rc_refcell_node};
+use crate::db::{CustomDataItem, IconId, Times, entry::Entry, node::*, rc_refcell_node};
+use std::collections::HashMap;
 use uuid::Uuid;
 
 pub(crate) enum SearchField {
@@ -44,7 +45,7 @@ pub struct Group {
     pub(crate) times: Times,
 
     // Custom Data
-    pub(crate) custom_data: CustomData,
+    pub(crate) custom_data: HashMap<String, CustomDataItem>,
 
     /// Whether the group is expanded in the user interface
     pub(crate) is_expanded: bool,
@@ -53,12 +54,10 @@ pub struct Group {
     pub(crate) default_autotype_sequence: Option<String>,
 
     /// Whether autotype is enabled
-    // TODO: in example XML files, this is "null" - what should the type be?
-    pub(crate) enable_autotype: Option<String>,
+    pub(crate) enable_autotype: Option<bool>,
 
     /// Whether searching is enabled
-    // TODO: in example XML files, this is "null" - what should the type be?
-    pub(crate) enable_searching: Option<String>,
+    pub(crate) enable_searching: Option<bool>,
 
     /// UUID for the last top visible entry
     // TODO figure out what that is supposed to mean. According to the KeePass sourcecode, it has
@@ -78,7 +77,7 @@ impl Default for Group {
             custom_icon_uuid: None,
             children: Vec::new(),
             times: Times::new(),
-            custom_data: CustomData::default(),
+            custom_data: Default::default(),
             is_expanded: false,
             default_autotype_sequence: None,
             enable_autotype: None,

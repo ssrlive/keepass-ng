@@ -10,7 +10,7 @@ use byteorder::{ByteOrder, LittleEndian};
 use crate::{
     config::{CompressionConfig, DatabaseConfig, InnerCipherConfig, KdfConfig, OuterCipherConfig},
     crypt::{self, ciphers::Cipher},
-    db::{Database, HeaderAttachment, rc_refcell_node},
+    db::{Attachment, Database, rc_refcell_node},
     error::{DatabaseIntegrityError, DatabaseKeyError, DatabaseOpenError},
     format::{
         DatabaseVersion, DatabaseVersionParseError, hmac_block_stream,
@@ -26,12 +26,18 @@ use crate::{
 
 use super::KDBX4InnerHeader;
 
-impl From<&[u8]> for HeaderAttachment {
+impl From<&[u8]> for Attachment {
     fn from(data: &[u8]) -> Self {
         let flags = data[0];
         let content = data[1..].to_vec();
 
-        HeaderAttachment { flags, content }
+        Attachment {
+            data: if flags & 1 != 0 {
+                crate::db::Value::protected(content)
+            } else {
+                crate::db::Value::unprotected(content)
+            },
+        }
     }
 }
 
@@ -39,15 +45,14 @@ impl From<&[u8]> for HeaderAttachment {
 pub(crate) fn parse_kdbx4(data: &[u8], db_key: &DatabaseKey) -> Result<Database, DatabaseOpenError> {
     let (config, header_attachments, mut inner_decryptor, xml) = decrypt_kdbx4(data, db_key)?;
 
-    let database_content = crate::format::xml_db::parse::parse(&xml, &mut *inner_decryptor)
+    let database_content = crate::format::xml_db::parse_xml_bytes(&xml, &header_attachments, &mut *inner_decryptor)
         .map_err(Kdbx4OpenError::from)
         .map_err(DatabaseIntegrityError::from)?;
 
     let db = Database {
         config,
-        header_attachments,
-        root: rc_refcell_node(database_content.root.group).into(),
-        deleted_objects: database_content.root.deleted_objects,
+        root: rc_refcell_node(database_content.root_group).into(),
+        deleted_objects: database_content.deleted_objects,
         meta: database_content.meta,
     };
 
@@ -59,7 +64,7 @@ pub(crate) fn parse_kdbx4(data: &[u8], db_key: &DatabaseKey) -> Result<Database,
 pub(crate) fn decrypt_kdbx4(
     data: &[u8],
     db_key: &DatabaseKey,
-) -> Result<(DatabaseConfig, Vec<HeaderAttachment>, Box<dyn Cipher>, Vec<u8>), DatabaseOpenError> {
+) -> Result<(DatabaseConfig, Vec<Attachment>, Box<dyn Cipher>, Vec<u8>), DatabaseOpenError> {
     // parse header
     let version = DatabaseVersion::parse(data)
         .map_err(Kdbx4OpenError::from)
@@ -284,7 +289,7 @@ pub enum Kdbx4OuterHeaderError {
     Incomplete(&'static str),
 }
 
-fn parse_inner_header(data: &[u8]) -> Result<(Vec<HeaderAttachment>, KDBX4InnerHeader, usize), Kdbx4InnerHeaderError> {
+fn parse_inner_header(data: &[u8]) -> Result<(Vec<Attachment>, KDBX4InnerHeader, usize), Kdbx4InnerHeaderError> {
     let mut pos = 0;
 
     let mut inner_random_stream = None;
@@ -315,7 +320,7 @@ fn parse_inner_header(data: &[u8]) -> Result<(Vec<HeaderAttachment>, KDBX4InnerH
             INNER_HEADER_RANDOM_STREAM_KEY => inner_random_stream_key = Some(entry_buffer.to_vec()),
 
             INNER_HEADER_BINARY_ATTACHMENTS => {
-                let header_attachment = HeaderAttachment::from(entry_buffer);
+                let header_attachment = Attachment::from(entry_buffer);
                 header_attachments.push(header_attachment);
             }
 

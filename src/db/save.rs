@@ -5,8 +5,10 @@ use crate::{DatabaseKey, db::types::Database, format::DatabaseVersion};
 pub enum DatabaseSaveError {
     #[error("Saving this database version is not supported")]
     UnsupportedVersion,
-    #[error("Error while generating XML")]
-    Xml(#[from] xml::writer::Error),
+
+    #[error(transparent)]
+    Serialization(#[from] quick_xml::SeError),
+
     #[error(transparent)]
     Io(#[from] std::io::Error),
     #[error(transparent)]

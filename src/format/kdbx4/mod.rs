@@ -63,7 +63,7 @@ mod kdbx4_tests {
     use super::*;
     use crate::{
         config::{CompressionConfig, DatabaseConfig, InnerCipherConfig, KdfConfig, OuterCipherConfig},
-        db::{Database, Entry, Group, HeaderAttachment, group_add_child, node::*},
+        db::{Attachment, Database, Entry, Group, Value, group_add_child, node::*},
         format::{DatabaseVersion, KDBX4_CURRENT_MINOR_VERSION, kdbx4::dump::dump_kdbx4},
         key::DatabaseKey,
     };
@@ -192,24 +192,19 @@ mod kdbx4_tests {
 
     #[test]
     pub fn header_attachments() {
-        let root_group = rc_refcell_node(Group::new("Root"));
-        group_add_child(&root_group, rc_refcell_node(Entry::default()), 0).unwrap();
-
-        let mut db = Database::new(DatabaseConfig::default());
-
-        db.header_attachments = vec![
-            HeaderAttachment {
-                flags: 1,
-                content: vec![0x01, 0x02, 0x03, 0x04],
-            },
-            HeaderAttachment {
-                flags: 2,
-                content: vec![0x04, 0x03, 0x02, 0x01],
-            },
-        ];
+        let db = Database::new(DatabaseConfig::default());
 
         let entry = rc_refcell_node(Entry::default());
-        entry.borrow_mut().set_title(Some("Demo entry"));
+        with_node_mut::<Entry, _, _>(&entry, |entry| {
+            entry.set_title(Some("Demo entry"));
+            entry.attachments.insert(
+                "attachment".to_string(),
+                Attachment {
+                    data: Value::unprotected(vec![0x01, 0x02, 0x03, 0x04]),
+                },
+            );
+        })
+        .unwrap();
         group_add_child(&db.root, entry, 0).unwrap();
 
         let db_key = DatabaseKey::new().with_password("test");
@@ -219,11 +214,11 @@ mod kdbx4_tests {
 
         let decrypted_db = parse_kdbx4(&encrypted_db, &db_key).unwrap();
 
-        assert_eq!(group_get_children(&decrypted_db.root).unwrap().len(), 1);
-
-        let header_attachments = &decrypted_db.header_attachments;
-        assert_eq!(header_attachments.len(), 2);
-        assert_eq!(header_attachments[0].flags, 1);
-        assert_eq!(header_attachments[0].content, [0x01, 0x02, 0x03, 0x04]);
+        let children = group_get_children(&decrypted_db.root).unwrap();
+        assert_eq!(children.len(), 1);
+        with_node::<Entry, _, _>(&children[0], |entry| {
+            assert_eq!(entry.attachments["attachment"].get(), &vec![0x01, 0x02, 0x03, 0x04]);
+        })
+        .unwrap();
     }
 }

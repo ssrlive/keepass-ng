@@ -177,15 +177,14 @@ pub(crate) fn parse_kdbx3(data: &[u8], db_key: &DatabaseKey) -> Result<Database,
     let (config, mut inner_decryptor, xml) = decrypt_kdbx3(data, db_key)?;
 
     // Parse XML data blocks
-    let database_content = crate::format::xml_db::parse::parse(&xml, &mut *inner_decryptor)
+    let database_content = crate::format::xml_db::parse_xml_bytes(&xml, &[], &mut *inner_decryptor)
         .map_err(Kdbx3OpenError::from)
         .map_err(DatabaseIntegrityError::from)?;
 
     let db = Database {
         config,
-        header_attachments: Vec::new(),
-        root: rc_refcell_node(database_content.root.group).into(),
-        deleted_objects: database_content.root.deleted_objects,
+        root: rc_refcell_node(database_content.root_group).into(),
+        deleted_objects: database_content.deleted_objects,
         meta: database_content.meta,
     };
 

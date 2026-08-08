@@ -1,9 +1,9 @@
 use crate::db::{
-    AutoType, Color, CustomData, History, IconId, Times, Value,
+    Attachment, AutoType, Color, CustomDataItem, History, IconId, Times, Value,
     node::{Node, NodePtr},
     rc_refcell_node,
 };
-use secstr::SecStr;
+use secrecy::ExposeSecret;
 use std::collections::HashMap;
 use uuid::Uuid;
 
@@ -12,22 +12,24 @@ use uuid::Uuid;
 #[cfg_attr(feature = "serialization", derive(serde::Serialize))]
 pub struct Entry {
     pub(crate) uuid: Uuid,
-    pub(crate) fields: HashMap<String, Value>,
+    pub(crate) fields: HashMap<String, Value<String>>,
     pub(crate) autotype: Option<AutoType>,
     pub(crate) tags: Vec<String>,
 
     pub(crate) times: Times,
 
-    pub(crate) custom_data: CustomData,
+    pub(crate) custom_data: HashMap<String, CustomDataItem>,
 
     pub(crate) icon_id: Option<IconId>,
-    pub(crate) custom_icon_uuid: Option<Uuid>,
+    pub(crate) custom_icon: Option<(Uuid, Vec<u8>)>,
 
     pub(crate) foreground_color: Option<Color>,
     pub(crate) background_color: Option<Color>,
 
     pub(crate) override_url: Option<String>,
     pub(crate) quality_check: Option<bool>,
+
+    pub attachments: HashMap<String, Attachment>,
 
     pub(crate) history: Option<History>,
 
@@ -42,13 +44,14 @@ impl Default for Entry {
             autotype: None,
             tags: Vec::new(),
             times: Times::new(),
-            custom_data: CustomData::default(),
+            custom_data: Default::default(),
             icon_id: Some(IconId::KEY),
-            custom_icon_uuid: None,
+            custom_icon: None,
             foreground_color: None,
             background_color: None,
             override_url: None,
             quality_check: None,
+            attachments: HashMap::new(),
             history: None,
             parent: None,
         }
@@ -64,11 +67,12 @@ impl PartialEq for Entry {
             && self.times == other.times
             && self.custom_data == other.custom_data
             && self.icon_id == other.icon_id
-            && self.custom_icon_uuid == other.custom_icon_uuid
+            && self.custom_icon == other.custom_icon
             && self.foreground_color == other.foreground_color
             && self.background_color == other.background_color
             && self.override_url == other.override_url
             && self.quality_check == other.quality_check
+            && self.attachments == other.attachments
             && self.history == other.history
         // && self.parent == other.parent
     }
@@ -116,7 +120,7 @@ impl Node for Entry {
     }
 
     fn get_custom_icon_uuid(&self) -> Option<Uuid> {
-        self.custom_icon_uuid
+        self.custom_icon.as_ref().map(|(uuid, _)| *uuid)
     }
 
     fn get_times(&self) -> &Times {
@@ -156,7 +160,8 @@ impl Entry {
 
     pub(crate) fn set_protected_field_pair<T: AsRef<[u8]>>(&mut self, field_name: &str, field_value: Option<T>) {
         if let Some(field_value) = field_value {
-            let v = Value::Protected(SecStr::new(field_value.as_ref().to_vec()));
+            let value = String::from_utf8_lossy(field_value.as_ref()).into_owned();
+            let v = Value::protected(value);
             self.fields.insert(field_name.to_string(), v);
         } else {
             self.fields.remove(field_name);
@@ -165,10 +170,14 @@ impl Entry {
 
     pub(crate) fn set_binary_field_pair<T: AsRef<[u8]>>(&mut self, field_name: &str, field_value: Option<T>) {
         if let Some(field_value) = field_value {
-            let v = Value::Bytes(field_value.as_ref().to_vec());
-            self.fields.insert(field_name.to_string(), v);
+            self.attachments.insert(
+                field_name.to_string(),
+                Attachment {
+                    data: Value::unprotected(field_value.as_ref().to_vec()),
+                },
+            );
         } else {
-            self.fields.remove(field_name);
+            self.attachments.remove(field_name);
         }
     }
 }
@@ -177,18 +186,15 @@ impl<'a> Entry {
     /// Get a field by name, taking care of unprotecting Protected values automatically
     pub fn get(&'a self, key: &str) -> Option<&'a str> {
         match self.fields.get(key) {
-            None | Some(&Value::Bytes(_)) => None,
-            Some(Value::Protected(pv)) => std::str::from_utf8(pv.unsecure()).ok(),
+            None => None,
+            Some(Value::Protected(pv)) => Some(pv.expose_secret()),
             Some(Value::Unprotected(uv)) => Some(uv),
         }
     }
 
     /// Get a bytes field by name
     pub fn get_bytes(&'a self, key: &str) -> Option<&'a [u8]> {
-        match self.fields.get(key) {
-            Some(Value::Bytes(b)) => Some(b),
-            _ => None,
-        }
+        self.attachments.get(key).map(|attachment| attachment.data.get().as_slice())
     }
 
     pub fn get_autotype(&self) -> Option<&AutoType> {
@@ -330,7 +336,9 @@ mod entry_tests {
 
         assert_eq!(entry.get("a-bytes"), None);
 
-        assert!(!entry.fields["a-bytes"].is_empty());
+        assert!(!entry.attachments["a-bytes"].data.is_empty());
+        entry.set_binary_field_pair::<&[u8]>("a-bytes", None);
+        assert_eq!(entry.get_bytes("a-bytes"), None);
     }
 
     #[test]
@@ -408,9 +416,8 @@ mod entry_tests {
     #[test]
     fn serialization() {
         use super::Value;
-        use secstr::SecStr;
         assert_eq!(
-            serde_json::to_string(&Value::Bytes(vec![65, 66, 67])).unwrap(),
+            serde_json::to_string(&Value::Unprotected(vec![65, 66, 67])).unwrap(),
             "[65,66,67]".to_string()
         );
 
@@ -420,7 +427,7 @@ mod entry_tests {
         );
 
         assert_eq!(
-            serde_json::to_string(&Value::Protected(SecStr::new("ABC".as_bytes().to_vec()))).unwrap(),
+            serde_json::to_string(&Value::<String>::protected("ABC")).unwrap(),
             "\"ABC\"".to_string()
         );
     }

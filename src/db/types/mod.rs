@@ -5,20 +5,18 @@ pub(crate) mod custom_data;
 pub(crate) mod entry;
 pub(crate) mod group;
 pub(crate) mod history;
-pub(crate) mod icon;
 pub(crate) mod meta;
 pub(crate) mod node;
 pub(crate) mod times;
 pub(crate) mod value;
 
-pub use attachment::{BinaryAttachment, BinaryAttachments, HeaderAttachment};
+pub use attachment::Attachment;
 pub use autotype::{AutoType, AutoTypeAssociation};
 pub use color::{Color, ParseColorError};
-pub use custom_data::{CustomData, CustomDataItem, CustomDataItemDenormalized};
+pub use custom_data::{CustomDataItem, CustomDataValue};
 pub use entry::Entry;
 pub use group::Group;
 pub use history::History;
-pub use icon::{CustomIcons, Icon};
 pub use meta::{MemoryProtection, Meta};
 pub use node::{
     Node, NodeIterator, NodePtr, SerializableNodePtr, group_add_child, group_get_children, group_remove_node_by_uuid, node_is_entry,
@@ -29,6 +27,7 @@ pub use times::Times;
 pub use value::Value;
 
 use crate::{config::DatabaseConfig, db::IconId};
+use std::collections::HashMap;
 
 use chrono::NaiveDateTime;
 use uuid::Uuid;
@@ -40,14 +39,11 @@ pub struct Database {
     /// Configuration settings of the database such as encryption and compression algorithms
     pub config: DatabaseConfig,
 
-    /// Binary attachments in the inner header
-    pub header_attachments: Vec<HeaderAttachment>,
-
     /// Root node of the KeePass database
     pub root: SerializableNodePtr,
 
-    /// References to previously-deleted objects
-    pub deleted_objects: DeletedObjects,
+    /// References to previously-deleted objects and their deletion times.
+    pub deleted_objects: HashMap<Uuid, Option<NaiveDateTime>>,
 
     /// Metadata of the KeePass database
     pub meta: Meta,
@@ -57,7 +53,6 @@ impl Clone for Database {
     fn clone(&self) -> Self {
         Self {
             config: self.config.clone(),
-            header_attachments: self.header_attachments.clone(),
             root: self.root.borrow().duplicate().into(),
             deleted_objects: self.deleted_objects.clone(),
             meta: self.meta.clone(),
@@ -68,7 +63,6 @@ impl Clone for Database {
 impl PartialEq for Database {
     fn eq(&self, other: &Self) -> bool {
         self.config == other.config
-            && self.header_attachments == other.header_attachments
             && self.deleted_objects == other.deleted_objects
             && self.meta == other.meta
             && node_is_equals_to(&self.root, &other.root)
@@ -82,9 +76,8 @@ impl Database {
     pub fn new(config: DatabaseConfig) -> Database {
         Self {
             config,
-            header_attachments: Vec::new(),
             root: rc_refcell_node(Group::new("Root")).into(),
-            deleted_objects: DeletedObjects::default(),
+            deleted_objects: Default::default(),
             meta: Meta::new(),
         }
     }
@@ -155,7 +148,7 @@ impl Database {
     pub fn remove_node_by_uuid(&mut self, uuid: Uuid) -> crate::Result<NodePtr> {
         if !self.recycle_bin_enabled() {
             let node = group_remove_node_by_uuid(&self.root, uuid)?;
-            self.deleted_objects.add(uuid);
+            self.deleted_objects.insert(uuid, Some(Times::now()));
             return Ok(node);
         }
         let node_in_recycle_bin = self.node_is_in_recycle_bin(uuid);
@@ -163,7 +156,7 @@ impl Database {
         let recycle_bin_uuid = recycle_bin.borrow().get_uuid();
         // This can remove the recycle bin itself, or node in the recycle bin, or node not in the recycle bin
         let node = group_remove_node_by_uuid(&self.root, uuid)?;
-        self.deleted_objects.add(uuid);
+        self.deleted_objects.insert(uuid, Some(Times::now()));
         if uuid != recycle_bin_uuid && !node_in_recycle_bin {
             group_add_child(&recycle_bin, node.clone(), 0)?;
         }
@@ -193,36 +186,4 @@ impl Database {
     pub fn create_new_group(&self, parent: Uuid, index: usize) -> crate::Result<NodePtr> {
         self.create_new_node::<Group>(parent, index)
     }
-}
-
-/// Elements that have been previously deleted
-#[derive(Debug, Default, PartialEq, Eq, Clone)]
-#[cfg_attr(feature = "serialization", derive(serde::Serialize))]
-pub struct DeletedObjects {
-    pub objects: Vec<DeletedObject>,
-}
-
-impl DeletedObjects {
-    pub fn contains(&self, uuid: Uuid) -> bool {
-        self.objects.iter().any(|deleted_object| deleted_object.uuid == uuid)
-    }
-}
-
-impl DeletedObjects {
-    pub fn add(&mut self, uuid: Uuid) {
-        let deletion_time = Times::now();
-        if let Some(item) = self.objects.iter_mut().find(|item| item.uuid == uuid) {
-            item.deletion_time = deletion_time;
-        } else {
-            self.objects.push(DeletedObject { uuid, deletion_time });
-        }
-    }
-}
-
-/// A reference to a deleted element
-#[derive(Debug, Default, PartialEq, Eq, Clone)]
-#[cfg_attr(feature = "serialization", derive(serde::Serialize))]
-pub struct DeletedObject {
-    pub uuid: Uuid,
-    pub deletion_time: NaiveDateTime,
 }
