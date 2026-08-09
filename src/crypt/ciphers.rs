@@ -128,10 +128,7 @@ pub(crate) struct Salsa20Cipher {
 
 impl Salsa20Cipher {
     pub(crate) fn new(key: &[u8]) -> Self {
-        let h = calculate_sha256(&[key]);
-
-        // GenericArray
-        let key = Array::try_from(&h[..32]).expect("Salsa20 key must be 32 bytes");
+        let key = calculate_sha256(&[key]);
         let iv = Array::from([0xE8, 0x30, 0x09, 0x4B, 0x97, 0x20, 0x5D, 0x2A]);
 
         Salsa20Cipher {
@@ -171,15 +168,15 @@ pub(crate) struct ChaCha20Cipher {
 
 impl ChaCha20Cipher {
     /// Create as an inner cipher by splitting up a SHA512 hash
-    pub(crate) fn new(key: &[u8]) -> Self {
+    pub(crate) fn new(key: &[u8]) -> Result<Self, CryptographyError> {
         let iv = crate::crypt::calculate_sha512(&[key]);
 
-        let key = Array::try_from(&iv[0..32]).expect("ChaCha20 key must be 32 bytes");
-        let nonce = Array::try_from(&iv[32..44]).expect("ChaCha20 nonce must be 12 bytes");
+        let key = iv[0..32].try_into().map_err(|_| cipher::InvalidLength)?;
+        let nonce = iv[32..44].try_into().map_err(|_| cipher::InvalidLength)?;
 
-        ChaCha20Cipher {
+        Ok(ChaCha20Cipher {
             cipher: chacha20::ChaCha20::new(&key, &nonce),
-        }
+        })
     }
 
     /// Create as an outer cipher by separately-specified key and iv

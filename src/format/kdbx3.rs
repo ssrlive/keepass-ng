@@ -199,7 +199,7 @@ pub(crate) fn decrypt_kdbx3(data: &[u8], db_key: &DatabaseKey) -> Result<(Databa
         .map_err(Kdbx3OpenError::from)
         .map_err(DatabaseIntegrityError::from)?;
 
-    let inner_decryptor = header.inner_random_stream_id.get_cipher(&header.protected_stream_key);
+    let inner_decryptor = header.inner_random_stream_id.get_cipher(&header.protected_stream_key)?;
 
     let config = DatabaseConfig {
         version,

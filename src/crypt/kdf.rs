@@ -16,10 +16,10 @@ pub struct AesKdf {
 
 impl Kdf for AesKdf {
     fn transform_key(&self, composite_key: &Array<u8, U32>) -> Result<Array<u8, U32>, CryptographyError> {
-        let key = Array::try_from(self.seed.as_slice()).map_err(|_| cipher::InvalidLength)?;
-        let mut block1 = Array::try_from(&composite_key[..16]).map_err(|_| cipher::InvalidLength)?;
-        let mut block2 = Array::try_from(&composite_key[16..]).map_err(|_| cipher::InvalidLength)?;
-        let cipher = Aes256::new(&key);
+        let seed_arr = self.seed.as_slice().try_into().map_err(|_| cipher::InvalidLength)?;
+        let cipher = Aes256::new(&seed_arr);
+        let mut block1 = composite_key[0..16].try_into().map_err(|_| cipher::InvalidLength)?;
+        let mut block2 = composite_key[16..].try_into().map_err(|_| cipher::InvalidLength)?;
         for _ in 0..self.rounds {
             cipher.encrypt_block(&mut block1);
             cipher.encrypt_block(&mut block2);
@@ -67,7 +67,7 @@ impl Kdf for Argon2Kdf {
 
         let key = argon2::hash_raw(composite_key, &self.salt, &config)?;
 
-        Ok(Array::try_from(key.as_slice()).map_err(|_| cipher::InvalidLength)?)
+        key.as_slice().try_into().map_err(|_| cipher::InvalidLength.into())
     }
 }
 

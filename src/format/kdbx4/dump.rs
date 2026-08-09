@@ -80,7 +80,7 @@ pub fn dump_kdbx4(db: &Database, db_key: &DatabaseKey, writer: &mut dyn Write) -
     _ = writer.write(header_hmac.as_slice())?;
 
     // Initialize inner encryptor from inner header params
-    let mut inner_cipher = db.config.inner_cipher_config.get_cipher(&inner_random_stream_key);
+    let mut inner_cipher = db.config.inner_cipher_config.get_cipher(&inner_random_stream_key)?;
 
     // dump inner header into buffer
     let mut payload = Vec::new();

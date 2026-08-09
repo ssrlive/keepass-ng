@@ -146,7 +146,7 @@ pub(crate) fn decrypt_kdbx4(
     let xml = &payload[body_start..];
 
     // initialize the inner decryptor
-    let inner_decryptor = inner_header.inner_random_stream.get_cipher(&inner_header.inner_random_stream_key);
+    let inner_decryptor = inner_header.inner_random_stream.get_cipher(&inner_header.inner_random_stream_key)?;
 
     let config = DatabaseConfig {
         version,

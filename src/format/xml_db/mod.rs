@@ -295,7 +295,7 @@ mod tests {
     #[test]
     pub fn test_group() {
         let group = Group::new("");
-        let mut inner_cipher = InnerCipherConfig::Plain.get_cipher(&[]);
+        let mut inner_cipher = InnerCipherConfig::Plain.get_cipher(&[]).unwrap();
         let mut attachments = Vec::new();
         let mut custom_icons = HashMap::new();
         let group_xml = GroupXml::db_to_xml(&group, &mut *inner_cipher, &mut attachments, &mut custom_icons).unwrap();
