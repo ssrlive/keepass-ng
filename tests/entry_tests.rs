@@ -1,7 +1,7 @@
 mod entry_tests {
     use keepass_ng::{
         DatabaseKey, DatabaseKeyError, DatabaseOpenError,
-        db::{Database, Entry, Group, Node, with_node},
+        db::{Database, Entry, Group, Node, NodeIterator, with_node},
     };
     use std::{fs::File, path::Path};
     use uuid::uuid;
@@ -82,6 +82,19 @@ mod entry_tests {
 
         Ok(())
     }
+
+    #[test]
+    fn kdbx3_with_chacha20_protected_fields() -> Result<(), DatabaseOpenError> {
+        let path = Path::new("tests/resources/test_db_kdbx3_with_chacha20_protected_fields.kdbx");
+        let db = Database::open(&mut File::open(path)?, DatabaseKey::new().with_password("password"))?;
+        for node in NodeIterator::new(&db.root) {
+            with_node::<Entry, _, _>(&node, |entry| {
+                assert_eq!(entry.get_password(), Some("admin"));
+            });
+        }
+        Ok(())
+    }
+
     #[test]
     fn kdbx4_entry_bad_password() -> Result<(), DatabaseOpenError> {
         let path = Path::new("tests/resources/test_db_kdbx4_with_password_aes.kdbx");

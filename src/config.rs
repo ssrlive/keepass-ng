@@ -149,11 +149,11 @@ pub enum InnerCipherConfigError {
 }
 
 impl InnerCipherConfig {
-    pub(crate) fn get_cipher(&self, key: &[u8]) -> Box<dyn ciphers::Cipher> {
+    pub(crate) fn get_cipher(&self, protected_stream_key: &[u8]) -> Box<dyn ciphers::Cipher> {
         match self {
-            InnerCipherConfig::Plain => Box::new(ciphers::PlainCipher::new(key)),
-            InnerCipherConfig::Salsa20 => Box::new(ciphers::Salsa20Cipher::new(key)),
-            InnerCipherConfig::ChaCha20 => Box::new(ciphers::ChaCha20Cipher::new(key)),
+            InnerCipherConfig::Plain => Box::new(ciphers::PlainCipher::new(protected_stream_key)),
+            InnerCipherConfig::Salsa20 => Box::new(ciphers::Salsa20Cipher::new(protected_stream_key)),
+            InnerCipherConfig::ChaCha20 => Box::new(ciphers::ChaCha20Cipher::new(protected_stream_key)),
         }
     }
 

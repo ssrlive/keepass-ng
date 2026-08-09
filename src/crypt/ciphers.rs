@@ -7,7 +7,7 @@ use salsa20::{
     cipher::{KeyIvInit, StreamCipher},
 };
 
-use crate::crypt::CryptographyError;
+use crate::crypt::{CryptographyError, calculate_sha256};
 
 pub(crate) trait Cipher {
     #[cfg(feature = "save_kdbx4")]
@@ -128,7 +128,10 @@ pub(crate) struct Salsa20Cipher {
 
 impl Salsa20Cipher {
     pub(crate) fn new(key: &[u8]) -> Self {
-        let key = Array::try_from(key).expect("Salsa20 key must be 32 bytes");
+        let h = calculate_sha256(&[key]);
+
+        // GenericArray
+        let key = Array::try_from(&h[..32]).expect("Salsa20 key must be 32 bytes");
         let iv = Array::from([0xE8, 0x30, 0x09, 0x4B, 0x97, 0x20, 0x5D, 0x2A]);
 
         Salsa20Cipher {

@@ -20,7 +20,7 @@ struct KDBX3Header {
     kdf_config: KdfConfig,
 
     encryption_iv: Vec<u8>,
-    inner_random_stream_key: Vec<u8>,
+    protected_stream_key: Vec<u8>,
     stream_start: Vec<u8>,
     inner_random_stream_id: InnerCipherConfig,
     body_start: usize,
@@ -133,7 +133,7 @@ fn parse_outer_header(data: &[u8]) -> Result<KDBX3Header, Kdbx3OuterHeaderError>
     let transform_seed = get_or_err(transform_seed, "Transform seed")?;
     let transform_rounds = get_or_err(transform_rounds, "Number of transformation rounds")?;
     let encryption_iv = get_or_err(encryption_iv, "Outer cipher IV")?;
-    let inner_random_stream_key = get_or_err(inner_random_stream_key, "Protected stream key")?;
+    let protected_stream_key = get_or_err(inner_random_stream_key, "Protected stream key")?;
     let stream_start = get_or_err(stream_start, "Stream start bytes")?;
     let inner_random_stream_id = get_or_err(inner_random_stream_id, "Inner cipher ID")?;
 
@@ -147,7 +147,7 @@ fn parse_outer_header(data: &[u8]) -> Result<KDBX3Header, Kdbx3OuterHeaderError>
         transform_seed,
         kdf_config,
         encryption_iv,
-        inner_random_stream_key,
+        protected_stream_key,
         stream_start,
         inner_random_stream_id,
         body_start: pos,
@@ -194,17 +194,12 @@ pub(crate) fn parse_kdbx3(data: &[u8], db_key: &DatabaseKey) -> Result<Database,
 /// Open and decrypt a `KeePass` KDBX3 database from a source and a password
 #[allow(clippy::type_complexity)]
 pub(crate) fn decrypt_kdbx3(data: &[u8], db_key: &DatabaseKey) -> Result<(DatabaseConfig, Box<dyn Cipher>, Vec<u8>), DatabaseOpenError> {
-    let version = DatabaseVersion::parse(data)
-        .map_err(Kdbx3OpenError::from)
-        .map_err(DatabaseIntegrityError::from)?;
+    let version = DatabaseVersion::parse(data)?;
     let header = parse_outer_header(data)
         .map_err(Kdbx3OpenError::from)
         .map_err(DatabaseIntegrityError::from)?;
 
-    // Derive stream key for decrypting inner protected values and set up decryption context
-    let stream_key = calculate_sha256(&[header.inner_random_stream_key.as_ref()]);
-
-    let inner_decryptor = header.inner_random_stream_id.get_cipher(stream_key.as_slice());
+    let inner_decryptor = header.inner_random_stream_id.get_cipher(&header.protected_stream_key);
 
     let config = DatabaseConfig {
         version,
