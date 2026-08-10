@@ -32,6 +32,13 @@ pub struct Times {
     pub usage_count: Option<usize>,
 }
 
+// On non-browser targets — including wasm32-wasip1 and wasm32-wasip2 —
+// chrono::Utc::now() works (wasi clocks via WASI 0.1+ are supported by
+// chrono's `clock` feature).  The `js_sys::Date::now()` path is only
+// usable in true browser contexts (target_arch = "wasm32" with target_os
+// = "unknown"), where wasm-bindgen post-processes the binary to resolve
+// the placeholder imports.  Targeting "wasm32" alone unintentionally
+// catches WASI builds and breaks linking.
 #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
 fn now_timestamp() -> i64 {
     // Use JS Date.now() to get the current time in milliseconds, then convert it to seconds.

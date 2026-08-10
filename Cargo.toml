@@ -118,5 +118,9 @@ url = { version = "2.5.8", optional = true }
 uuid = { version = "1.24.0", features = ["v4", "serde", "js"] }
 zeroize = { version = "1.9.0", features = ["zeroize_derive"] }
 
-[target.'cfg(target_arch = "wasm32")'.dependencies]
+# Browser-only deps: wasm32-unknown-unknown is the canonical browser target.
+# wasi-flavoured wasm32 targets (wasm32-wasip1, wasm32-wasip2) use their own
+# backends in getrandom/uuid and cannot resolve js-sys' wasm-bindgen
+# placeholder imports, so they must NOT pull these in.
+[target.'cfg(all(target_arch = "wasm32", target_os = "unknown"))'.dependencies]
 js-sys = "0.3.104"
