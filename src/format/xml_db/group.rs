@@ -22,10 +22,10 @@ pub(crate) struct GroupXml {
     #[serde(default, with = "cs_opt_string")]
     pub name: Option<String>,
 
-    #[serde(default, with = "cs_opt_string")]
+    #[serde(default, with = "cs_opt_string", skip_serializing_if = "Option::is_none")]
     pub notes: Option<String>,
 
-    #[serde(default, rename = "IconID", with = "cs_opt_fromstr")]
+    #[serde(default, rename = "IconID", with = "cs_opt_fromstr", skip_serializing_if = "Option::is_none")]
     pub icon_id: Option<usize>,
 
     #[serde(
@@ -36,13 +36,13 @@ pub(crate) struct GroupXml {
     )]
     pub custom_icon_uuid: Option<UUID>,
 
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub times: Option<TimesXml>,
 
-    #[serde(default, rename = "IsExpanded", with = "cs_opt_bool")]
+    #[serde(default, rename = "IsExpanded", with = "cs_opt_bool", skip_serializing_if = "Option::is_none")]
     pub is_expanded: Option<bool>,
 
-    #[serde(default, with = "cs_opt_string")]
+    #[serde(default, with = "cs_opt_string", skip_serializing_if = "Option::is_none")]
     pub default_auto_type_sequence: Option<String>,
 
     #[serde(default, with = "cs_opt_bool")]
@@ -51,7 +51,7 @@ pub(crate) struct GroupXml {
     #[serde(default, with = "cs_opt_bool")]
     pub enable_searching: Option<bool>,
 
-    #[serde(default, with = "cs_opt_string")]
+    #[serde(default, with = "cs_opt_string", skip_serializing_if = "Option::is_none")]
     pub last_top_visible_entry: Option<UUID>,
 
     #[serde(default, skip_serializing_if = "Option::is_none")]

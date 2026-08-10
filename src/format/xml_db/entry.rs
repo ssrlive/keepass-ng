@@ -21,7 +21,7 @@ pub(crate) struct EntryXml {
     #[serde(rename = "UUID")]
     pub uuid: UUID,
 
-    #[serde(default, rename = "IconID", with = "cs_opt_fromstr")]
+    #[serde(default, rename = "IconID", with = "cs_opt_fromstr", skip_serializing_if = "Option::is_none")]
     pub icon_id: Option<usize>,
 
     #[serde(
@@ -32,16 +32,16 @@ pub(crate) struct EntryXml {
     )]
     pub custom_icon_uuid: Option<UUID>,
 
-    #[serde(default, with = "cs_opt_string")]
+    #[serde(default, with = "cs_opt_string", skip_serializing_if = "Option::is_none")]
     pub foreground_color: Option<Color>,
 
-    #[serde(default, with = "cs_opt_string")]
+    #[serde(default, with = "cs_opt_string", skip_serializing_if = "Option::is_none")]
     pub background_color: Option<Color>,
 
-    #[serde(default, rename = "OverrideURL", with = "cs_opt_string")]
+    #[serde(default, rename = "OverrideURL", with = "cs_opt_string", skip_serializing_if = "Option::is_none")]
     pub override_url: Option<String>,
 
-    #[serde(default, with = "cs_opt_string")]
+    #[serde(default, with = "cs_opt_string", skip_serializing_if = "Option::is_none")]
     pub tags: Option<String>,
 
     #[serde(default, with = "cs_opt_bool", skip_serializing_if = "Option::is_none")]
@@ -233,7 +233,7 @@ pub(crate) struct StringValueXml {
     #[serde(default, rename = "@Protected", with = "cs_bool")]
     protected: bool,
 
-    #[serde(default, rename = "$value", with = "cs_opt_string")]
+    #[serde(default, rename = "$value", with = "cs_opt_string", skip_serializing_if = "Option::is_none")]
     value: Option<String>,
 }
 
@@ -289,7 +289,7 @@ pub(crate) struct AutoTypeXml {
     #[serde(default, with = "cs_opt_intbool", skip_serializing_if = "Option::is_none")]
     pub data_transfer_obfuscation: Option<bool>,
 
-    #[serde(default, with = "cs_opt_string")]
+    #[serde(default, with = "cs_opt_string", skip_serializing_if = "Option::is_none")]
     pub default_sequence: Option<String>,
 
     #[serde(rename = "Association", default)]
