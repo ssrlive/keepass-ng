@@ -2,7 +2,7 @@ mod file_read_tests {
     #[cfg(feature = "challenge_response")]
     use keepass_ng::ChallengeResponseKey;
     use keepass_ng::{
-        DatabaseIntegrityError, DatabaseKey, DatabaseOpenError,
+        DatabaseIntegrityError, DatabaseKey, DatabaseOpenError, DatabaseVersion,
         db::{Database, Entry, Group, Node, NodeIterator, NodePtr, group_get_children, with_node},
     };
     use std::{fs::File, path::Path};
@@ -15,6 +15,7 @@ mod file_read_tests {
         let db = Database::open(&mut File::open(path)?, key)?;
 
         println!("{db:?} DB Opened");
+        assert_eq!(db.config.version, DatabaseVersion::KDB3(1));
         assert_eq!(db.root.borrow().get_title().unwrap(), "sample");
         assert_eq!(group_get_children(&db.root).unwrap().len(), 5);
 
@@ -50,6 +51,7 @@ mod file_read_tests {
         let db = Database::open(&mut File::open(path)?, key)?;
 
         println!("{db:?} DB Opened");
+        assert_eq!(db.config.version, DatabaseVersion::KDB3(1));
         assert_eq!(db.root.borrow().get_title().unwrap(), "Root");
         assert_eq!(group_get_children(&db.root).unwrap().len(), 1);
 
@@ -85,6 +87,7 @@ mod file_read_tests {
         let db = Database::open(&mut File::open(path)?, key)?;
 
         println!("{db:?} DB Opened");
+        assert_eq!(db.config.version, DatabaseVersion::KDB3(1));
         assert_eq!(db.root.borrow().get_title().unwrap(), "Root");
         assert_eq!(group_get_children(&db.root).unwrap().len(), 4);
 
@@ -120,6 +123,7 @@ mod file_read_tests {
         let db = Database::open(&mut File::open(path)?, key)?;
 
         println!("{db:?} DB Opened");
+        assert_eq!(db.config.version, DatabaseVersion::KDB4(0));
         assert_eq!(db.root.borrow().get_title().unwrap(), "Root");
         assert_eq!(group_get_children(&db.root).unwrap().len(), 2);
 
@@ -134,6 +138,7 @@ mod file_read_tests {
         let db = Database::open(&mut File::open(path)?, key)?;
 
         println!("{db:?} DB Opened");
+        assert_eq!(db.config.version, DatabaseVersion::KDB4(0));
         assert_eq!(db.root.borrow().get_title().unwrap(), "Root");
         assert_eq!(group_get_children(&db.root).unwrap().len(), 2);
 
@@ -147,6 +152,7 @@ mod file_read_tests {
         let db = Database::open(&mut File::open(path)?, key)?;
 
         println!("{db:?} DB Opened");
+        assert_eq!(db.config.version, DatabaseVersion::KDB4(1));
         assert_eq!(db.root.borrow().get_title().unwrap(), "Root");
         assert_eq!(group_get_children(&db.root).unwrap().len(), 1);
 
@@ -161,6 +167,7 @@ mod file_read_tests {
         let db = Database::open(&mut File::open(path)?, key)?;
 
         println!("{db:?} DB Opened");
+        assert_eq!(db.config.version, DatabaseVersion::KDB4(0));
         assert_eq!(db.root.borrow().get_title().unwrap(), "Root");
         assert_eq!(group_get_children(&db.root).unwrap().len(), 1);
 
@@ -175,6 +182,7 @@ mod file_read_tests {
         let db = Database::open(&mut File::open(path)?, key)?;
 
         println!("{db:?} DB Opened");
+        assert_eq!(db.config.version, DatabaseVersion::KDB4(0));
         assert_eq!(db.root.borrow().get_title().unwrap(), "Root");
         assert_eq!(group_get_children(&db.root).unwrap().len(), 1);
 
@@ -189,6 +197,7 @@ mod file_read_tests {
         let db = Database::open(&mut File::open(path)?, key)?;
 
         println!("{db:?} DB Opened");
+        assert_eq!(db.config.version, DatabaseVersion::KDB4(0));
         assert_eq!(db.root.borrow().get_title().unwrap(), "Root");
         assert_eq!(group_get_children(&db.root).unwrap().len(), 1);
 
@@ -203,6 +212,7 @@ mod file_read_tests {
         let db = Database::open(&mut File::open(path)?, key)?;
 
         println!("{db:?} DB Opened");
+        assert_eq!(db.config.version, DatabaseVersion::KDB4(0));
         assert_eq!(db.root.borrow().get_title().unwrap(), "Root");
         assert_eq!(group_get_children(&db.root).unwrap().len(), 1);
 
@@ -218,6 +228,7 @@ mod file_read_tests {
         let db = Database::open(&mut File::open(path)?, key)?;
 
         println!("{db:?} DB Opened");
+        assert_eq!(db.config.version, DatabaseVersion::KDB4(0));
         assert_eq!(db.root.borrow().get_title().unwrap(), "Root");
         assert_eq!(group_get_children(&db.root).unwrap().len(), 1);
 
@@ -237,6 +248,7 @@ mod file_read_tests {
         )?;
 
         println!("{:?} DB Opened", db.config);
+        assert_eq!(db.config.version, DatabaseVersion::KDB4(0));
 
         assert_eq!(db.root.borrow().get_title().unwrap(), "Root");
         assert_eq!(group_get_children(&db.root).unwrap().len(), 1);
@@ -258,7 +270,7 @@ mod file_read_tests {
         )?;
 
         println!("{:?} DB Opened", db);
-
+        assert_eq!(db.config.version, DatabaseVersion::KDB4(0));
         assert_eq!(db.root.borrow().get_title().unwrap(), "testdb02");
         assert_eq!(group_get_children(&db.root).unwrap().len(), 8);
 
@@ -288,6 +300,7 @@ mod file_read_tests {
         let db = Database::open(&mut File::open(path)?, key)?;
 
         println!("{db:?} DB Opened");
+        assert_eq!(db.config.version, DatabaseVersion::KDB(2));
         assert_eq!(db.root.borrow().get_title().unwrap(), "Root");
         assert_eq!(group_get_children(&db.root).unwrap().len(), 3);
 
@@ -318,10 +331,11 @@ mod file_read_tests {
     #[test]
     fn open_kdb_with_larger_than_1mb_file_does_not_crash() -> Result<(), DatabaseOpenError> {
         let path = Path::new("tests/resources/test_db_kdb3_with_file_larger_1mb.kdbx");
-        let key = DatabaseKey::new().with_password("samplepassword");
+        let key = DatabaseKey::new().with_password("demopass");
         let db = Database::open(&mut File::open(path)?, key)?;
 
         println!("{db:?} DB Opened");
+        assert_eq!(db.config.version, DatabaseVersion::KDB3(1));
         assert_eq!(group_get_children(&db.root).unwrap().len(), 1);
 
         let mut total_groups = 0;
