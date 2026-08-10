@@ -5,7 +5,7 @@ use crate::{
     db::Color,
     format::xml_db::{
         UUID,
-        custom_serde::{cs_bool, cs_opt_bool, cs_opt_fromstr, cs_opt_string},
+        custom_serde::{cs_bool, cs_opt_bool, cs_opt_fromstr, cs_opt_intbool, cs_opt_string},
         meta::CustomDataXml,
         times::TimesXml,
     },
@@ -286,7 +286,7 @@ pub(crate) struct AutoTypeXml {
     #[serde(default, with = "cs_bool")]
     pub enabled: bool,
 
-    #[serde(default, with = "cs_opt_bool", skip_serializing_if = "Option::is_none")]
+    #[serde(default, with = "cs_opt_intbool", skip_serializing_if = "Option::is_none")]
     pub data_transfer_obfuscation: Option<bool>,
 
     #[serde(default, with = "cs_opt_string")]
@@ -436,9 +436,10 @@ mod tests {
 
     #[test]
     fn test_deserialize_autotype() {
-        let xml = r#"<AutoType>
+        let xml = r#"
+        <AutoType>
             <Enabled>True</Enabled>
-            <DataTransferObfuscation>False</DataTransferObfuscation>
+            <DataTransferObfuscation>0</DataTransferObfuscation>
             <DefaultSequence>{USERNAME}{TAB}{PASSWORD}{ENTER}</DefaultSequence>
         </AutoType>"#;
 
@@ -463,13 +464,14 @@ mod tests {
         let serialized = quick_xml::se::to_string(&Test(autotype)).unwrap();
         assert_eq!(
             serialized,
-            r#"<Test><Enabled>True</Enabled><DataTransferObfuscation>False</DataTransferObfuscation><DefaultSequence>{USERNAME}{TAB}{PASSWORD}{ENTER}</DefaultSequence><Association><Window>Example Window</Window><KeystrokeSequence>{USERNAME}{TAB}{PASSWORD}{ENTER}</KeystrokeSequence></Association></Test>"#
+            r#"<Test><Enabled>True</Enabled><DataTransferObfuscation>0</DataTransferObfuscation><DefaultSequence>{USERNAME}{TAB}{PASSWORD}{ENTER}</DefaultSequence><Association><Window>Example Window</Window><KeystrokeSequence>{USERNAME}{TAB}{PASSWORD}{ENTER}</KeystrokeSequence></Association></Test>"#
         );
     }
 
     #[test]
     fn test_deserialize_entry() {
-        let xml = r#"<Entry>
+        let xml = r#"
+        <Entry>
             <UUID>AAECAwQFBgcICQoLDA0ODw==</UUID>
             <IconID>1</IconID>
             <ForegroundColor>#FF0000</ForegroundColor>
@@ -495,7 +497,7 @@ mod tests {
             </Binary>
             <AutoType>
                 <Enabled>True</Enabled>
-                <DataTransferObfuscation>False</DataTransferObfuscation>
+                <DataTransferObfuscation>0</DataTransferObfuscation>
                 <DefaultSequence>{USERNAME}{TAB}{PASSWORD}{ENTER}</DefaultSequence>
             </AutoType>
         </Entry>"#;

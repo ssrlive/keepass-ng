@@ -45,7 +45,7 @@ pub mod cs_bool {
     }
 }
 
-/// Optional "True"/"False" boolean strings
+/// Optional "True"/"False" boolean strings. Explicit "null" string if None for KeepasXC compat
 pub mod cs_opt_bool {
     use serde::{Deserialize, Deserializer, Serializer};
 
@@ -55,7 +55,7 @@ pub mod cs_opt_bool {
     {
         match data {
             Some(v) => serializer.serialize_str(if *v { "True" } else { "False" }),
-            None => serializer.serialize_str(""),
+            None => serializer.serialize_str("null"),
         }
     }
 
@@ -77,6 +77,43 @@ pub mod cs_opt_bool {
                     _ => Err(serde::de::Error::custom(format!("invalid boolean string: {s}"))),
                 }
             }
+        }
+    }
+}
+
+/// Optional boolean serialized as the integer "0"/"1". None maps to "0".
+pub mod cs_opt_intbool {
+    use serde::{Deserialize, Deserializer, Serializer};
+
+    pub fn serialize<S>(data: &Option<bool>, s: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        match data {
+            Some(b) => s.serialize_str(if *b { "1" } else { "0" }),
+            None => s.serialize_str("0"),
+        }
+    }
+
+    pub fn deserialize<'de, D>(d: D) -> Result<Option<bool>, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let opt = Option::<String>::deserialize(d)?;
+        match opt {
+            Some(s) => {
+                let trimmed = s.trim();
+                if trimmed.is_empty() {
+                    Ok(None)
+                } else {
+                    match trimmed {
+                        "1" | "true" | "True" => Ok(Some(true)),
+                        "0" | "false" | "False" => Ok(Some(false)),
+                        _ => Err(serde::de::Error::custom(format!("Invalid integer-bool string: {s}"))),
+                    }
+                }
+            }
+            None => Ok(None),
         }
     }
 }
