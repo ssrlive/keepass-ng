@@ -221,4 +221,50 @@ mod kdbx4_tests {
         })
         .unwrap();
     }
+
+    #[test]
+    pub fn test_entry_attachments() {
+        let db = Database::new(DatabaseConfig::default());
+        let entry = rc_refcell_node(Entry::default());
+        with_node_mut::<Entry, _, _>(&entry, |entry| {
+            entry.set_title(Some("Demo entry"));
+            entry.attachments.insert(
+                "file1.txt".to_string(),
+                Attachment {
+                    data: Value::protected(vec![0x01, 0x02, 0x03, 0x04]),
+                },
+            );
+            entry.attachments.insert(
+                "file2.txt".to_string(),
+                Attachment {
+                    data: Value::unprotected(vec![0x04, 0x03, 0x02, 0x01]),
+                },
+            );
+        })
+        .unwrap();
+        group_add_child(&db.root, entry, 0).unwrap();
+
+        let db_key = DatabaseKey::new().with_password("test");
+
+        let mut encrypted_db = Vec::new();
+        dump_kdbx4(&db, &db_key, &mut encrypted_db).unwrap();
+
+        let decrypted_db = parse_kdbx4(&encrypted_db, &db_key).unwrap();
+
+        let children = group_get_children(&decrypted_db.root).unwrap();
+        assert_eq!(children.len(), 1);
+        with_node::<Entry, _, _>(&children[0], |entry| {
+            assert_eq!(entry.get_title(), Some("Demo entry"));
+            assert_eq!(entry.attachments.len(), 2);
+
+            let file1 = &entry.attachments["file1.txt"];
+            assert!(file1.is_protected());
+            assert_eq!(file1.get(), &[0x01, 0x02, 0x03, 0x04]);
+
+            let file2 = &entry.attachments["file2.txt"];
+            assert!(!file2.is_protected());
+            assert_eq!(file2.get(), &[0x04, 0x03, 0x02, 0x01]);
+        })
+        .unwrap();
+    }
 }
