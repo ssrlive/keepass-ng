@@ -64,7 +64,7 @@ jobs:
     name: WASM Target Test Suite
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - run: rustup target add wasm32-wasip1
       - run: cargo install wasmtime-cli
@@ -73,6 +73,53 @@ jobs:
           export CARGO_TARGET_WASM32_WASIP1_RUNNER="wasmtime --dir=."
           export RUSTFLAGS=""
           cargo test --release --target wasm32-wasip1 --features "save_kdbx4 merge utilities"
+
+  test_cross_tools:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+          # - os: ubuntu-latest-arm64
+          #   target: aarch64-unknown-linux-gnu
+    name: Cross tool Test Suite on ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+
+      - name: install ${{ matrix.target }} target
+        run: rustup target add ${{ matrix.target }}
+
+      - name: Install cross-tool test dependencies
+        if: ${{ !cancelled() }}
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y keepassxc mono-complete unzip
+          curl -fsSL "https://sourceforge.net/projects/keepass/files/KeePass%202.x/2.61.1/KeePass-2.61.1.zip/download" -o /tmp/KeePass.zip
+          curl -fsSL "https://keepass.info/extensions/v2/kpscript/KPScript-2.61.1.zip" -o /tmp/KPScript.zip
+          # Verify sha256 checksums before extracting
+          echo "3952354db9b117e906f7cd4f9f5591065b95186472370da47f46f3e246fea864  /tmp/KeePass.zip" | sha256sum -c - || (echo 'KeePass zip sha256 mismatch' && exit 1)
+          echo "06c9d95332fe7b2730e4e7fd0aba846c5fa9a1b0cd3119defea9875727a3bffb  /tmp/KPScript.zip" | sha256sum -c - || (echo 'KPScript zip sha256 mismatch' && exit 1)
+          sudo mkdir -p /usr/local/lib/kpscript
+          sudo unzip -o /tmp/KeePass.zip -d /usr/local/lib/kpscript
+          sudo unzip -o /tmp/KPScript.zip -d /usr/local/lib/kpscript
+          printf '#!/bin/sh\nexec mono /usr/local/lib/kpscript/KPScript.exe "$@"\n' | sudo tee /usr/local/bin/kpscript > /dev/null
+          sudo chmod +x /usr/local/bin/kpscript
+
+      - name: check that keepassxc and kpscript are installed correctly
+        if: ${{ !cancelled() }}
+        run: |
+          keepassxc-cli --version || exit 1
+          kpscript || exit 1
+
+      - name: run cargo test
+        if: ${{ !cancelled() }}
+        run: cargo test --all-features --target ${{ matrix.target }}
 
   semver:
     name: Check semver

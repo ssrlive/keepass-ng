@@ -14,7 +14,7 @@ pub use self::error::ChallengeResponseKeyError;
 #[cfg(feature = "challenge_response")]
 pub use self::key::ChallengeResponseKey;
 pub use self::{
-    config::DatabaseConfig,
+    config::{CompressionConfig, DatabaseConfig, InnerCipherConfig, KdfConfig, OuterCipherConfig},
     error::{
         BoxError, DatabaseIntegrityError, DatabaseKeyError, DatabaseOpenError, DatabaseVersionParseError, Error, KdbOpenError,
         Kdbx3OpenError, Kdbx3OuterHeaderError, Kdbx4InnerHeaderError, Kdbx4OpenError, Kdbx4OuterHeaderError, Result,
