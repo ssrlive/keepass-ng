@@ -28,10 +28,10 @@ pub(crate) struct MetaXml {
     #[serde(default, with = "cs_opt_string")]
     pub database_description_changed: Option<Timestamp>,
 
-    #[serde(default, with = "cs_opt_string")]
+    #[serde(default, with = "cs_opt_string", rename = "DefaultUserName")]
     pub default_username: Option<String>,
 
-    #[serde(default, with = "cs_opt_string")]
+    #[serde(default, with = "cs_opt_string", rename = "DefaultUserNameChanged")]
     pub default_username_changed: Option<Timestamp>,
 
     #[serde(default, with = "cs_opt_fromstr")]
@@ -382,7 +382,7 @@ pub(crate) struct MemoryProtectionXml {
     #[serde(default, with = "cs_opt_bool")]
     protect_title: Option<bool>,
 
-    #[serde(default, with = "cs_opt_bool")]
+    #[serde(default, with = "cs_opt_bool", rename = "ProtectUserName")]
     protect_username: Option<bool>,
 
     #[serde(default, with = "cs_opt_bool")]
@@ -477,7 +477,8 @@ mod tests {
 
     #[test]
     fn test_deserialize_custom_data() {
-        let xml = r#"<CustomData>
+        let xml = r#"
+        <CustomData>
             <Item>
                 <Key>example_key</Key>
                 <Value>example_value</Value>
@@ -516,13 +517,13 @@ mod tests {
         let serialized = quick_xml::se::to_string(&mp).unwrap();
         assert_eq!(
             serialized,
-            "<MemoryProtection><ProtectTitle>True</ProtectTitle><ProtectUsername>False</ProtectUsername><ProtectPassword>True</ProtectPassword><ProtectURL>False</ProtectURL><ProtectNotes>True</ProtectNotes></MemoryProtection>"
+            "<MemoryProtection><ProtectTitle>True</ProtectTitle><ProtectUserName>False</ProtectUserName><ProtectPassword>True</ProtectPassword><ProtectURL>False</ProtectURL><ProtectNotes>True</ProtectNotes></MemoryProtection>"
         );
     }
 
     #[test]
     fn test_deserialize_memory_protection() {
-        let mp: MemoryProtectionXml = quick_xml::de::from_str( "<MemoryProtection><ProtectTitle>True</ProtectTitle><ProtectUsername>False</ProtectUsername><ProtectPassword>True</ProtectPassword><ProtectURL>False</ProtectURL><ProtectNotes>True</ProtectNotes></MemoryProtection>").unwrap();
+        let mp: MemoryProtectionXml = quick_xml::de::from_str( "<MemoryProtection><ProtectTitle>True</ProtectTitle><ProtectUserName>False</ProtectUserName><ProtectPassword>True</ProtectPassword><ProtectURL>False</ProtectURL><ProtectNotes>True</ProtectNotes></MemoryProtection>").unwrap();
         assert_eq!(mp.protect_title, Some(true));
         assert_eq!(mp.protect_username, Some(false));
         assert_eq!(mp.protect_password, Some(true));
@@ -648,8 +649,8 @@ mod tests {
         assert!(serialized.contains("<DatabaseNameChanged>2023-10-05T12:34:56Z</DatabaseNameChanged>"));
         assert!(serialized.contains("<DatabaseDescription>A test database</DatabaseDescription>"));
         assert!(serialized.contains("<DatabaseDescriptionChanged>cKSw3A4AAAA=</DatabaseDescriptionChanged>"));
-        assert!(serialized.contains("<DefaultUsername>admin</DefaultUsername>"));
-        assert!(serialized.contains("<DefaultUsernameChanged>2023-10-05T12:34:56Z</DefaultUsernameChanged>"));
+        assert!(serialized.contains("<DefaultUserName>admin</DefaultUserName>"));
+        assert!(serialized.contains("<DefaultUserNameChanged>2023-10-05T12:34:56Z</DefaultUserNameChanged>"));
         assert!(serialized.contains("<MaintenanceHistoryDays>30</MaintenanceHistoryDays>"));
         assert!(serialized.contains("<Color>#FF0000</Color>"));
         assert!(serialized.contains("<MasterKeyChanged>cKSw3A4AAAA=</MasterKeyChanged>"));
@@ -675,14 +676,15 @@ mod tests {
 
     #[test]
     fn test_deserialize_meta() {
-        let xml = r#"<Meta>
+        let xml = r#"
+        <Meta>
             <Generator>TestGenerator</Generator>
             <DatabaseName>TestDB</DatabaseName>
             <DatabaseNameChanged>2023-10-05T12:34:56Z</DatabaseNameChanged>
             <DatabaseDescription>A test database</DatabaseDescription>
             <DatabaseDescriptionChanged>cKSw3A4AAAA=</DatabaseDescriptionChanged>
-            <DefaultUsername>admin</DefaultUsername>
-            <DefaultUsernameChanged>2023-10-05T12:34:56Z</DefaultUsernameChanged>
+            <DefaultUserName>admin</DefaultUserName>
+            <DefaultUserNameChanged>2023-10-05T12:34:56Z</DefaultUserNameChanged>
             <MaintenanceHistoryDays>30</MaintenanceHistoryDays>
             <Color>#FF0000</Color>
             <MasterKeyChanged>cKSw3A4AAAA=</MasterKeyChanged>
@@ -690,7 +692,7 @@ mod tests {
             <MasterKeyChangeForce>42</MasterKeyChangeForce>
             <MemoryProtection>
                 <ProtectTitle>True</ProtectTitle>
-                <ProtectUsername>False</ProtectUsername>
+                <ProtectUserName>False</ProtectUserName>
                 <ProtectPassword>True</ProtectPassword>
                 <ProtectURL>False</ProtectURL>
                 <ProtectNotes>True</ProtectNotes>
