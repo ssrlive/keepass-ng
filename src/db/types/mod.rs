@@ -13,7 +13,7 @@ pub(crate) mod times;
 pub(crate) mod value;
 
 pub use attachment::Attachment;
-pub use autotype::{AutoType, AutoTypeAssociation};
+pub use autotype::{AutoType, AutoTypeAssociation, DataTransferObfuscation};
 pub use color::{Color, ParseColorError};
 pub use custom_data::{CustomDataItem, CustomDataValue};
 pub use entry::Entry;

@@ -179,11 +179,10 @@ mod tests {
     use crate::{
         config::{DatabaseConfig, InnerCipherConfig},
         db::{
-            AutoType, AutoTypeAssociation, CustomDataItem, CustomDataValue, CustomIcon, Database, Entry, Group, History, IconId,
-            MemoryProtection, Meta, Times, group_get_children, node::*, node_is_equals_to, rc_refcell_node,
+            AutoType, AutoTypeAssociation, CustomDataItem, CustomDataValue, CustomIcon, DataTransferObfuscation, Database, Entry, Group,
+            History, IconId, MemoryProtection, Meta, Times, group_get_children, node::*, node_is_equals_to, rc_refcell_node,
         },
-        format::kdbx4,
-        format::xml_db::group::GroupXml,
+        format::{kdbx4, xml_db::group::GroupXml},
         key::DatabaseKey,
     };
     use chrono::NaiveDateTime;
@@ -222,7 +221,7 @@ mod tests {
         entry.set_autotype(Some(AutoType {
             enabled: true,
             default_sequence: Some("Autotype-sequence".to_string()),
-            data_transfer_obfuscation: None,
+            data_transfer_obfuscation: DataTransferObfuscation::None,
             associations: vec![
                 AutoTypeAssociation {
                     window: Some("window-1".to_string()),

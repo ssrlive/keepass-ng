@@ -4,6 +4,7 @@
 
 #![cfg(feature = "save_kdbx4")]
 use chrono::{NaiveDate, NaiveDateTime};
+use keepass_ng::db::DataTransferObfuscation;
 use keepass_ng::db::{
     AutoType, AutoTypeAssociation, CustomDataItem, CustomDataValue, Database, Entry, Group, Node, NodeIterator, with_node, with_node_mut,
 };
@@ -52,7 +53,7 @@ fn build_database() -> (Database, Uuid) {
         entry.set_autotype(Some(AutoType {
             enabled: true,
             default_sequence: Some("{USERNAME}{TAB}{PASSWORD}{ENTER}".to_string()),
-            data_transfer_obfuscation: Some(true),
+            data_transfer_obfuscation: DataTransferObfuscation::UseClipboard,
             associations: vec![AutoTypeAssociation {
                 window: Some("Login - *".to_string()),
                 sequence: Some("{USERNAME}{TAB}{PASSWORD}{ENTER}".to_string()),
@@ -117,7 +118,7 @@ fn database_round_trips_kdbx41_fields() {
         assert_eq!(entry.get_times().get_last_modification(), Some(fixed_time()));
         let autotype = entry.get_autotype().expect("autotype survives");
         assert!(autotype.enabled);
-        assert_eq!(autotype.data_transfer_obfuscation, Some(true));
+        assert_eq!(autotype.data_transfer_obfuscation, DataTransferObfuscation::UseClipboard);
         assert_eq!(autotype.associations[0].window.as_deref(), Some("Login - *"));
     });
 
