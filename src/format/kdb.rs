@@ -103,9 +103,9 @@ fn parse_groups(root: &NodePtr, header_num_groups: u32, data: &mut &[u8]) -> Res
     let mut num_groups = 0; // the total number of parsed groups
     while num_groups < header_num_groups as usize {
         // Read group TLV
-        let field_type = LittleEndian::read_u16(&data[0..]);
-        let field_size = LittleEndian::read_u32(&data[2..]);
-        let field_value = &data[6..6 + field_size as usize];
+        let field_type = data.get(0..2).ok_or(KdbOpenError::UnexpectedEof).map(LittleEndian::read_u16)?;
+        let field_size = data.get(2..6).ok_or(KdbOpenError::UnexpectedEof).map(LittleEndian::read_u32)?;
+        let field_value = data.get(6..6 + field_size as usize).ok_or(KdbOpenError::UnexpectedEof)?;
 
         match field_type {
             0x0000 => {} // KeePass ignores this field type
@@ -166,7 +166,7 @@ fn parse_groups(root: &NodePtr, header_num_groups: u32, data: &mut &[u8]) -> Res
             }
         }
 
-        *data = &data[6 + field_size as usize..];
+        *data = data.get(6 + field_size as usize..).ok_or(KdbOpenError::UnexpectedEof)?;
     }
     if gid.is_some() {
         return Err(KdbOpenError::IncompleteGroup);
@@ -184,9 +184,9 @@ fn parse_entries(root: &NodePtr, gid_map: &GidMap, header_num_entries: u32, data
     let mut num_entries = 0;
     while num_entries < header_num_entries {
         // Read entry TLV
-        let field_type = LittleEndian::read_u16(&data[0..]);
-        let field_size = LittleEndian::read_u32(&data[2..]);
-        let field_value = &data[6..6 + field_size as usize];
+        let field_type = data.get(0..2).ok_or(KdbOpenError::UnexpectedEof).map(LittleEndian::read_u16)?;
+        let field_size = data.get(2..6).ok_or(KdbOpenError::UnexpectedEof).map(LittleEndian::read_u32)?;
+        let field_value = data.get(6..6 + field_size as usize).ok_or(KdbOpenError::UnexpectedEof)?;
 
         match field_type {
             0x0000 => {} // KeePass ignores this field type
@@ -247,7 +247,7 @@ fn parse_entries(root: &NodePtr, gid_map: &GidMap, header_num_entries: u32, data
             }
         }
 
-        *data = &data[6 + field_size as usize..];
+        *data = data.get(6 + field_size as usize..).ok_or(KdbOpenError::UnexpectedEof)?;
     }
     if gid.is_some() {
         return Err(KdbOpenError::IncompleteEntry);
@@ -338,6 +338,9 @@ pub(crate) fn parse_kdb(data: &[u8], db_key: &DatabaseKey) -> Result<Database, D
 /// Errors that can occur when opening a KeePass 1 database
 #[derive(Debug, thiserror::Error)]
 pub enum KdbOpenError {
+    #[error("Unexpected end of file while reading KDB data")]
+    UnexpectedEof,
+
     #[error("Field of type {field_type} has invalid length {field_size}, expected {expected_field_size}")]
     InvalidFieldLength {
         field_type: u16,
