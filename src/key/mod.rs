@@ -92,13 +92,23 @@ fn parse_xml_keyfile(xml: &[u8]) -> Result<KeyElement, DatabaseKeyError> {
 fn parse_keyfile(buffer: &[u8]) -> KeyElement {
     // try to parse the buffer as XML, if successful, use that data instead of full file
     if let Ok(v) = parse_xml_keyfile(buffer) {
-        v
-    } else if buffer.len() == 32 {
-        // legacy binary key format
-        buffer.to_vec()
-    } else {
-        calculate_sha256(&[buffer]).as_slice().to_vec()
+        return v;
     }
+
+    // legacy binary key format
+    if buffer.len() == 32 {
+        return buffer.to_vec();
+    }
+
+    // legacy hex key format
+    if buffer.len() == 64
+        && let Ok(key_bytes) = hex::decode(buffer)
+    {
+        return key_bytes;
+    }
+
+    // interpret as a "bare" keyfile and hash the entire file contents
+    calculate_sha256(&[buffer]).as_slice().to_vec()
 }
 
 /// A `KeePass` key, which might consist of a password and/or a keyfile

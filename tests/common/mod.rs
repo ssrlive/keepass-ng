@@ -317,10 +317,10 @@ pub fn save_to_vec(db: &Database, key: DatabaseKey) -> Vec<u8> {
 }
 
 #[cfg(feature = "save_kdbx4")]
-pub fn save_then_open(db: &Database, key: DatabaseKey) -> Database {
+pub fn save_then_open(db: &Database, key: DatabaseKey) -> std::io::Result<Database> {
     let mut buf = Vec::new();
-    db.save(&mut buf, key.clone()).expect("Unable to save database");
-    Database::open(&mut buf.as_slice(), key).expect("Unable to open database")
+    db.save(&mut buf, key.clone()).map_err(std::io::Error::other)?;
+    Database::open(&mut buf.as_slice(), key).map_err(std::io::Error::other)
 }
 
 pub fn root_entries(db: &Database) -> Vec<keepass_ng::db::NodePtr> {

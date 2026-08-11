@@ -209,19 +209,37 @@ pub enum KdfConfig {
     Aes { rounds: u64 },
     /// Derive keys with Argon2d
     Argon2 {
+        /// The number of iterations to perform when deriving keys
         iterations: u64,
+
+        /// The amount of memory (in bytes) to use when deriving keys
+        ///
+        /// KDBX stores this value in bytes, while the underlying Argon2 implementation
+        /// expects KiB and converts internally when deriving keys.
         memory: u64,
+
+        /// The degree of parallelism to use when deriving keys
         parallelism: u32,
 
+        /// The version of the Argon2 algorithm to use when deriving keys
         #[cfg_attr(feature = "serialization", serde(serialize_with = "serialize_argon2_version"))]
         version: argon2::Version,
     },
     /// Derive keys with Argon2id
     Argon2id {
+        /// The number of iterations to perform when deriving keys
         iterations: u64,
+
+        /// The amount of memory (in bytes) to use when deriving keys
+        ///
+        /// KDBX stores this value in bytes, while the underlying Argon2 implementation
+        /// expects KiB and converts internally when deriving keys.
         memory: u64,
+
+        /// The degree of parallelism to use when deriving keys
         parallelism: u32,
 
+        /// The version of the Argon2 algorithm to use when deriving keys
         #[cfg_attr(feature = "serialization", serde(serialize_with = "serialize_argon2_version"))]
         version: argon2::Version,
     },
@@ -312,6 +330,7 @@ impl KdfConfig {
 
         match self {
             KdfConfig::Aes { rounds } => {
+                // always use the KDBX3 AES KDF UUID for compatibility with other libraries
                 vd.set(KDF_ID, KDF_AES_KDBX3.to_vec());
                 vd.set(KDF_ROUNDS, *rounds);
                 vd.set(KDF_SEED, seed.to_vec());

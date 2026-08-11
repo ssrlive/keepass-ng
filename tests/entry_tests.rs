@@ -44,7 +44,7 @@ mod entry_tests {
             assert_eq!(e.get_title(), Some("test entry"));
             assert_eq!(e.get_username(), Some("jdoe"));
             assert_eq!(e.get_password(), Some("nWuu5AtqsxqNhnYgLwoB"));
-            assert_eq!(e.get_url(), None);
+            assert_eq!(e.get_url(), Some(""));
             assert!(!e.get_times().get_expires());
             if let Some(t) = e.get_times().get_expiry_time() {
                 assert_eq!(format!("{t}"), "2016-01-28 12:25:36");
