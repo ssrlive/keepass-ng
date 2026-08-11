@@ -160,6 +160,10 @@ impl Entry {
         &self.custom_data
     }
 
+    pub fn custom_data_mut(&mut self) -> &mut HashMap<String, CustomDataItem> {
+        &mut self.custom_data
+    }
+
     pub fn get_history(&self) -> &Option<History> {
         &self.history
     }

@@ -225,6 +225,14 @@ impl Group {
         &mut self.tags
     }
 
+    pub fn custom_data(&self) -> &HashMap<String, CustomDataItem> {
+        &self.custom_data
+    }
+
+    pub fn custom_data_mut(&mut self) -> &mut HashMap<String, CustomDataItem> {
+        &mut self.custom_data
+    }
+
     pub fn previous_parent_group(&self) -> Option<Uuid> {
         self.previous_parent_group
     }
