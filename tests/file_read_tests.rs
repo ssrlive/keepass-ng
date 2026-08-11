@@ -3,7 +3,7 @@ mod file_read_tests {
     use keepass_ng::ChallengeResponseKey;
     use keepass_ng::{
         DatabaseIntegrityError, DatabaseKey, DatabaseOpenError, DatabaseVersion,
-        db::{Database, Entry, Group, Node, NodeIterator, NodePtr, group_get_children, with_node},
+        db::{CustomDataValue, Database, Entry, Group, Node, NodeIterator, NodePtr, group_get_children, with_node},
     };
     use std::{fs::File, path::Path};
     use uuid::uuid;
@@ -451,6 +451,73 @@ mod file_read_tests {
     }
 
     #[test]
+    fn open_kdbx41_with_password() -> Result<(), DatabaseOpenError> {
+        let path = Path::new("tests/resources/test_db_kdbx41_with_password_aes.kdbx");
+        let db = Database::open(&mut File::open(path)?, DatabaseKey::new().with_password("demopass"))?;
+
+        assert_eq!(db.config.version, DatabaseVersion::KDB4(1));
+        assert_eq!(db.root.borrow().get_title(), Some("Database"));
+
+        assert!(
+            db.meta
+                .custom_data
+                .get("KeePassRPC.Config")
+                .unwrap()
+                .last_modification_time
+                .is_some()
+        );
+
+        let root: NodePtr = db.root.clone().into();
+        let root_group = root.borrow();
+        let root_group = root_group.downcast_ref::<Group>().unwrap();
+        assert_eq!(root_group.groups().len(), 2);
+        assert_eq!(root_group.entries().len(), 4);
+
+        let tagged_group = Group::get(&db.root.clone().into(), &["Group with tags"]).unwrap();
+        let tagged_group_id = tagged_group.borrow().get_uuid();
+        with_node::<Group, _, _>(&tagged_group, |group| {
+            assert_eq!(group.tags(), &["a", "b", "c"]);
+            assert!(group.previous_parent_group().is_none());
+        });
+
+        let no_quality_check = Group::get(&db.root.clone().into(), &["entry with no quality check"]).unwrap();
+        with_node::<Entry, _, _>(&no_quality_check, |entry| assert!(!entry.quality_check()));
+
+        let named_icon_entry = Group::get(&db.root.clone().into(), &["entry with named custom icon"]).unwrap();
+        with_node::<Entry, _, _>(&named_icon_entry, |entry| {
+            assert!(entry.quality_check());
+            let icon_uuid = entry.custom_icon_uuid().unwrap();
+            let icon = db.meta.custom_icon(icon_uuid).unwrap();
+            assert_eq!(icon.name.as_deref(), Some("Egg"));
+            assert!(icon.last_modification_time.is_some());
+        });
+
+        let custom_data_entry = Group::get(&db.root.clone().into(), &["entry with custom data"]).unwrap();
+        with_node::<Entry, _, _>(&custom_data_entry, |entry| {
+            let custom_data = entry.custom_data().get("KPRPC JSON").unwrap();
+            let value = custom_data.value.as_ref().unwrap();
+            assert_eq!(
+                value,
+                &CustomDataValue::String(
+                    r#"{"version":2,"altUrls":["https://example.com","http://example.com"],"blockedUrls":[],"regExBlockedUrls":[],"regExUrls":[],"authenticationMethods":["password"],"matcherConfigs":[{"matcherType":"Url","urlMatchMethod":"Domain"}],"fields":[{"uuid":"nkd4kOJMJ0qPOJaAjoTXcw==","valuePath":"UserName","page":1,"type":"Text","matcherConfigs":[{"matcherType":"UsernameDefaultHeuristic"}]},{"uuid":"7xtQBZ2+wEizAxNe5rYKzg==","valuePath":"Password","page":1,"type":"Password","matcherConfigs":[{"matcherType":"PasswordDefaultHeuristic"}]}]}"#.to_string()
+                )
+            );
+        });
+
+        let moved_entry = Group::get(&db.root.clone().into(), &["entry that was moved"]).unwrap();
+        with_node::<Entry, _, _>(&moved_entry, |entry| {
+            assert_eq!(entry.previous_parent_group(), Some(tagged_group_id))
+        });
+
+        let moved_group = Group::get(&db.root.clone().into(), &["Group that was moved"]).unwrap();
+        with_node::<Group, _, _>(&moved_group, |group| {
+            assert_eq!(group.previous_parent_group(), Some(tagged_group_id))
+        });
+
+        Ok(())
+    }
+
+    #[test]
     fn test_get_version() -> Result<(), DatabaseIntegrityError> {
         let path = Path::new("tests/resources/test_db_with_password.kdbx");
         let version = Database::get_version(&mut File::open(path)?)?;
@@ -459,6 +526,10 @@ mod file_read_tests {
         let path = Path::new("tests/resources/test_db_kdbx4_with_password_argon2.kdbx");
         let version = Database::get_version(&mut File::open(path)?)?;
         assert_eq!(version.to_string(), "KDBX4.0");
+
+        let path = Path::new("tests/resources/test_db_kdbx41_with_password_aes.kdbx");
+        let version = Database::get_version(&mut File::open(path)?)?;
+        assert_eq!(version.to_string(), "KDBX4.1");
 
         Ok(())
     }

@@ -252,13 +252,17 @@ mod tests {
         })
         .unwrap();
 
-        let mut entry = Entry::default();
-        entry.custom_icon = Some(entry_icon);
-        let mut history_entry = Entry::default();
-        history_entry.custom_icon = Some(history_icon);
-        entry.history = Some(History {
-            entries: vec![history_entry],
-        });
+        let history_entry = Entry {
+            custom_icon: Some(history_icon),
+            ..Entry::default()
+        };
+        let entry = Entry {
+            custom_icon: Some(entry_icon),
+            history: Some(History {
+                entries: vec![history_entry],
+            }),
+            ..Entry::default()
+        };
         group_add_child(&database.root, rc_refcell_node(entry), 0).unwrap();
 
         assert_eq!(database.purge_unused_custom_icons(), 1);

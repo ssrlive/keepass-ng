@@ -32,6 +32,9 @@ pub struct Group {
     /// Notes for the group
     pub(crate) notes: Option<String>,
 
+    /// Tags assigned to the group
+    pub(crate) tags: Vec<String>,
+
     /// ID of the group's icon
     pub(crate) icon_id: Option<IconId>,
 
@@ -65,6 +68,9 @@ pub struct Group {
     pub(crate) last_top_visible_entry: Option<Uuid>,
 
     pub(crate) parent: Option<Uuid>,
+
+    /// UUID of the group's previous parent
+    pub(crate) previous_parent_group: Option<Uuid>,
 }
 
 impl Default for Group {
@@ -73,6 +79,7 @@ impl Default for Group {
             uuid: Uuid::new_v4(),
             name: Some("Default Group".to_string()),
             notes: None,
+            tags: Vec::new(),
             icon_id: Some(IconId::FOLDER),
             custom_icon_uuid: None,
             children: Vec::new(),
@@ -84,6 +91,7 @@ impl Default for Group {
             enable_searching: None,
             last_top_visible_entry: None,
             parent: None,
+            previous_parent_group: None,
         }
     }
 }
@@ -207,6 +215,14 @@ impl Group {
 
     pub fn set_name(&mut self, name: &str) {
         self.name = Some(name.to_string());
+    }
+
+    pub fn tags(&self) -> &[String] {
+        &self.tags
+    }
+
+    pub fn previous_parent_group(&self) -> Option<Uuid> {
+        self.previous_parent_group
     }
 
     pub fn add_child(&mut self, child: NodePtr, index: usize) {

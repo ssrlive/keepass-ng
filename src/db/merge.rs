@@ -14,6 +14,9 @@ pub enum MergeEventType {
     GroupDeleted,
     GroupLocationUpdated,
     GroupUpdated,
+
+    IconCreated,
+    IconUpdated,
 }
 
 #[derive(Debug, Clone)]
@@ -76,7 +79,44 @@ impl Database {
     pub fn merge(&mut self, other: &Database) -> Result<MergeLog, MergeError> {
         let mut log = MergeLog::default();
         log.append(&self.merge_group(&[], &other.root, false)?);
+        log.append(&self.merge_icons(other)?);
         log.append(&self.merge_deletions(other)?);
+        Ok(log)
+    }
+
+    fn merge_icons(&mut self, other: &Database) -> Result<MergeLog, MergeError> {
+        let mut log = MergeLog::default();
+
+        for (uuid, source_icon) in &other.meta.custom_icons {
+            let Some(destination_icon) = self.meta.custom_icons.get_mut(uuid) else {
+                if let Some(Some(deletion_time)) = self.deleted_objects.get(uuid)
+                    && source_icon.last_modification_time.is_none_or(|modified| modified <= *deletion_time)
+                {
+                    continue;
+                }
+
+                self.meta.custom_icons.insert(*uuid, source_icon.clone());
+                log.events.push(MergeEvent {
+                    node_uuid: *uuid,
+                    event_type: MergeEventType::IconCreated,
+                });
+                continue;
+            };
+
+            let source_is_newer = match (source_icon.last_modification_time, destination_icon.last_modification_time) {
+                (Some(source), Some(destination)) => source > destination,
+                (Some(_), None) => true,
+                _ => false,
+            };
+            if source_is_newer {
+                *destination_icon = source_icon.clone();
+                log.events.push(MergeEvent {
+                    node_uuid: *uuid,
+                    event_type: MergeEventType::IconUpdated,
+                });
+            }
+        }
+
         Ok(log)
     }
 
@@ -1112,8 +1152,8 @@ mod merge_tests {
     use uuid::Uuid;
 
     use crate::db::{
-        Database, Entry, Group, Node, NodePtr, Times, group_add_child, group_get_children, node_is_group, rc_refcell_node, with_node,
-        with_node_mut,
+        CustomIcon, Database, Entry, Group, Node, NodePtr, Times, group_add_child, group_get_children, node_is_group, rc_refcell_node,
+        search_node_by_uuid_with_specific_type, with_node, with_node_mut,
     };
 
     fn get_entry(db: &Database, path: &[&str]) -> NodePtr {
@@ -2210,5 +2250,76 @@ mod merge_tests {
             modified_group.borrow().get_times().get_location_changed(),
             Some(new_location_changed_timestamp)
         );
+    }
+
+    #[test]
+    fn test_icon_added_in_source() {
+        let mut destination_db = create_test_database();
+        let mut source_db = destination_db.clone();
+
+        let new_icon_id = Uuid::new_v4();
+        source_db.meta.custom_icons.insert(
+            new_icon_id,
+            CustomIcon::new(new_icon_id, None, Some(Times::now()), vec![1, 2, 3, 4]),
+        );
+        let entry = search_node_by_uuid_with_specific_type::<Entry>(&source_db.root, Uuid::parse_str(ENTRY1_ID).unwrap()).unwrap();
+        with_node_mut::<Entry, _, _>(&entry, |entry| {
+            entry.custom_icon = Some(new_icon_id);
+            entry.get_times_mut().set_last_modification(Some(Times::now()));
+        });
+
+        let merge_result = destination_db.merge(&source_db).unwrap();
+        assert_eq!(merge_result.warnings.len(), 0);
+        assert_eq!(merge_result.events.len(), 2);
+
+        assert!(destination_db.meta.custom_icon(new_icon_id).is_some());
+    }
+
+    #[test]
+    fn test_icon_updated_in_source() {
+        let mut destination_db = create_test_database();
+
+        let icon_id = Uuid::new_v4();
+        destination_db
+            .meta
+            .custom_icons
+            .insert(icon_id, CustomIcon::new(icon_id, None, Some(Times::epoch()), vec![1, 2, 3, 4]));
+
+        let mut source_db = destination_db.clone();
+
+        let source_icon = source_db.meta.custom_icons.get_mut(&icon_id).unwrap();
+        source_icon.data = vec![5, 6, 7, 8];
+        source_icon.last_modification_time = Some(Times::now());
+
+        let merge_result = destination_db.merge(&source_db).unwrap();
+        assert_eq!(merge_result.warnings.len(), 0);
+        assert_eq!(merge_result.events.len(), 1);
+
+        let icon = destination_db.meta.custom_icon(icon_id).unwrap();
+        assert_eq!(icon.data, vec![5, 6, 7, 8]);
+    }
+
+    #[test]
+    fn test_icon_updated_in_destination() {
+        let mut destination_db = create_test_database();
+
+        let icon_id = Uuid::new_v4();
+        destination_db
+            .meta
+            .custom_icons
+            .insert(icon_id, CustomIcon::new(icon_id, None, Some(Times::epoch()), vec![1, 2, 3, 4]));
+
+        let source_db = destination_db.clone();
+
+        let destination_icon = destination_db.meta.custom_icons.get_mut(&icon_id).unwrap();
+        destination_icon.data = vec![5, 6, 7, 8];
+        destination_icon.last_modification_time = Some(Times::now());
+
+        let merge_result = destination_db.merge(&source_db).unwrap();
+        assert_eq!(merge_result.warnings.len(), 0);
+        assert_eq!(merge_result.events.len(), 0);
+
+        let icon = destination_db.meta.custom_icon(icon_id).unwrap();
+        assert_eq!(icon.data, vec![5, 6, 7, 8]);
     }
 }

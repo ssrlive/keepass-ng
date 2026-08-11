@@ -34,6 +34,8 @@ pub struct Entry {
     pub(crate) history: Option<History>,
 
     pub(crate) parent: Option<Uuid>,
+
+    pub(crate) previous_parent_group: Option<Uuid>,
 }
 
 impl Default for Entry {
@@ -54,6 +56,7 @@ impl Default for Entry {
             attachments: HashMap::new(),
             history: None,
             parent: None,
+            previous_parent_group: None,
         }
     }
 }
@@ -141,6 +144,22 @@ impl Node for Entry {
 }
 
 impl Entry {
+    pub fn quality_check(&self) -> bool {
+        self.quality_check.unwrap_or(true)
+    }
+
+    pub fn previous_parent_group(&self) -> Option<Uuid> {
+        self.previous_parent_group
+    }
+
+    pub fn custom_icon_uuid(&self) -> Option<Uuid> {
+        self.custom_icon
+    }
+
+    pub fn custom_data(&self) -> &HashMap<String, CustomDataItem> {
+        &self.custom_data
+    }
+
     pub fn get_history(&self) -> &Option<History> {
         &self.history
     }

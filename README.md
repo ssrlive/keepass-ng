@@ -7,7 +7,7 @@
 [![dependency status](https://deps.rs/repo/github/ssrlive/keepass-ng/status.svg)](https://deps.rs/repo/github/ssrlive/keepass-ng)
 [![License file](https://img.shields.io/github/license/ssrlive/keepass-ng)](https://github.com/ssrlive/keepass-ng/blob/refactor/LICENSE)
 
-Rust KeePass database file parser for KDB, KDBX3 and KDBX4, with experimental support for KDBX4 writing.
+Rust KeePass database file parser for KDB, KDBX3 and KDBX4, with experimental support for KDBX4.1 writing.
 
 ## Usage
 

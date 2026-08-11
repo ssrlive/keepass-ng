@@ -91,6 +91,10 @@ impl Meta {
         }
     }
 
+    pub fn custom_icon(&self, uuid: Uuid) -> Option<&CustomIcon> {
+        self.custom_icons.get(&uuid)
+    }
+
     /// Set recycle bin enabled
     pub fn set_recycle_bin_enabled(&mut self, enabled: bool) {
         self.recyclebin_enabled = Some(enabled);

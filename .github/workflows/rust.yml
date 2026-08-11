@@ -18,15 +18,14 @@ jobs:
     runs-on: ${{ matrix.host_os }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
 
       - name: Rustfmt
         if: ${{ !cancelled() }}
-        uses: actions-rs/cargo@v1
-        with:
-          command: fmt
-          args: --all -- --check
+        run: cargo fmt --all -- --check
 
       - name: Clippy
         if: ${{ !cancelled() }}
@@ -38,10 +37,7 @@ jobs:
 
       - name: check --all-features
         if: ${{ !cancelled() }}
-        uses: actions-rs/cargo@v1
-        with:
-          command: check
-          args: --all-features
+        run: cargo check --verbose --all-features
 
       - name: Build
         if: ${{ !cancelled() }}
@@ -64,8 +60,10 @@ jobs:
     name: WASM Target Test Suite
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
       - run: rustup target add wasm32-wasip1
       - run: cargo install wasmtime-cli
       - name: run wasm tests
@@ -87,10 +85,10 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: stable
+          components: clippy, rustfmt
 
       - name: install ${{ matrix.target }} target
         run: rustup target add ${{ matrix.target }}
@@ -129,6 +127,8 @@ jobs:
         os: [ubuntu-latest, macos-latest, windows-latest]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
       - uses: obi1kenobi/cargo-semver-checks-action@v2

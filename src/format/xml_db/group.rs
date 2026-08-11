@@ -23,6 +23,9 @@ pub(crate) struct GroupXml {
     #[serde(default, with = "cs_opt_string", skip_serializing_if = "Option::is_none")]
     pub notes: Option<String>,
 
+    #[serde(default, with = "cs_opt_string", skip_serializing_if = "Option::is_none")]
+    pub tags: Option<String>,
+
     #[serde(default, rename = "IconID", with = "cs_opt_fromstr", skip_serializing_if = "Option::is_none")]
     pub icon_id: Option<usize>,
 
@@ -55,6 +58,9 @@ pub(crate) struct GroupXml {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub custom_data: Option<CustomDataXml>,
 
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub previous_parent_group: Option<UUID>,
+
     #[serde(default, rename = "$value")]
     pub children: Vec<GroupOrEntryXml>,
 }
@@ -74,6 +80,16 @@ impl GroupXml {
     ) -> std::io::Result<()> {
         target.name = self.name;
         target.notes = self.notes;
+        target.tags = self
+            .tags
+            .map(|tags| {
+                tags.split(';')
+                    .map(str::trim)
+                    .filter(|tag| !tag.is_empty())
+                    .map(str::to_owned)
+                    .collect()
+            })
+            .unwrap_or_default();
         target.icon_id = self.icon_id.and_then(|id| id.try_into().ok());
 
         target.custom_icon_uuid = self.custom_icon_uuid.map(|uuid| uuid.0);
@@ -85,6 +101,7 @@ impl GroupXml {
         target.enable_searching = self.enable_searching;
         target.last_top_visible_entry = self.last_top_visible_entry.map(|u| u.0);
         target.custom_data = self.custom_data.map(Into::into).unwrap_or_default();
+        target.previous_parent_group = self.previous_parent_group.map(|uuid| uuid.0);
 
         for child in self.children {
             match child {
@@ -147,6 +164,11 @@ impl GroupXml {
             uuid: UUID(source.uuid),
             name: source.name.clone(),
             notes: source.notes.clone(),
+            tags: if source.tags.is_empty() {
+                None
+            } else {
+                Some(source.tags.join(";"))
+            },
             icon_id: source.icon_id.map(usize::from),
             custom_icon_uuid: source.custom_icon_uuid.map(UUID),
             times: Some(source.times.clone().into()),
@@ -156,6 +178,7 @@ impl GroupXml {
             enable_searching: source.enable_searching,
             last_top_visible_entry: source.last_top_visible_entry.map(UUID),
             custom_data,
+            previous_parent_group: source.previous_parent_group.map(UUID),
             children,
         })
     }

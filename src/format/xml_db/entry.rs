@@ -46,6 +46,9 @@ pub(crate) struct EntryXml {
     pub quality_check: Option<bool>,
 
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub previous_parent_group: Option<UUID>,
+
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub times: Option<TimesXml>,
 
     #[serde(default, rename = "String")]
@@ -79,6 +82,7 @@ impl EntryXml {
         target.background_color = self.background_color;
         target.override_url = self.override_url;
         target.quality_check = self.quality_check;
+        target.previous_parent_group = self.previous_parent_group.map(|uuid| uuid.0);
         target.tags = self.tags.map(|t| t.split(',').map(|s| s.to_string()).collect()).unwrap_or_default();
 
         target.times = self.times.map(|t| t.into()).unwrap_or_default();
@@ -198,6 +202,7 @@ impl EntryXml {
             override_url: db.override_url.clone(),
             tags: db.tags.iter().cloned().reduce(|a, b| format!("{a},{b}")),
             quality_check: db.quality_check,
+            previous_parent_group: db.previous_parent_group.map(UUID),
             times: Some(db.times.clone().into()),
             string_fields,
             binary_fields,

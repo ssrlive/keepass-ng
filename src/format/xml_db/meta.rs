@@ -453,6 +453,12 @@ pub struct CustomIconXml {
     #[serde(rename = "UUID")]
     pub(crate) uuid: UUID,
 
+    #[serde(default, with = "cs_opt_string", skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last_modification_time: Option<Timestamp>,
+
     #[serde(with = "cs_base64")]
     pub data: Vec<u8>,
 }
@@ -461,8 +467,8 @@ impl From<CustomIconXml> for CustomIcon {
     fn from(icon: CustomIconXml) -> Self {
         Self {
             id: icon.uuid.0,
-            name: None,
-            last_modification_time: None,
+            name: icon.name,
+            last_modification_time: icon.last_modification_time.map(Into::into),
             data: icon.data,
         }
     }
@@ -472,6 +478,8 @@ impl From<CustomIcon> for CustomIconXml {
     fn from(icon: CustomIcon) -> Self {
         Self {
             uuid: UUID(icon.id()),
+            name: icon.name,
+            last_modification_time: icon.last_modification_time.map(Into::into),
             data: icon.data,
         }
     }
@@ -596,6 +604,8 @@ mod tests {
     fn test_serialize_icon() {
         let icon = CustomIconXml {
             uuid: UUID(uuid::uuid!("00010203-0405-0607-0809-0a0b0c0d0e0f")),
+            name: None,
+            last_modification_time: None,
             data: vec![1, 2, 3, 4, 5],
         };
 
@@ -647,6 +657,8 @@ mod tests {
             custom_icons: Some(CustomIconsXml {
                 icons: vec![CustomIconXml {
                     uuid: UUID(uuid::uuid!("00010203-0405-0607-0809-0a0b0c0d0e0f")),
+                    name: None,
+                    last_modification_time: None,
                     data: vec![1, 2, 3, 4, 5],
                 }],
             }),
