@@ -7,7 +7,7 @@ mod open;
 pub use crate::db::open::{DatabaseIntegrityError, DatabaseOpenError};
 
 #[cfg(feature = "merge")]
-pub(crate) mod merge;
+pub mod merge;
 
 #[cfg(feature = "totp")]
 pub(crate) mod otp;
