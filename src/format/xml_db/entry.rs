@@ -1,5 +1,7 @@
 #[cfg(feature = "save_kdbx4")]
 use crate::crypt::CryptographyError;
+#[cfg(feature = "save_kdbx4")]
+use crate::format::xml_db::tags::join_tags;
 use crate::{
     crypt::ciphers::Cipher,
     db::Color,
@@ -7,6 +9,7 @@ use crate::{
         UUID,
         custom_serde::{cs_bool, cs_opt_bool, cs_opt_fromstr, cs_opt_intbool, cs_opt_string},
         meta::CustomDataXml,
+        tags::split_tags,
         times::TimesXml,
     },
 };
@@ -83,7 +86,7 @@ impl EntryXml {
         target.override_url = self.override_url;
         target.quality_check = self.quality_check;
         target.previous_parent_group = self.previous_parent_group.map(|uuid| uuid.0);
-        target.tags = self.tags.map(|t| t.split(',').map(|s| s.to_string()).collect()).unwrap_or_default();
+        target.tags = self.tags.as_deref().map(split_tags).unwrap_or_default();
 
         target.times = self.times.map(|t| t.into()).unwrap_or_default();
 
@@ -200,7 +203,7 @@ impl EntryXml {
             foreground_color: db.foreground_color,
             background_color: db.background_color,
             override_url: db.override_url.clone(),
-            tags: db.tags.iter().cloned().reduce(|a, b| format!("{a},{b}")),
+            tags: join_tags(&db.tags),
             quality_check: db.quality_check,
             previous_parent_group: db.previous_parent_group.map(UUID),
             times: Some(db.times.clone().into()),

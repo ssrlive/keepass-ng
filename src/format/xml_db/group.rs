@@ -1,3 +1,5 @@
+#[cfg(feature = "save_kdbx4")]
+use crate::format::xml_db::tags::join_tags;
 use crate::{
     crypt::ciphers::Cipher,
     db::rc_refcell_node,
@@ -6,6 +8,7 @@ use crate::{
         custom_serde::{cs_opt_bool, cs_opt_fromstr, cs_opt_string},
         entry::EntryXml,
         meta::CustomDataXml,
+        tags::split_tags,
         times::TimesXml,
     },
 };
@@ -80,16 +83,8 @@ impl GroupXml {
     ) -> std::io::Result<()> {
         target.name = self.name;
         target.notes = self.notes;
-        target.tags = self
-            .tags
-            .map(|tags| {
-                tags.split(';')
-                    .map(str::trim)
-                    .filter(|tag| !tag.is_empty())
-                    .map(str::to_owned)
-                    .collect()
-            })
-            .unwrap_or_default();
+        target.tags = self.tags.as_deref().map(split_tags).unwrap_or_default();
+
         target.icon_id = self.icon_id.and_then(|id| id.try_into().ok());
 
         target.custom_icon_uuid = self.custom_icon_uuid.map(|uuid| uuid.0);
@@ -164,11 +159,7 @@ impl GroupXml {
             uuid: UUID(source.uuid),
             name: source.name.clone(),
             notes: source.notes.clone(),
-            tags: if source.tags.is_empty() {
-                None
-            } else {
-                Some(source.tags.join(";"))
-            },
+            tags: join_tags(&source.tags),
             icon_id: source.icon_id.map(usize::from),
             custom_icon_uuid: source.custom_icon_uuid.map(UUID),
             times: Some(source.times.clone().into()),

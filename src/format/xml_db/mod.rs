@@ -3,6 +3,7 @@ pub mod entry;
 pub mod group;
 pub mod meta;
 pub mod parse;
+pub mod tags;
 pub mod times;
 pub mod timestamp;
 

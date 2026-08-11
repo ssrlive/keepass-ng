@@ -221,6 +221,10 @@ impl Group {
         &self.tags
     }
 
+    pub fn get_tags_mut(&mut self) -> &mut Vec<String> {
+        &mut self.tags
+    }
+
     pub fn previous_parent_group(&self) -> Option<Uuid> {
         self.previous_parent_group
     }
