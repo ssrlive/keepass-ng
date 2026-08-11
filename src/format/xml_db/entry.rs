@@ -12,8 +12,6 @@ use crate::{
 };
 use base64::{Engine as _, engine::general_purpose as base64_engine};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-use uuid::Uuid;
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename = "Entry", rename_all = "PascalCase")]
@@ -71,16 +69,11 @@ impl EntryXml {
         self,
         target: &mut crate::db::Entry,
         header_attachments: &[crate::db::Attachment],
-        custom_icons: &HashMap<Uuid, Vec<u8>>,
         inner_decryptor: &mut dyn Cipher,
     ) -> std::io::Result<()> {
         target.icon_id = self.icon_id.and_then(|id| id.try_into().ok());
 
-        if let Some(uuid) = self.custom_icon_uuid
-            && let Some(data) = custom_icons.get(&uuid.0)
-        {
-            target.custom_icon = Some((uuid.0, data.clone()));
-        }
+        target.custom_icon = self.custom_icon_uuid.map(|uuid| uuid.0);
 
         target.foreground_color = self.foreground_color;
         target.background_color = self.background_color;
@@ -124,7 +117,7 @@ impl EntryXml {
                             ..Default::default()
                         };
 
-                        e.xml_to_db_handle(&mut he, header_attachments, custom_icons, inner_decryptor)?;
+                        e.xml_to_db_handle(&mut he, header_attachments, inner_decryptor)?;
                         he.history = None; // history entries cannot have their own history
                         Ok(he)
                     })
@@ -144,14 +137,8 @@ impl EntryXml {
         db: &crate::db::Entry,
         inner_encryptor: &mut dyn Cipher,
         attachments: &mut Vec<crate::db::Attachment>,
-        custom_icons: &mut HashMap<Uuid, Vec<u8>>,
     ) -> Result<Self, CryptographyError> {
-        let custom_icon_uuid = if let Some((uuid, icon)) = db.custom_icon.as_ref() {
-            custom_icons.insert(*uuid, icon.to_vec());
-            Some(UUID(*uuid))
-        } else {
-            None
-        };
+        let custom_icon_uuid = db.custom_icon.map(UUID);
 
         let mut string_fields = Vec::with_capacity(db.fields.len());
         for (k, v) in &db.fields {
@@ -189,7 +176,7 @@ impl EntryXml {
                 entries: h
                     .entries
                     .iter()
-                    .map(|e| EntryXml::db_to_xml(e, inner_encryptor, attachments, custom_icons))
+                    .map(|e| EntryXml::db_to_xml(e, inner_encryptor, attachments))
                     .collect::<Result<_, CryptographyError>>()?,
             })
         } else {

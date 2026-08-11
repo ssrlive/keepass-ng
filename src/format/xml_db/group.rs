@@ -10,8 +10,6 @@ use crate::{
     },
 };
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-use uuid::Uuid;
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename = "Group", rename_all = "PascalCase")]
@@ -72,7 +70,6 @@ impl GroupXml {
         self,
         target: &mut crate::db::Group,
         header_attachments: &[crate::db::Attachment],
-        custom_icons: &HashMap<Uuid, Vec<u8>>,
         inner_decryptor: &mut dyn Cipher,
     ) -> std::io::Result<()> {
         target.name = self.name;
@@ -97,7 +94,7 @@ impl GroupXml {
                         ..Default::default()
                     };
 
-                    g.xml_to_db_handle(&mut new_group, header_attachments, custom_icons, inner_decryptor)?;
+                    g.xml_to_db_handle(&mut new_group, header_attachments, inner_decryptor)?;
                     let new_group_ref = rc_refcell_node(new_group);
                     let index = target.get_children().len();
                     target.add_child(new_group_ref, index);
@@ -107,7 +104,7 @@ impl GroupXml {
                         uuid: e.uuid.0,
                         ..Default::default()
                     };
-                    e.xml_to_db_handle(&mut new_entry, header_attachments, custom_icons, inner_decryptor)?;
+                    e.xml_to_db_handle(&mut new_entry, header_attachments, inner_decryptor)?;
                     let new_entry_ref = rc_refcell_node(new_entry);
                     let index = target.get_children().len();
                     target.add_child(new_entry_ref, index);
@@ -123,17 +120,16 @@ impl GroupXml {
         source: &crate::db::Group,
         inner_cipher: &mut dyn Cipher,
         attachments: &mut Vec<crate::db::Attachment>,
-        custom_icons: &mut HashMap<Uuid, Vec<u8>>,
     ) -> std::io::Result<Self> {
         let mut children = Vec::new();
 
         for child in source.get_children() {
             let child = child.borrow();
             if let Some(group) = child.downcast_ref::<crate::db::Group>() {
-                let group = GroupXml::db_to_xml(group, inner_cipher, attachments, custom_icons).map_err(std::io::Error::other)?;
+                let group = GroupXml::db_to_xml(group, inner_cipher, attachments).map_err(std::io::Error::other)?;
                 children.push(GroupOrEntryXml::Group(group));
             } else if let Some(entry) = child.downcast_ref::<crate::db::Entry>() {
-                let entry = EntryXml::db_to_xml(entry, inner_cipher, attachments, custom_icons).map_err(std::io::Error::other)?;
+                let entry = EntryXml::db_to_xml(entry, inner_cipher, attachments).map_err(std::io::Error::other)?;
                 children.push(GroupOrEntryXml::Entry(entry));
             } else {
                 let msg = format!("Unknown child type in group: {:?}", child);

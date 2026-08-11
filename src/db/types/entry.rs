@@ -21,7 +21,7 @@ pub struct Entry {
     pub(crate) custom_data: HashMap<String, CustomDataItem>,
 
     pub(crate) icon_id: Option<IconId>,
-    pub(crate) custom_icon: Option<(Uuid, Vec<u8>)>,
+    pub(crate) custom_icon: Option<Uuid>,
 
     pub(crate) foreground_color: Option<Color>,
     pub(crate) background_color: Option<Color>,
@@ -120,7 +120,7 @@ impl Node for Entry {
     }
 
     fn get_custom_icon_uuid(&self) -> Option<Uuid> {
-        self.custom_icon.as_ref().map(|(uuid, _)| *uuid)
+        self.custom_icon
     }
 
     fn get_times(&self) -> &Times {

@@ -103,12 +103,6 @@ pub(crate) fn parse_xml_bytes(
         header_attachments.to_vec()
     };
 
-    let custom_icons = parsed
-        .meta
-        .custom_icons
-        .as_ref()
-        .map(|icons| icons.icons.iter().map(|icon| (icon.uuid.0, icon.data.clone())).collect())
-        .unwrap_or_default();
     let meta = parsed.meta.into();
 
     let root_xml = parsed.root.group;
@@ -117,7 +111,7 @@ pub(crate) fn parse_xml_bytes(
         ..Default::default()
     };
     root_xml
-        .xml_to_db_handle(&mut root_group, &attachments, &custom_icons, inner_cipher)
+        .xml_to_db_handle(&mut root_group, &attachments, inner_cipher)
         .map_err(|error| parse::XmlParseError::Schema(error.to_string()))?;
 
     let deleted_objects = parsed
@@ -146,19 +140,10 @@ pub(crate) fn to_xml_bytes(db: &Database, inner_cipher: &mut dyn Cipher) -> Resu
         .clone();
 
     let mut attachments = Vec::new();
-    let mut custom_icons = HashMap::new();
-    let group = group::GroupXml::db_to_xml(&root_group, inner_cipher, &mut attachments, &mut custom_icons)
+    let group = group::GroupXml::db_to_xml(&root_group, inner_cipher, &mut attachments)
         .map_err(|error| parse::XmlParseError::Schema(error.to_string()))?;
 
-    let mut meta_xml = meta::MetaXml::from(db.meta.clone());
-    if !custom_icons.is_empty() {
-        meta_xml.custom_icons = Some(meta::CustomIconsXml {
-            icons: custom_icons
-                .into_iter()
-                .map(|(uuid, data)| meta::IconXml { uuid: UUID(uuid), data })
-                .collect(),
-        });
-    }
+    let meta_xml = meta::MetaXml::from(db.meta.clone());
 
     let deleted_objects = if db.deleted_objects.is_empty() {
         None
@@ -193,8 +178,8 @@ mod tests {
     use crate::{
         config::{DatabaseConfig, InnerCipherConfig},
         db::{
-            AutoType, AutoTypeAssociation, CustomDataItem, CustomDataValue, Database, Entry, Group, History, IconId, MemoryProtection,
-            Meta, Times, group_get_children, node::*, node_is_equals_to, rc_refcell_node,
+            AutoType, AutoTypeAssociation, CustomDataItem, CustomDataValue, CustomIcon, Database, Entry, Group, History, IconId,
+            MemoryProtection, Meta, Times, group_get_children, node::*, node_is_equals_to, rc_refcell_node,
         },
         format::kdbx4,
         format::xml_db::group::GroupXml,
@@ -258,7 +243,7 @@ mod tests {
         );
 
         entry.icon_id = Some(IconId::KEY);
-        entry.custom_icon = Some((uuid!("22222222222222222222222222222222"), Vec::new()));
+        entry.custom_icon = Some(uuid!("22222222222222222222222222222222"));
 
         entry.foreground_color = Some("#C0FFEE".parse().unwrap());
         entry.background_color = Some("#1C1357".parse().unwrap());
@@ -278,6 +263,10 @@ mod tests {
 
         let mut db = Database::new(DatabaseConfig::default());
         db.root = root_group.into();
+        let custom_icon_id = uuid!("22222222222222222222222222222222");
+        db.meta
+            .custom_icons
+            .insert(custom_icon_id, CustomIcon::new(custom_icon_id, None, None, Vec::new()));
 
         let db_key = make_key();
 
@@ -297,8 +286,7 @@ mod tests {
         let group = Group::new("");
         let mut inner_cipher = InnerCipherConfig::Plain.get_cipher(&[]).unwrap();
         let mut attachments = Vec::new();
-        let mut custom_icons = HashMap::new();
-        let group_xml = GroupXml::db_to_xml(&group, &mut *inner_cipher, &mut attachments, &mut custom_icons).unwrap();
+        let group_xml = GroupXml::db_to_xml(&group, &mut *inner_cipher, &mut attachments).unwrap();
         let xml = quick_xml::se::to_string_with_root("Group", &group_xml).unwrap();
         assert!(xml.contains("<Name/>"), "serialized group XML: {xml}");
 
@@ -361,6 +349,14 @@ mod tests {
     #[test]
     pub fn test_meta() {
         let mut db = Database::new(DatabaseConfig::default());
+        let custom_icon_id = uuid!("11111111111111111111111111111111");
+        db.meta
+            .custom_icons
+            .insert(custom_icon_id, CustomIcon::new(custom_icon_id, None, None, vec![1, 2, 3, 4]));
+        with_node_mut::<Group, _, _>(&db.root, |root| {
+            root.custom_icon_uuid = Some(custom_icon_id);
+        })
+        .unwrap();
 
         let meta = Meta {
             generator: Some("test-generator".to_string()),
@@ -382,6 +378,7 @@ mod tests {
                 protect_url: false,
                 protect_notes: true,
             }),
+            custom_icons: db.meta.custom_icons.clone(),
             recyclebin_enabled: Some(true),
             recyclebin_uuid: Some(uuid!("a1a2a3a4b1b2c1c2d1d2d3d4d5d6d7d8")),
             recyclebin_changed: Some("2000-12-31T12:35:00".parse().unwrap()),
@@ -426,6 +423,8 @@ mod tests {
         let decrypted_db = kdbx4::parse_kdbx4(&encrypted_db, &db_key).unwrap();
 
         assert_eq!(decrypted_db.meta, meta);
+        assert_eq!(decrypted_db.meta.custom_icons.get(&custom_icon_id).unwrap().data, vec![1, 2, 3, 4]);
+        assert_eq!(decrypted_db.root.borrow().get_custom_icon_uuid(), Some(custom_icon_id));
     }
 
     #[test]

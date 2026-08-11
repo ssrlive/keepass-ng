@@ -1,5 +1,5 @@
 use crate::{
-    db::Color,
+    db::{Color, CustomIcon},
     format::xml_db::{
         UUID,
         custom_serde::{cs_base64, cs_opt_bool, cs_opt_fromstr, cs_opt_string},
@@ -9,6 +9,7 @@ use crate::{
 use base64::{Engine as _, engine::general_purpose as base64_engine};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use uuid::Uuid;
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename = "Meta", rename_all = "PascalCase")]
@@ -109,8 +110,6 @@ pub(crate) struct MetaXml {
 
 impl From<MetaXml> for crate::db::Meta {
     fn from(val: MetaXml) -> Self {
-        // NOTE: custom icons and binary attachments are moved out of the Meta into the main
-        // database, so they are not converted here.
         crate::db::Meta {
             generator: val.generator,
             database_name: val.database_name,
@@ -136,6 +135,7 @@ impl From<MetaXml> for crate::db::Meta {
             history_max_size: val.history_max_size,
             settings_changed: val.settings_changed.map(|t| t.time),
             custom_data: val.custom_data.map(|cd| cd.xml_to_db().into_iter().collect()).unwrap_or_default(),
+            custom_icons: val.custom_icons.unwrap_or_default().into(),
         }
     }
 }
@@ -143,6 +143,12 @@ impl From<MetaXml> for crate::db::Meta {
 #[cfg(feature = "save_kdbx4")]
 impl From<crate::db::Meta> for MetaXml {
     fn from(db: crate::db::Meta) -> Self {
+        let custom_icons = if db.custom_icons.is_empty() {
+            None
+        } else {
+            Some(db.custom_icons.clone().into())
+        };
+
         Self {
             generator: db.generator.clone(),
             database_name: db.database_name.clone(),
@@ -157,7 +163,7 @@ impl From<crate::db::Meta> for MetaXml {
             master_key_change_rec: db.master_key_change_rec,
             master_key_change_force: db.master_key_change_force,
             memory_protection: db.memory_protection.as_ref().map(|mp| mp.clone().into()),
-            custom_icons: None, // Handled separately
+            custom_icons,
             recycle_bin_enabled: db.recyclebin_enabled,
             recycle_bin_uuid: db.recyclebin_uuid.map(UUID),
             recycle_bin_changed: db.recyclebin_changed.as_ref().map(|t| (*t).into()),
@@ -438,17 +444,58 @@ impl From<crate::db::MemoryProtection> for MemoryProtectionXml {
 #[serde(rename_all = "PascalCase")]
 pub struct CustomIconsXml {
     #[serde(rename = "Icon", default)]
-    pub icons: Vec<IconXml>,
+    pub icons: Vec<CustomIconXml>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename = "Icon", rename_all = "PascalCase")]
-pub struct IconXml {
+pub struct CustomIconXml {
     #[serde(rename = "UUID")]
-    pub uuid: UUID,
+    pub(crate) uuid: UUID,
 
     #[serde(with = "cs_base64")]
     pub data: Vec<u8>,
+}
+
+impl From<CustomIconXml> for CustomIcon {
+    fn from(icon: CustomIconXml) -> Self {
+        Self {
+            id: icon.uuid.0,
+            name: None,
+            last_modification_time: None,
+            data: icon.data,
+        }
+    }
+}
+
+impl From<CustomIcon> for CustomIconXml {
+    fn from(icon: CustomIcon) -> Self {
+        Self {
+            uuid: UUID(icon.id()),
+            data: icon.data,
+        }
+    }
+}
+
+impl From<CustomIconsXml> for HashMap<Uuid, CustomIcon> {
+    fn from(icons: CustomIconsXml) -> Self {
+        icons
+            .icons
+            .into_iter()
+            .map(|icon| {
+                let id = icon.uuid.0;
+                (id, icon.into())
+            })
+            .collect()
+    }
+}
+
+impl From<HashMap<Uuid, CustomIcon>> for CustomIconsXml {
+    fn from(icons: HashMap<Uuid, CustomIcon>) -> Self {
+        Self {
+            icons: icons.into_values().map(Into::into).collect(),
+        }
+    }
 }
 
 #[cfg(test)]
@@ -547,7 +594,7 @@ mod tests {
 
     #[test]
     fn test_serialize_icon() {
-        let icon = IconXml {
+        let icon = CustomIconXml {
             uuid: UUID(uuid::uuid!("00010203-0405-0607-0809-0a0b0c0d0e0f")),
             data: vec![1, 2, 3, 4, 5],
         };
@@ -565,7 +612,7 @@ mod tests {
             <UUID>AAECAwQFBgcICQoLDA0ODw==</UUID>
             <Data>AQIDBAU=</Data>
         </Icon>"#;
-        let icon: IconXml = quick_xml::de::from_str(xml).unwrap();
+        let icon: CustomIconXml = quick_xml::de::from_str(xml).unwrap();
         assert_eq!(
             icon.uuid.0.as_bytes(),
             &[
@@ -598,7 +645,7 @@ mod tests {
                 protect_notes: Some(true),
             }),
             custom_icons: Some(CustomIconsXml {
-                icons: vec![IconXml {
+                icons: vec![CustomIconXml {
                     uuid: UUID(uuid::uuid!("00010203-0405-0607-0809-0a0b0c0d0e0f")),
                     data: vec![1, 2, 3, 4, 5],
                 }],

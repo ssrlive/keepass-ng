@@ -1029,7 +1029,7 @@ impl Entry {
             self.times = other.times.clone();
             self.custom_data = other.custom_data.clone();
             self.icon_id = other.icon_id;
-            self.custom_icon = other.custom_icon.clone();
+            self.custom_icon = other.custom_icon;
             self.foreground_color = other.foreground_color;
             self.background_color = other.background_color;
             self.override_url = other.override_url.clone();

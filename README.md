@@ -10,10 +10,12 @@
 Rust KeePass database file parser for KDB, KDBX3 and KDBX4, with experimental support for KDBX4 writing.
 
 ## Usage
+
 <details>
 <summary>
 
 ### Open a database
+
 </summary>
 
 ```rust
@@ -48,6 +50,7 @@ fn main() -> Result<(), DatabaseOpenError> {
     Ok(())
 }
 ```
+
 </details>
 
 <details>
@@ -64,7 +67,7 @@ You can enable the experimental support for saving KDBX4 databases using the `sa
 ```rust
 use keepass_ng::{
     db::{with_node_mut, rc_refcell_node, NodePtr, Database, Entry, Group, Node, Value},
-    DatabaseConfig, DatabaseKey, 
+    DatabaseConfig, DatabaseKey,
 };
 use std::fs::File;
 
@@ -112,8 +115,8 @@ cargo run --release --features "utilities" --bin kp-dump-xml -- path/to/database
 
 </details>
 
-
 ## Installation
+
 Add the following to the `dependencies` section of your `Cargo.toml`:
 
 ```toml
@@ -145,4 +148,5 @@ features = ["armv8"]
 ```
 
 ## License
+
 MIT

@@ -5,6 +5,7 @@ pub(crate) mod custom_data;
 pub(crate) mod entry;
 pub(crate) mod group;
 pub(crate) mod history;
+pub(crate) mod icon;
 pub(crate) mod iconid;
 pub(crate) mod meta;
 pub(crate) mod node;
@@ -18,6 +19,7 @@ pub use custom_data::{CustomDataItem, CustomDataValue};
 pub use entry::Entry;
 pub use group::Group;
 pub use history::History;
+pub use icon::{CustomIcon, Icon};
 pub use iconid::IconId;
 pub use meta::{MemoryProtection, Meta};
 pub use node::{
@@ -29,7 +31,7 @@ pub use times::Times;
 pub use value::Value;
 
 use crate::config::DatabaseConfig;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use chrono::NaiveDateTime;
 use uuid::Uuid;
@@ -74,6 +76,32 @@ impl PartialEq for Database {
 impl Eq for Database {}
 
 impl Database {
+    /// Remove custom icons that are not referenced by any group, entry, or history item.
+    ///
+    /// Returns the number of removed icons.
+    pub fn purge_unused_custom_icons(&mut self) -> usize {
+        let mut referenced = HashSet::new();
+
+        for node in NodeIterator::new(&self.root) {
+            let node = node.borrow();
+            if let Some(uuid) = node.get_custom_icon_uuid() {
+                referenced.insert(uuid);
+            }
+
+            if let Some(entry) = node.downcast_ref::<Entry>() {
+                for history_entry in entry.get_history().iter().flat_map(|history| &history.entries) {
+                    if let Some(uuid) = history_entry.custom_icon {
+                        referenced.insert(uuid);
+                    }
+                }
+            }
+        }
+
+        let before = self.meta.custom_icons.len();
+        self.meta.custom_icons.retain(|uuid, _| referenced.contains(uuid));
+        before - self.meta.custom_icons.len()
+    }
+
     /// Create a new, empty database
     pub fn new(config: DatabaseConfig) -> Database {
         Self {
@@ -187,5 +215,57 @@ impl Database {
 
     pub fn create_new_group(&self, parent: Uuid, index: usize) -> crate::Result<NodePtr> {
         self.create_new_node::<Group>(parent, index)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use uuid::uuid;
+
+    fn custom_icon(id: Uuid) -> CustomIcon {
+        CustomIcon {
+            id,
+            name: None,
+            last_modification_time: None,
+            data: vec![1, 2, 3],
+        }
+    }
+
+    #[test]
+    fn purge_unused_custom_icons_keeps_all_referenced_icons() {
+        let group_icon = uuid!("11111111111111111111111111111111");
+        let entry_icon = uuid!("22222222222222222222222222222222");
+        let history_icon = uuid!("33333333333333333333333333333333");
+        let orphan_icon = uuid!("44444444444444444444444444444444");
+
+        let mut database = Database::new(DatabaseConfig::default());
+        database.meta.custom_icons.extend([
+            (group_icon, custom_icon(group_icon)),
+            (entry_icon, custom_icon(entry_icon)),
+            (history_icon, custom_icon(history_icon)),
+            (orphan_icon, custom_icon(orphan_icon)),
+        ]);
+
+        with_node_mut::<Group, _, _>(&database.root, |root| {
+            root.custom_icon_uuid = Some(group_icon);
+        })
+        .unwrap();
+
+        let mut entry = Entry::default();
+        entry.custom_icon = Some(entry_icon);
+        let mut history_entry = Entry::default();
+        history_entry.custom_icon = Some(history_icon);
+        entry.history = Some(History {
+            entries: vec![history_entry],
+        });
+        group_add_child(&database.root, rc_refcell_node(entry), 0).unwrap();
+
+        assert_eq!(database.purge_unused_custom_icons(), 1);
+        assert!(database.meta.custom_icons.contains_key(&group_icon));
+        assert!(database.meta.custom_icons.contains_key(&entry_icon));
+        assert!(database.meta.custom_icons.contains_key(&history_icon));
+        assert!(!database.meta.custom_icons.contains_key(&orphan_icon));
+        assert_eq!(database.purge_unused_custom_icons(), 0);
     }
 }

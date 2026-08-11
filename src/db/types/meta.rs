@@ -2,7 +2,7 @@ use chrono::NaiveDateTime;
 use std::collections::HashMap;
 use uuid::Uuid;
 
-use crate::db::{Color, CustomDataItem};
+use crate::db::{Color, CustomDataItem, CustomIcon};
 
 /// Database metadata
 #[derive(Debug, Default, Eq, PartialEq, Clone)]
@@ -22,6 +22,9 @@ pub struct Meta {
 
     /// time the database description was last changed
     pub database_description_changed: Option<NaiveDateTime>,
+
+    /// All custom icons in the database, indexed by their UUID.
+    pub(crate) custom_icons: HashMap<Uuid, CustomIcon>,
 
     /// default username
     pub default_username: Option<String>,
