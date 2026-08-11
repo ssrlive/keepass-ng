@@ -5,6 +5,7 @@ pub(crate) mod custom_data;
 pub(crate) mod entry;
 pub(crate) mod group;
 pub(crate) mod history;
+pub(crate) mod iconid;
 pub(crate) mod meta;
 pub(crate) mod node;
 pub(crate) mod times;
@@ -17,6 +18,7 @@ pub use custom_data::{CustomDataItem, CustomDataValue};
 pub use entry::Entry;
 pub use group::Group;
 pub use history::History;
+pub use iconid::IconId;
 pub use meta::{MemoryProtection, Meta};
 pub use node::{
     Node, NodeIterator, NodePtr, SerializableNodePtr, group_add_child, group_get_children, group_remove_node_by_uuid, node_is_entry,
@@ -26,7 +28,7 @@ pub use node::{
 pub use times::Times;
 pub use value::Value;
 
-use crate::{config::DatabaseConfig, db::IconId};
+use crate::config::DatabaseConfig;
 use std::collections::HashMap;
 
 use chrono::NaiveDateTime;
