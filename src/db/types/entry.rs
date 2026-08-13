@@ -258,6 +258,15 @@ impl<'a> Entry {
         self.get(key)
     }
 
+    /// Get all additional string attributes stored directly on this entry.
+    pub fn additional_attributes(&self) -> Vec<(String, String)> {
+        self.fields
+            .keys()
+            .filter(|key| !Self::EXCLUDED_FIELDS.contains(&key.as_str()))
+            .filter_map(|key| self.get(key).map(|value| (key.clone(), value.to_string())))
+            .collect()
+    }
+
     /// Convenience method for getting the value of the `UserName` field
     pub fn get_username(&'a self) -> Option<&'a str> {
         self.get("UserName")
