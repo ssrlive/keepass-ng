@@ -15,6 +15,38 @@ pub enum Icon {
     Custom(Uuid),
 }
 
+impl From<IconId> for Icon {
+    fn from(icon_id: IconId) -> Self {
+        Icon::BuiltIn(icon_id)
+    }
+}
+
+impl From<Uuid> for Icon {
+    fn from(uuid: Uuid) -> Self {
+        Icon::Custom(uuid)
+    }
+}
+
+impl TryFrom<Icon> for IconId {
+    type Error = std::io::Error;
+    fn try_from(icon: Icon) -> Result<Self, Self::Error> {
+        match icon {
+            Icon::BuiltIn(icon_id) => Ok(icon_id),
+            Icon::Custom(_) => Err(std::io::Error::other("Custom icon cannot be converted to IconId")),
+        }
+    }
+}
+
+impl TryFrom<Icon> for Uuid {
+    type Error = std::io::Error;
+    fn try_from(icon: Icon) -> Result<Self, Self::Error> {
+        match icon {
+            Icon::BuiltIn(_) => Err(std::io::Error::other("Built-in icon cannot be converted to Uuid")),
+            Icon::Custom(uuid) => Ok(uuid),
+        }
+    }
+}
+
 /// A custom icon stored in the database, containing raw image data.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serialization", derive(serde::Serialize))]
