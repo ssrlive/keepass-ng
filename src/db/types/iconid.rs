@@ -6,10 +6,12 @@ use std::convert::TryFrom;
 #[cfg_attr(feature = "serialization", derive(serde::Serialize))]
 pub struct IconId(pub usize);
 
+const MAX_BUILTIN_ICON_COUNT: usize = 69;
+
 impl std::fmt::Display for IconId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         #[rustfmt::skip]
-        const EMOJIS: [&str; 69] = [
+        const EMOJIS: [&str; MAX_BUILTIN_ICON_COUNT] = [
             "🔑", "🌍", "⚠️", "🖥️", "📁", "💬", "🔧", "📝", "🌐", "🆔",
             "📄", "📷", "📡", "🔑", "🔌", "📱", "🔖", "💿", "🖥️", "📧",
             "🔧", "📋", "🆕", "📸", "⚡", "📻", "💾", "🌐", "🎞️", "🔒",
@@ -99,7 +101,7 @@ impl IconId {
 impl TryFrom<usize> for IconId {
     type Error = crate::error::Error;
     fn try_from(value: usize) -> Result<Self, Self::Error> {
-        if value > 68 {
+        if value >= MAX_BUILTIN_ICON_COUNT {
             return Err(crate::error::Error::ParseIconIdError { icon_id: value });
         }
         Ok(Self(value))
