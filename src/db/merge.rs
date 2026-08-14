@@ -581,8 +581,7 @@ impl Group {
         with_node_mut::<Group, _, _>(group, |group| {
             group.name = other.name.clone();
             group.notes = other.notes.clone();
-            group.icon_id = other.icon_id;
-            group.custom_icon_uuid = other.custom_icon_uuid;
+            group.icon = other.icon;
             group.custom_data = other.custom_data.clone();
             // The location changed timestamp is handled separately when merging two databases.
             let current_times = group.times.clone();
@@ -1068,8 +1067,7 @@ impl Entry {
             self.tags = other.tags.clone();
             self.times = other.times.clone();
             self.custom_data = other.custom_data.clone();
-            self.icon_id = other.icon_id;
-            self.custom_icon = other.custom_icon;
+            self.icon = other.icon;
             self.foreground_color = other.foreground_color;
             self.background_color = other.background_color;
             self.override_url = other.override_url.clone();
@@ -1152,8 +1150,8 @@ mod merge_tests {
     use uuid::Uuid;
 
     use crate::db::{
-        CustomIcon, Database, Entry, Group, Node, NodePtr, Times, group_add_child, group_get_children, node_is_group, rc_refcell_node,
-        search_node_by_uuid_with_specific_type, with_node, with_node_mut,
+        CustomIcon, Database, Entry, Group, Icon, Node, NodePtr, Times, group_add_child, group_get_children, node_is_group,
+        rc_refcell_node, search_node_by_uuid_with_specific_type, with_node, with_node_mut,
     };
 
     fn get_entry(db: &Database, path: &[&str]) -> NodePtr {
@@ -2264,7 +2262,7 @@ mod merge_tests {
         );
         let entry = search_node_by_uuid_with_specific_type::<Entry>(&source_db.root, Uuid::parse_str(ENTRY1_ID).unwrap()).unwrap();
         with_node_mut::<Entry, _, _>(&entry, |entry| {
-            entry.custom_icon = Some(new_icon_id);
+            entry.icon = Icon::Custom(new_icon_id);
             entry.get_times_mut().set_last_modification(Some(Times::now()));
         });
 

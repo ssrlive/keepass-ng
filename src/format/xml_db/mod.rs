@@ -179,7 +179,7 @@ mod tests {
         config::{DatabaseConfig, InnerCipherConfig},
         db::{
             AutoType, AutoTypeAssociation, CustomDataItem, CustomDataValue, CustomIcon, DataTransferObfuscation, Database, Entry, Group,
-            History, IconId, MemoryProtection, Meta, Times, group_get_children, node::*, node_is_equals_to, rc_refcell_node,
+            History, Icon, MemoryProtection, Meta, Times, group_get_children, node::*, node_is_equals_to, rc_refcell_node,
         },
         format::{kdbx4, xml_db::group::GroupXml},
         key::DatabaseKey,
@@ -240,8 +240,7 @@ mod tests {
             },
         );
 
-        entry.icon_id = Some(IconId::KEY);
-        entry.custom_icon = Some(uuid!("22222222222222222222222222222222"));
+        entry.icon = Icon::Custom(uuid!("22222222222222222222222222222222"));
 
         entry.foreground_color = Some("#C0FFEE".parse().unwrap());
         entry.background_color = Some("#1C1357".parse().unwrap());
@@ -298,8 +297,7 @@ mod tests {
         let subgroup = rc_refcell_node(Group::new("Child group"));
         with_node_mut::<Group, _, _>(&subgroup, |subgroup| {
             subgroup.notes = Some("I am a subgroup".to_string());
-            subgroup.icon_id = Some(IconId::FOLDER);
-            subgroup.custom_icon_uuid = Some(uuid!("11111111111111111111111111111111"));
+            subgroup.icon = Icon::Custom(uuid!("11111111111111111111111111111111"));
             subgroup.times.set_expires(true);
             subgroup.times.set_usage_count(100);
             subgroup.times.set_creation(Some(NaiveDateTime::default()));
@@ -352,7 +350,7 @@ mod tests {
             .custom_icons
             .insert(custom_icon_id, CustomIcon::new(custom_icon_id, None, None, vec![1, 2, 3, 4]));
         with_node_mut::<Group, _, _>(&db.root, |root| {
-            root.custom_icon_uuid = Some(custom_icon_id);
+            root.icon = Icon::Custom(custom_icon_id);
         })
         .unwrap();
 
@@ -422,7 +420,7 @@ mod tests {
 
         assert_eq!(decrypted_db.meta, meta);
         assert_eq!(decrypted_db.meta.custom_icons.get(&custom_icon_id).unwrap().data, vec![1, 2, 3, 4]);
-        assert_eq!(decrypted_db.root.borrow().get_custom_icon_uuid(), Some(custom_icon_id));
+        assert_eq!(decrypted_db.root.borrow().get_icon(), Icon::Custom(custom_icon_id));
     }
 
     #[test]

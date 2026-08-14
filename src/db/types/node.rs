@@ -1,6 +1,6 @@
 use crate::{
     Result,
-    db::{Entry, Group, Times, iconid::IconId},
+    db::{Entry, Group, Icon, Times},
 };
 use std::collections::VecDeque;
 use uuid::Uuid;
@@ -205,9 +205,8 @@ pub trait Node: std::any::Any + std::fmt::Debug {
     fn set_title(&mut self, title: Option<&str>);
     fn get_notes(&self) -> Option<&str>;
     fn set_notes(&mut self, notes: Option<&str>);
-    fn get_icon_id(&self) -> Option<IconId>;
-    fn set_icon_id(&mut self, icon_id: Option<IconId>);
-    fn get_custom_icon_uuid(&self) -> Option<Uuid>;
+    fn get_icon(&self) -> Icon;
+    fn set_icon(&mut self, icon: Icon);
 
     /// Get a timestamp field by name
     ///

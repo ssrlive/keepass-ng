@@ -1,5 +1,5 @@
 use crate::db::{
-    Attachment, AutoType, Color, CustomDataItem, History, IconId, Times, Value,
+    Attachment, AutoType, Color, CustomDataItem, History, Icon, IconId, Times, Value,
     node::{Node, NodePtr},
     rc_refcell_node,
 };
@@ -20,8 +20,7 @@ pub struct Entry {
 
     pub(crate) custom_data: HashMap<String, CustomDataItem>,
 
-    pub(crate) icon_id: Option<IconId>,
-    pub(crate) custom_icon: Option<Uuid>,
+    pub(crate) icon: Icon,
 
     pub(crate) foreground_color: Option<Color>,
     pub(crate) background_color: Option<Color>,
@@ -47,8 +46,7 @@ impl Default for Entry {
             tags: Vec::new(),
             times: Times::new(),
             custom_data: Default::default(),
-            icon_id: Some(IconId::KEY),
-            custom_icon: None,
+            icon: Icon::BuiltIn(IconId::KEY),
             foreground_color: None,
             background_color: None,
             override_url: None,
@@ -69,8 +67,7 @@ impl PartialEq for Entry {
             && self.tags == other.tags
             && self.times == other.times
             && self.custom_data == other.custom_data
-            && self.icon_id == other.icon_id
-            && self.custom_icon == other.custom_icon
+            && self.icon == other.icon
             && self.foreground_color == other.foreground_color
             && self.background_color == other.background_color
             && self.override_url == other.override_url
@@ -114,16 +111,12 @@ impl Node for Entry {
         self.set_unprotected_field_pair("Notes", notes);
     }
 
-    fn get_icon_id(&self) -> Option<IconId> {
-        self.icon_id
+    fn get_icon(&self) -> Icon {
+        self.icon
     }
 
-    fn set_icon_id(&mut self, icon_id: Option<IconId>) {
-        self.icon_id = icon_id;
-    }
-
-    fn get_custom_icon_uuid(&self) -> Option<Uuid> {
-        self.custom_icon
+    fn set_icon(&mut self, icon: Icon) {
+        self.icon = icon;
     }
 
     fn get_times(&self) -> &Times {
@@ -144,20 +137,12 @@ impl Node for Entry {
 }
 
 impl Entry {
-    pub fn set_custom_icon_uuid(&mut self, uuid: Option<Uuid>) {
-        self.custom_icon = uuid;
-    }
-
     pub fn quality_check(&self) -> bool {
         self.quality_check.unwrap_or(true)
     }
 
     pub fn previous_parent_group(&self) -> Option<Uuid> {
         self.previous_parent_group
-    }
-
-    pub fn custom_icon_uuid(&self) -> Option<Uuid> {
-        self.custom_icon
     }
 
     pub fn custom_data(&self) -> &HashMap<String, CustomDataItem> {

@@ -84,13 +84,13 @@ impl Database {
 
         for node in NodeIterator::new(&self.root) {
             let node = node.borrow();
-            if let Some(uuid) = node.get_custom_icon_uuid() {
+            if let Icon::Custom(uuid) = node.get_icon() {
                 referenced.insert(uuid);
             }
 
             if let Some(entry) = node.downcast_ref::<Entry>() {
                 for history_entry in entry.get_history().iter().flat_map(|history| &history.entries) {
-                    if let Some(uuid) = history_entry.custom_icon {
+                    if let Icon::Custom(uuid) = history_entry.icon {
                         referenced.insert(uuid);
                     }
                 }
@@ -100,6 +100,13 @@ impl Database {
         let before = self.meta.custom_icons.len();
         self.meta.custom_icons.retain(|uuid, _| referenced.contains(uuid));
         before - self.meta.custom_icons.len()
+    }
+
+    pub fn resolve_custom_icon(&self, icon: &Icon) -> Option<&CustomIcon> {
+        match icon {
+            Icon::BuiltIn(_) => None,
+            Icon::Custom(uuid) => self.meta.custom_icon(*uuid),
+        }
     }
 
     /// Create a new, empty database
@@ -168,7 +175,7 @@ impl Database {
             return Err(Error::RecycleBinAlreadyExists);
         }
         let recycle_bin = rc_refcell_node(Group::new("Recycle Bin"));
-        recycle_bin.borrow_mut().set_icon_id(Some(IconId::RECYCLE_BIN));
+        recycle_bin.borrow_mut().set_icon(Icon::BuiltIn(IconId::RECYCLE_BIN));
         self.meta.recyclebin_uuid = Some(recycle_bin.borrow().get_uuid());
         let count = group_get_children(&self.root).ok_or("")?.len();
         group_add_child(&self.root, recycle_bin.clone(), count)?;
@@ -248,16 +255,16 @@ mod tests {
         ]);
 
         with_node_mut::<Group, _, _>(&database.root, |root| {
-            root.custom_icon_uuid = Some(group_icon);
+            root.icon = Icon::Custom(group_icon);
         })
         .unwrap();
 
         let history_entry = Entry {
-            custom_icon: Some(history_icon),
+            icon: Icon::Custom(history_icon),
             ..Entry::default()
         };
         let entry = Entry {
-            custom_icon: Some(entry_icon),
+            icon: Icon::Custom(entry_icon),
             history: Some(History {
                 entries: vec![history_entry],
             }),

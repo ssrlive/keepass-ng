@@ -85,9 +85,11 @@ impl GroupXml {
         target.notes = self.notes;
         target.tags = self.tags.as_deref().map(split_tags).unwrap_or_default();
 
-        target.icon_id = self.icon_id.and_then(|id| id.try_into().ok());
-
-        target.custom_icon_uuid = self.custom_icon_uuid.map(|uuid| uuid.0);
+        target.icon = self
+            .custom_icon_uuid
+            .map(|uuid| crate::db::Icon::Custom(uuid.0))
+            .or_else(|| self.icon_id.and_then(|id| id.try_into().ok().map(crate::db::Icon::BuiltIn)))
+            .unwrap_or(crate::db::Icon::BuiltIn(crate::db::IconId::FOLDER));
 
         target.times = self.times.map(|t| t.into()).unwrap_or_default();
         target.is_expanded = self.is_expanded.unwrap_or_default();
@@ -155,13 +157,18 @@ impl GroupXml {
             Some(source.custom_data.clone().into())
         };
 
+        let (icon_id, custom_icon_uuid) = match &source.icon {
+            crate::db::Icon::BuiltIn(icon) => (Some(usize::from(*icon)), None),
+            crate::db::Icon::Custom(uuid) => (None, Some(UuidBase64(*uuid))),
+        };
+
         Ok(GroupXml {
             uuid: UuidBase64(source.uuid),
             name: source.name.clone(),
             notes: source.notes.clone(),
             tags: join_tags(&source.tags),
-            icon_id: source.icon_id.map(usize::from),
-            custom_icon_uuid: source.custom_icon_uuid.map(UuidBase64),
+            icon_id,
+            custom_icon_uuid,
             times: Some(source.times.clone().into()),
             is_expanded: Some(source.is_expanded),
             default_auto_type_sequence: source.default_autotype_sequence.clone(),

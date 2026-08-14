@@ -5,7 +5,7 @@ use uuid::Uuid;
 use crate::db::IconId;
 
 /// Icon specification for an [Entry][crate::db::Entry] or [Group][crate::db::Group].
-#[derive(Debug, Eq, PartialEq, Clone)]
+#[derive(Debug, Eq, PartialEq, Clone, Copy)]
 #[cfg_attr(feature = "serialization", derive(serde::Serialize))]
 pub enum Icon {
     /// The icon is a built-in icon specified by an index

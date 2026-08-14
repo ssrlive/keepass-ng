@@ -77,9 +77,11 @@ impl EntryXml {
         header_attachments: &[crate::db::Attachment],
         inner_decryptor: &mut dyn Cipher,
     ) -> std::io::Result<()> {
-        target.icon_id = self.icon_id.and_then(|id| id.try_into().ok());
-
-        target.custom_icon = self.custom_icon_uuid.map(|uuid| uuid.0);
+        target.icon = self
+            .custom_icon_uuid
+            .map(|uuid| crate::db::Icon::Custom(uuid.0))
+            .or_else(|| self.icon_id.and_then(|id| id.try_into().ok().map(crate::db::Icon::BuiltIn)))
+            .unwrap_or(crate::db::Icon::BuiltIn(crate::db::IconId::KEY));
 
         target.foreground_color = self.foreground_color;
         target.background_color = self.background_color;
@@ -144,7 +146,10 @@ impl EntryXml {
         inner_encryptor: &mut dyn Cipher,
         attachments: &mut Vec<crate::db::Attachment>,
     ) -> Result<Self, CryptographyError> {
-        let custom_icon_uuid = db.custom_icon.map(UuidBase64);
+        let (icon_id, custom_icon_uuid) = match &db.icon {
+            crate::db::Icon::BuiltIn(icon) => (Some(usize::from(*icon)), None),
+            crate::db::Icon::Custom(uuid) => (None, Some(UuidBase64(*uuid))),
+        };
 
         let mut string_fields = Vec::with_capacity(db.fields.len());
         for (k, v) in &db.fields {
@@ -197,7 +202,7 @@ impl EntryXml {
 
         Ok(EntryXml {
             uuid: UuidBase64(db.uuid),
-            icon_id: db.icon_id.map(|id| id.into()),
+            icon_id,
             custom_icon_uuid,
             foreground_color: db.foreground_color,
             background_color: db.background_color,

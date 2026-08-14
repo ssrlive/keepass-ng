@@ -486,7 +486,9 @@ mod file_read_tests {
         let named_icon_entry = Group::get(&db.root.clone().into(), &["entry with named custom icon"]).unwrap();
         with_node::<Entry, _, _>(&named_icon_entry, |entry| {
             assert!(entry.quality_check());
-            let icon_uuid = entry.custom_icon_uuid().unwrap();
+            let keepass_ng::db::Icon::Custom(icon_uuid) = entry.get_icon() else {
+                panic!("Expected a custom icon");
+            };
             let icon = db.meta.custom_icon(icon_uuid).unwrap();
             assert_eq!(icon.name.as_deref(), Some("Egg"));
             assert!(icon.last_modification_time.is_some());

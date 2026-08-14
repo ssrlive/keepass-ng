@@ -1,4 +1,4 @@
-use crate::db::{CustomDataItem, IconId, Times, entry::Entry, node::*, rc_refcell_node};
+use crate::db::{CustomDataItem, Icon, IconId, Times, entry::Entry, node::*, rc_refcell_node};
 use std::collections::HashMap;
 use uuid::Uuid;
 
@@ -36,10 +36,7 @@ pub struct Group {
     pub(crate) tags: Vec<String>,
 
     /// ID of the group's icon
-    pub(crate) icon_id: Option<IconId>,
-
-    /// UUID for a custom group icon
-    pub(crate) custom_icon_uuid: Option<Uuid>,
+    pub(crate) icon: Icon,
 
     /// The list of child nodes (Groups or Entries)
     pub(crate) children: Vec<SerializableNodePtr>,
@@ -80,8 +77,7 @@ impl Default for Group {
             name: Some("Default Group".to_string()),
             notes: None,
             tags: Vec::new(),
-            icon_id: Some(IconId::FOLDER),
-            custom_icon_uuid: None,
+            icon: Icon::BuiltIn(IconId::FOLDER),
             children: Vec::new(),
             times: Times::new(),
             custom_data: Default::default(),
@@ -103,8 +99,7 @@ impl PartialEq for Group {
             && self.times == other.times
             && self.name == other.name
             && self.notes == other.notes
-            && self.icon_id == other.icon_id
-            && self.custom_icon_uuid == other.custom_icon_uuid
+            && self.icon == other.icon
             && self.is_expanded == other.is_expanded
             && self.default_autotype_sequence == other.default_autotype_sequence
             && self.enable_autotype == other.enable_autotype
@@ -157,16 +152,12 @@ impl Node for Group {
         self.notes = notes.map(std::string::ToString::to_string);
     }
 
-    fn get_icon_id(&self) -> Option<IconId> {
-        self.icon_id
+    fn get_icon(&self) -> Icon {
+        self.icon
     }
 
-    fn set_icon_id(&mut self, icon_id: Option<IconId>) {
-        self.icon_id = icon_id;
-    }
-
-    fn get_custom_icon_uuid(&self) -> Option<Uuid> {
-        self.custom_icon_uuid
+    fn set_icon(&mut self, icon: Icon) {
+        self.icon = icon;
     }
 
     fn get_times(&self) -> &Times {
