@@ -16,11 +16,10 @@ use serde::{Deserialize, Serialize, Serializer};
 use std::collections::HashMap;
 use uuid::Uuid;
 
-#[allow(clippy::upper_case_acronyms)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) struct UUID(pub Uuid);
+pub(crate) struct UuidBase64(pub Uuid);
 
-impl<'de> Deserialize<'de> for UUID {
+impl<'de> Deserialize<'de> for UuidBase64 {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
@@ -32,7 +31,7 @@ impl<'de> Deserialize<'de> for UUID {
     }
 }
 
-impl Serialize for UUID {
+impl Serialize for UuidBase64 {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
@@ -66,7 +65,7 @@ struct DeletedObjectsXml {
 #[derive(Debug, Serialize, Deserialize)]
 struct DeletedObjectXml {
     #[serde(rename = "UUID")]
-    uuid: UUID,
+    uuid: UuidBase64,
 
     #[serde(default, with = "custom_serde::cs_opt_string")]
     deletion_time: Option<timestamp::Timestamp>,
@@ -154,7 +153,7 @@ pub(crate) fn to_xml_bytes(db: &Database, inner_cipher: &mut dyn Cipher) -> Resu
                 .deleted_objects
                 .iter()
                 .map(|(uuid, deletion_time)| DeletedObjectXml {
-                    uuid: UUID(*uuid),
+                    uuid: UuidBase64(*uuid),
                     deletion_time: deletion_time.map(timestamp::Timestamp::new_base64),
                 })
                 .collect(),

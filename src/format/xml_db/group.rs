@@ -4,7 +4,7 @@ use crate::{
     crypt::ciphers::Cipher,
     db::rc_refcell_node,
     format::xml_db::{
-        UUID,
+        UuidBase64,
         custom_serde::{cs_opt_bool, cs_opt_fromstr, cs_opt_string},
         entry::EntryXml,
         meta::CustomDataXml,
@@ -18,7 +18,7 @@ use serde::{Deserialize, Serialize};
 #[serde(rename = "Group", rename_all = "PascalCase")]
 pub(crate) struct GroupXml {
     #[serde(rename = "UUID")]
-    pub uuid: UUID,
+    pub uuid: UuidBase64,
 
     #[serde(default, with = "cs_opt_string")]
     pub name: Option<String>,
@@ -38,7 +38,7 @@ pub(crate) struct GroupXml {
         with = "cs_opt_string",
         skip_serializing_if = "Option::is_none"
     )]
-    pub custom_icon_uuid: Option<UUID>,
+    pub custom_icon_uuid: Option<UuidBase64>,
 
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub times: Option<TimesXml>,
@@ -56,13 +56,13 @@ pub(crate) struct GroupXml {
     pub enable_searching: Option<bool>,
 
     #[serde(default, with = "cs_opt_string", skip_serializing_if = "Option::is_none")]
-    pub last_top_visible_entry: Option<UUID>,
+    pub last_top_visible_entry: Option<UuidBase64>,
 
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub custom_data: Option<CustomDataXml>,
 
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub previous_parent_group: Option<UUID>,
+    pub previous_parent_group: Option<UuidBase64>,
 
     #[serde(default, rename = "$value")]
     pub children: Vec<GroupOrEntryXml>,
@@ -156,20 +156,20 @@ impl GroupXml {
         };
 
         Ok(GroupXml {
-            uuid: UUID(source.uuid),
+            uuid: UuidBase64(source.uuid),
             name: source.name.clone(),
             notes: source.notes.clone(),
             tags: join_tags(&source.tags),
             icon_id: source.icon_id.map(usize::from),
-            custom_icon_uuid: source.custom_icon_uuid.map(UUID),
+            custom_icon_uuid: source.custom_icon_uuid.map(UuidBase64),
             times: Some(source.times.clone().into()),
             is_expanded: Some(source.is_expanded),
             default_auto_type_sequence: source.default_autotype_sequence.clone(),
             enable_auto_type: source.enable_autotype,
             enable_searching: source.enable_searching,
-            last_top_visible_entry: source.last_top_visible_entry.map(UUID),
+            last_top_visible_entry: source.last_top_visible_entry.map(UuidBase64),
             custom_data,
-            previous_parent_group: source.previous_parent_group.map(UUID),
+            previous_parent_group: source.previous_parent_group.map(UuidBase64),
             children,
         })
     }

@@ -1,7 +1,7 @@
 use crate::{
     db::{Color, CustomIcon},
     format::xml_db::{
-        UUID,
+        UuidBase64,
         custom_serde::{cs_base64, cs_opt_bool, cs_opt_fromstr, cs_opt_string},
         timestamp::Timestamp,
     },
@@ -76,22 +76,22 @@ pub(crate) struct MetaXml {
         with = "cs_opt_string",
         skip_serializing_if = "Option::is_none"
     )]
-    pub recycle_bin_uuid: Option<UUID>,
+    pub recycle_bin_uuid: Option<UuidBase64>,
 
     #[serde(default, with = "cs_opt_string", skip_serializing_if = "Option::is_none")]
     pub recycle_bin_changed: Option<Timestamp>,
 
     #[serde(default, with = "cs_opt_string", skip_serializing_if = "Option::is_none")]
-    pub entry_templates_group: Option<UUID>,
+    pub entry_templates_group: Option<UuidBase64>,
 
     #[serde(default, with = "cs_opt_string", skip_serializing_if = "Option::is_none")]
     pub entry_templates_group_changed: Option<Timestamp>,
 
     #[serde(default, with = "cs_opt_string", skip_serializing_if = "Option::is_none")]
-    pub last_selected_group: Option<UUID>,
+    pub last_selected_group: Option<UuidBase64>,
 
     #[serde(default, with = "cs_opt_string", skip_serializing_if = "Option::is_none")]
-    pub last_top_visible_group: Option<UUID>,
+    pub last_top_visible_group: Option<UuidBase64>,
 
     #[serde(default, with = "cs_opt_fromstr", skip_serializing_if = "Option::is_none")]
     pub history_max_items: Option<isize>,
@@ -166,12 +166,12 @@ impl From<crate::db::Meta> for MetaXml {
             memory_protection: db.memory_protection.as_ref().map(|mp| mp.clone().into()),
             custom_icons,
             recycle_bin_enabled: db.recyclebin_enabled,
-            recycle_bin_uuid: db.recyclebin_uuid.map(UUID),
+            recycle_bin_uuid: db.recyclebin_uuid.map(UuidBase64),
             recycle_bin_changed: db.recyclebin_changed.as_ref().map(|t| (*t).into()),
-            entry_templates_group: db.entry_templates_group.map(UUID),
+            entry_templates_group: db.entry_templates_group.map(UuidBase64),
             entry_templates_group_changed: db.entry_templates_group_changed.as_ref().map(|t| (*t).into()),
-            last_selected_group: db.last_selected_group.map(UUID),
-            last_top_visible_group: db.last_top_visible_group.map(UUID),
+            last_selected_group: db.last_selected_group.map(UuidBase64),
+            last_top_visible_group: db.last_top_visible_group.map(UuidBase64),
             history_max_items: db.history_max_items,
             history_max_size: db.history_max_size,
             settings_changed: db.settings_changed.as_ref().map(|t| (*t).into()),
@@ -452,7 +452,7 @@ pub struct CustomIconsXml {
 #[serde(rename = "Icon", rename_all = "PascalCase")]
 pub struct CustomIconXml {
     #[serde(rename = "UUID")]
-    pub(crate) uuid: UUID,
+    pub(crate) uuid: UuidBase64,
 
     #[serde(default, with = "cs_opt_string", skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
@@ -478,7 +478,7 @@ impl From<CustomIconXml> for CustomIcon {
 impl From<CustomIcon> for CustomIconXml {
     fn from(icon: CustomIcon) -> Self {
         Self {
-            uuid: UUID(icon.id()),
+            uuid: UuidBase64(icon.id()),
             name: icon.name,
             last_modification_time: icon.last_modification_time.map(Into::into),
             data: icon.data,
@@ -604,7 +604,7 @@ mod tests {
     #[test]
     fn test_serialize_icon() {
         let icon = CustomIconXml {
-            uuid: UUID(uuid::uuid!("00010203-0405-0607-0809-0a0b0c0d0e0f")),
+            uuid: UuidBase64(uuid::uuid!("00010203-0405-0607-0809-0a0b0c0d0e0f")),
             name: None,
             last_modification_time: None,
             data: vec![1, 2, 3, 4, 5],
@@ -657,19 +657,19 @@ mod tests {
             }),
             custom_icons: Some(CustomIconsXml {
                 icons: vec![CustomIconXml {
-                    uuid: UUID(uuid::uuid!("00010203-0405-0607-0809-0a0b0c0d0e0f")),
+                    uuid: UuidBase64(uuid::uuid!("00010203-0405-0607-0809-0a0b0c0d0e0f")),
                     name: None,
                     last_modification_time: None,
                     data: vec![1, 2, 3, 4, 5],
                 }],
             }),
             recycle_bin_enabled: Some(true),
-            recycle_bin_uuid: Some(UUID(uuid::uuid!("10111213-1415-1617-1819-1a1b1c1d1e1f"))),
+            recycle_bin_uuid: Some(UuidBase64(uuid::uuid!("10111213-1415-1617-1819-1a1b1c1d1e1f"))),
             recycle_bin_changed: Some(Timestamp::new_iso8601(NaiveDateTime::from_str("2023-10-05T12:34:56").unwrap())),
-            entry_templates_group: Some(UUID(uuid::uuid!("20212223-2425-2627-2829-2a2b2c2d2e2f"))),
+            entry_templates_group: Some(UuidBase64(uuid::uuid!("20212223-2425-2627-2829-2a2b2c2d2e2f"))),
             entry_templates_group_changed: Some(Timestamp::new_base64(NaiveDateTime::from_str("2023-10-05T12:34:56").unwrap())),
-            last_selected_group: Some(UUID(uuid::uuid!("30313233-3435-3637-3839-3a3b3c3d3e3f"))),
-            last_top_visible_group: Some(UUID(uuid::uuid!("40414243-4445-4647-4849-4a4b4c4d4e4f"))),
+            last_selected_group: Some(UuidBase64(uuid::uuid!("30313233-3435-3637-3839-3a3b3c3d3e3f"))),
+            last_top_visible_group: Some(UuidBase64(uuid::uuid!("40414243-4445-4647-4849-4a4b4c4d4e4f"))),
             history_max_items: Some(10),
             history_max_size: Some(1048576),
             settings_changed: Some(Timestamp::new_iso8601(NaiveDateTime::from_str("2023-10-05T12:34:56").unwrap())),

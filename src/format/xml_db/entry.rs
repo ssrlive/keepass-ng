@@ -6,7 +6,7 @@ use crate::{
     crypt::ciphers::Cipher,
     db::Color,
     format::xml_db::{
-        UUID,
+        UuidBase64,
         custom_serde::{cs_bool, cs_opt_bool, cs_opt_fromstr, cs_opt_string},
         meta::CustomDataXml,
         tags::split_tags,
@@ -20,7 +20,7 @@ use serde::{Deserialize, Serialize};
 #[serde(rename = "Entry", rename_all = "PascalCase")]
 pub(crate) struct EntryXml {
     #[serde(rename = "UUID")]
-    pub uuid: UUID,
+    pub uuid: UuidBase64,
 
     #[serde(default, rename = "IconID", with = "cs_opt_fromstr", skip_serializing_if = "Option::is_none")]
     pub icon_id: Option<usize>,
@@ -31,7 +31,7 @@ pub(crate) struct EntryXml {
         with = "cs_opt_string",
         skip_serializing_if = "Option::is_none"
     )]
-    pub custom_icon_uuid: Option<UUID>,
+    pub custom_icon_uuid: Option<UuidBase64>,
 
     #[serde(default, with = "cs_opt_string", skip_serializing_if = "Option::is_none")]
     pub foreground_color: Option<Color>,
@@ -49,7 +49,7 @@ pub(crate) struct EntryXml {
     pub quality_check: Option<bool>,
 
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub previous_parent_group: Option<UUID>,
+    pub previous_parent_group: Option<UuidBase64>,
 
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub times: Option<TimesXml>,
@@ -144,7 +144,7 @@ impl EntryXml {
         inner_encryptor: &mut dyn Cipher,
         attachments: &mut Vec<crate::db::Attachment>,
     ) -> Result<Self, CryptographyError> {
-        let custom_icon_uuid = db.custom_icon.map(UUID);
+        let custom_icon_uuid = db.custom_icon.map(UuidBase64);
 
         let mut string_fields = Vec::with_capacity(db.fields.len());
         for (k, v) in &db.fields {
@@ -196,7 +196,7 @@ impl EntryXml {
         };
 
         Ok(EntryXml {
-            uuid: UUID(db.uuid),
+            uuid: UuidBase64(db.uuid),
             icon_id: db.icon_id.map(|id| id.into()),
             custom_icon_uuid,
             foreground_color: db.foreground_color,
@@ -204,7 +204,7 @@ impl EntryXml {
             override_url: db.override_url.clone(),
             tags: join_tags(&db.tags),
             quality_check: db.quality_check,
-            previous_parent_group: db.previous_parent_group.map(UUID),
+            previous_parent_group: db.previous_parent_group.map(UuidBase64),
             times: Some(db.times.clone().into()),
             string_fields,
             binary_fields,
