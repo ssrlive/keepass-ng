@@ -144,6 +144,10 @@ impl Node for Entry {
 }
 
 impl Entry {
+    pub fn set_custom_icon_uuid(&mut self, uuid: Option<Uuid>) {
+        self.custom_icon = uuid;
+    }
+
     pub fn quality_check(&self) -> bool {
         self.quality_check.unwrap_or(true)
     }

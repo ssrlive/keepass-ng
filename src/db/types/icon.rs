@@ -37,6 +37,10 @@ impl CustomIcon {
         self.id
     }
 
+    pub fn name(&self) -> Option<&str> {
+        self.name.as_deref()
+    }
+
     pub fn new(id: Uuid, name: Option<String>, last_modification_time: Option<NaiveDateTime>, data: Vec<u8>) -> Self {
         Self {
             id,

@@ -7,6 +7,7 @@ use crate::{
     },
 };
 use base64::{Engine as _, engine::general_purpose as base64_engine};
+use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -485,7 +486,7 @@ impl From<CustomIcon> for CustomIconXml {
     }
 }
 
-impl From<CustomIconsXml> for HashMap<Uuid, CustomIcon> {
+impl From<CustomIconsXml> for IndexMap<Uuid, CustomIcon> {
     fn from(icons: CustomIconsXml) -> Self {
         icons
             .icons
@@ -498,8 +499,8 @@ impl From<CustomIconsXml> for HashMap<Uuid, CustomIcon> {
     }
 }
 
-impl From<HashMap<Uuid, CustomIcon>> for CustomIconsXml {
-    fn from(icons: HashMap<Uuid, CustomIcon>) -> Self {
+impl From<IndexMap<Uuid, CustomIcon>> for CustomIconsXml {
+    fn from(icons: IndexMap<Uuid, CustomIcon>) -> Self {
         Self {
             icons: icons.into_values().map(Into::into).collect(),
         }

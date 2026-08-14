@@ -186,7 +186,6 @@ mod tests {
         key::DatabaseKey,
     };
     use chrono::NaiveDateTime;
-    use std::collections::HashMap;
     use uuid::uuid;
 
     fn make_key() -> DatabaseKey {
@@ -389,7 +388,7 @@ mod tests {
             history_max_items: Some(456),
             history_max_size: Some(789),
             settings_changed: Some("2000-12-31T12:35:02".parse().unwrap()),
-            custom_data: HashMap::from([
+            custom_data: indexmap::IndexMap::from([
                 (
                     "custom-data-key".to_string(),
                     CustomDataItem {

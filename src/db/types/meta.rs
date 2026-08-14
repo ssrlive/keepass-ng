@@ -1,5 +1,5 @@
 use chrono::NaiveDateTime;
-use std::collections::HashMap;
+use indexmap::IndexMap;
 use uuid::Uuid;
 
 use crate::db::{Color, CustomDataItem, CustomIcon};
@@ -24,7 +24,7 @@ pub struct Meta {
     pub database_description_changed: Option<NaiveDateTime>,
 
     /// All custom icons in the database, indexed by their UUID.
-    pub(crate) custom_icons: HashMap<Uuid, CustomIcon>,
+    pub(crate) custom_icons: IndexMap<Uuid, CustomIcon>,
 
     /// default username
     pub default_username: Option<String>,
@@ -79,7 +79,7 @@ pub struct Meta {
     pub settings_changed: Option<NaiveDateTime>,
 
     /// Additional custom data fields
-    pub custom_data: HashMap<String, CustomDataItem>,
+    pub custom_data: IndexMap<String, CustomDataItem>,
 }
 
 impl Meta {
@@ -93,6 +93,10 @@ impl Meta {
 
     pub fn custom_icon(&self, uuid: Uuid) -> Option<&CustomIcon> {
         self.custom_icons.get(&uuid)
+    }
+
+    pub fn insert_custom_icon(&mut self, icon: CustomIcon) -> Option<CustomIcon> {
+        self.custom_icons.insert(icon.id(), icon)
     }
 
     /// Set recycle bin enabled

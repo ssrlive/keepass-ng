@@ -102,6 +102,7 @@ getrandom = { version = "0.4.3", features = ["std", "wasm_js"] }
 hex = { version = "0.4.3" }
 hex-literal = "1.1.0"
 hmac = "0.13.0"
+indexmap = { version = "2.14.0", features = ["serde"] }
 quick-xml = { version = "0.41.0", features = ["serialize"] }
 rpassword = { version = "7.5.4", optional = true }
 rust-argon2 = "3.0.0"
