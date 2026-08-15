@@ -21,12 +21,16 @@ impl std::fmt::Display for IconId {
             "🏠", "⭐", "🐧", "🤖", "🍎", "🌐", "💵", "📜", "📱",
         ];
 
-        let emoji = EMOJIS.get(self.0).unwrap_or(&"");
+        let emoji = EMOJIS.get(self.0).unwrap_or(&"🔑");
         write!(f, "{emoji}")
     }
 }
 
 impl IconId {
+    pub const fn count() -> usize {
+        MAX_BUILTIN_ICON_COUNT
+    }
+
     pub const KEY: IconId = IconId(0);
     pub const WORLD: IconId = IconId(1);
     pub const WARNING: IconId = IconId(2);

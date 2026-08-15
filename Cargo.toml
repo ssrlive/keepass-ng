@@ -7,7 +7,7 @@ homepage = "https://github.com/ssrlive/keepass-ng"
 repository = "https://github.com/ssrlive/keepass-ng"
 documentation = "https://docs.rs/keepass-ng"
 
-version = "0.11.7"
+version = "0.11.8"
 authors = [
   "Stefan Seemayer <stefan@seemayer.de>",
   "ssrlive",

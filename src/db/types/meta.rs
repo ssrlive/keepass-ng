@@ -95,6 +95,10 @@ impl Meta {
         self.custom_icons.get(&uuid)
     }
 
+    pub fn custom_icons(&self) -> impl Iterator<Item = (&Uuid, &CustomIcon)> {
+        self.custom_icons.iter()
+    }
+
     pub fn insert_custom_icon(&mut self, icon: CustomIcon) -> Option<CustomIcon> {
         self.custom_icons.insert(icon.id(), icon)
     }
