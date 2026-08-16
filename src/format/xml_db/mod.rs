@@ -12,6 +12,7 @@ use crate::crypt::ciphers::Cipher;
 use crate::db::Database;
 use crate::db::{Attachment, Group, Meta};
 use base64::{Engine as _, engine::general_purpose as base64_engine};
+use custom_serde::cs_opt_string;
 use serde::{Deserialize, Serialize, Serializer};
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -67,7 +68,7 @@ struct DeletedObjectXml {
     #[serde(rename = "UUID")]
     uuid: UuidBase64,
 
-    #[serde(default, with = "custom_serde::cs_opt_string")]
+    #[serde(default, rename = "DeletionTime", alias = "deletion_time", with = "cs_opt_string")]
     deletion_time: Option<timestamp::Timestamp>,
 }
 
@@ -175,6 +176,7 @@ pub(crate) fn to_xml_bytes(db: &Database, inner_cipher: &mut dyn Cipher) -> Resu
 #[cfg(feature = "save_kdbx4")]
 #[cfg(test)]
 mod tests {
+    use super::{DeletedObjectXml, UuidBase64, timestamp::Timestamp};
     use crate::{
         config::{DatabaseConfig, InnerCipherConfig},
         db::{
@@ -185,7 +187,7 @@ mod tests {
         key::DatabaseKey,
     };
     use chrono::NaiveDateTime;
-    use uuid::uuid;
+    use uuid::{Uuid, uuid};
 
     fn make_key() -> DatabaseKey {
         let mut password_bytes: Vec<u8> = vec![];
@@ -442,5 +444,30 @@ mod tests {
         let decrypted_db = kdbx4::parse_kdbx4(&encrypted_db, &db_key).unwrap();
 
         assert_eq!(decrypted_db, db);
+    }
+
+    #[test]
+    fn test_serialize_deleted_object_deletion_time() {
+        let deleted_object = DeletedObjectXml {
+            uuid: UuidBase64(Uuid::nil()),
+            deletion_time: Some(Timestamp::new_iso8601(
+                chrono::NaiveDateTime::parse_from_str("2026-08-15T12:34:56", "%Y-%m-%dT%H:%M:%S").unwrap(),
+            )),
+        };
+
+        let serialized = quick_xml::se::to_string_with_root("DeletedObject", &deleted_object).unwrap();
+
+        assert!(serialized.contains("<DeletionTime>"));
+        assert!(!serialized.contains("<deletion_time>"));
+    }
+
+    #[test]
+    fn test_deserialize_legacy_deleted_object_deletion_time() {
+        let deleted_object: DeletedObjectXml = quick_xml::de::from_str(
+            "<DeletedObject><UUID>AAAAAAAAAAAAAAAAAAAAAA==</UUID><deletion_time>2026-08-15T12:34:56Z</deletion_time></DeletedObject>",
+        )
+        .unwrap();
+
+        assert!(deleted_object.deletion_time.is_some());
     }
 }

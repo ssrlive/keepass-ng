@@ -146,3 +146,17 @@ fn protected_password_remains_protected_after_round_trip() {
         assert_eq!(entry.get_password(), Some("hunter2"));
     });
 }
+
+#[test]
+fn deleted_object_uses_canonical_xml_tag() {
+    let (db, _) = build_database();
+    let key = DatabaseKey::new().with_password(PASSWORD);
+    let mut saved = Vec::new();
+    db.save(&mut saved, key.clone()).expect("save");
+
+    let xml = Database::get_xml(&mut saved.as_slice(), key).expect("extract XML");
+    let xml = String::from_utf8(xml).expect("XML is UTF-8");
+
+    assert!(xml.contains("<DeletionTime>"));
+    assert!(!xml.contains("<deletion_time>"));
+}

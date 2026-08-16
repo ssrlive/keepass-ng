@@ -34,7 +34,7 @@ pub const KDBX4_CURRENT_MINOR_VERSION: u16 = 1;
 /// Supported KDB database versions, with the associated
 /// minor version.
 #[allow(clippy::upper_case_acronyms)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 #[cfg_attr(feature = "serialization", derive(serde::Serialize))]
 pub enum DatabaseVersion {
     KDB(u16),
