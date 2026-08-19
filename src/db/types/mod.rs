@@ -102,10 +102,29 @@ impl Database {
         before - self.meta.custom_icons.len()
     }
 
-    pub fn resolve_custom_icon(&self, icon: &Icon) -> Option<&CustomIcon> {
+    pub fn custom_icon_is_used(&self, uuid: Uuid) -> bool {
+        for node in NodeIterator::new(&self.root) {
+            let node = node.borrow();
+            if matches!(node.get_icon(), Icon::Custom(icon_uuid) if icon_uuid == uuid) {
+                return true;
+            }
+            if let Some(entry) = node.downcast_ref::<Entry>()
+                && entry
+                    .get_history()
+                    .iter()
+                    .flat_map(|history| history.get_entries())
+                    .any(|history_entry| matches!(history_entry.get_icon(), Icon::Custom(icon_uuid) if icon_uuid == uuid))
+            {
+                return true;
+            }
+        }
+        false
+    }
+
+    pub fn resolve_custom_icon(&self, icon: Icon) -> Option<&CustomIcon> {
         match icon {
             Icon::BuiltIn(_) => None,
-            Icon::Custom(uuid) => self.meta.custom_icon(*uuid),
+            Icon::Custom(uuid) => self.meta.custom_icon(uuid),
         }
     }
 

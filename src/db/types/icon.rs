@@ -15,6 +15,15 @@ pub enum Icon {
     Custom(Uuid),
 }
 
+impl std::fmt::Display for Icon {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Icon::BuiltIn(icon_id) => write!(f, "{}", icon_id),
+            Icon::Custom(uuid) => write!(f, "{}", uuid),
+        }
+    }
+}
+
 impl From<IconId> for Icon {
     fn from(icon_id: IconId) -> Self {
         Icon::BuiltIn(icon_id)

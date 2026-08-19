@@ -103,6 +103,10 @@ impl Meta {
         self.custom_icons.insert(icon.id(), icon)
     }
 
+    pub fn remove_custom_icon(&mut self, uuid: Uuid) -> Option<CustomIcon> {
+        self.custom_icons.shift_remove(&uuid)
+    }
+
     /// Set recycle bin enabled
     pub fn set_recycle_bin_enabled(&mut self, enabled: bool) {
         self.recyclebin_enabled = Some(enabled);
