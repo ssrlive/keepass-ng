@@ -21,6 +21,7 @@ pub use self::{
     },
     key::DatabaseKey,
 };
+pub use argon2::Version as Argon2Version;
 pub use chrono::NaiveDateTime;
 pub use config::DatabaseVersion;
 pub use uuid::Uuid;
