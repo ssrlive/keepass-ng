@@ -10,7 +10,7 @@ use byteorder::{ByteOrder, LittleEndian};
 use crate::{
     config::{CompressionConfig, DatabaseConfig, InnerCipherConfig, KdfConfig, OuterCipherConfig},
     crypt::{self, ciphers::Cipher},
-    db::{Attachment, Database, rc_refcell_node},
+    db::{Attachment, Database},
     error::{DatabaseIntegrityError, DatabaseKeyError, DatabaseOpenError},
     format::{
         DatabaseVersion, DatabaseVersionParseError, hmac_block_stream,
@@ -49,12 +49,7 @@ pub(crate) fn parse_kdbx4(data: &[u8], db_key: &DatabaseKey) -> Result<Database,
         .map_err(Kdbx4OpenError::from)
         .map_err(DatabaseIntegrityError::from)?;
 
-    let db = Database {
-        config,
-        root: rc_refcell_node(database_content.root_group).into(),
-        deleted_objects: database_content.deleted_objects,
-        meta: database_content.meta,
-    };
+    let db = Database::from_parsed_xml(database_content, config);
 
     Ok(db)
 }

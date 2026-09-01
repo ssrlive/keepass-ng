@@ -138,6 +138,15 @@ impl Database {
         }
     }
 
+    pub(crate) fn from_parsed_xml(parsed: crate::format::xml_db::ParsedXml, config: DatabaseConfig) -> Database {
+        Self {
+            config,
+            root: rc_refcell_node(parsed.root_group).into(),
+            deleted_objects: parsed.deleted_objects,
+            meta: parsed.meta,
+        }
+    }
+
     pub fn node_get_parents(&self, node: &NodePtr) -> Vec<Uuid> {
         let mut parents = Vec::new();
         let mut parent_uuid = node.borrow().get_parent();

@@ -176,7 +176,7 @@ pub(crate) fn to_xml_bytes(db: &Database, inner_cipher: &mut dyn Cipher) -> Resu
 #[cfg(feature = "save_kdbx4")]
 #[cfg(test)]
 mod tests {
-    use super::{DeletedObjectXml, UuidBase64, timestamp::Timestamp};
+    use super::{DeletedObjectXml, UuidBase64, parse_xml_bytes, timestamp::Timestamp, to_xml_bytes};
     use crate::{
         config::{DatabaseConfig, InnerCipherConfig},
         db::{
@@ -469,5 +469,27 @@ mod tests {
         .unwrap();
 
         assert!(deleted_object.deletion_time.is_some());
+    }
+
+    #[test]
+    fn test_serialize_deletion_time_mode() {
+        let xml = r#"<KeePassFile>
+            <Meta></Meta>
+            <Root>
+               <Group><UUID>tP/vJ/3uSHyomfPZ4dXVlg==</UUID><Name></Name></Group>
+               <DeletedObjects>
+                   <DeletedObject>
+                       <UUID>30lsaI9KSYefuJb0PHSRiw==</UUID>
+                       <DeletionTime>io8Y4g4AAAA=</DeletionTime>
+                   </DeletedObject>
+               </DeletedObjects>
+            </Root>
+        </KeePassFile>"#;
+        let mut cipher = crate::config::InnerCipherConfig::Plain.get_cipher(&[]).unwrap();
+        let parsed = parse_xml_bytes(xml.as_bytes(), &[], &mut *cipher).unwrap();
+        let db = Database::from_parsed_xml(parsed, DatabaseConfig::default());
+        let (_, serialized) = to_xml_bytes(&db, &mut *cipher).unwrap();
+        let serialized = String::from_utf8(serialized).unwrap();
+        assert!(serialized.contains("<DeletionTime>io8Y4g4AAAA=</DeletionTime>"));
     }
 }

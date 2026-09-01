@@ -1,7 +1,7 @@
 use crate::{
     config::{CompressionConfig, DatabaseConfig, InnerCipherConfig, KdfConfig, OuterCipherConfig},
     crypt::{calculate_sha256, ciphers::Cipher},
-    db::{Database, rc_refcell_node},
+    db::Database,
     error::{DatabaseIntegrityError, DatabaseKeyError, DatabaseOpenError},
     format::{DatabaseVersion, DatabaseVersionParseError, kdbx_header_field_id::KDBXHeaderFieldID},
     key::DatabaseKey,
@@ -181,12 +181,7 @@ pub(crate) fn parse_kdbx3(data: &[u8], db_key: &DatabaseKey) -> Result<Database,
         .map_err(Kdbx3OpenError::from)
         .map_err(DatabaseIntegrityError::from)?;
 
-    let db = Database {
-        config,
-        root: rc_refcell_node(database_content.root_group).into(),
-        deleted_objects: database_content.deleted_objects,
-        meta: database_content.meta,
-    };
+    let db = Database::from_parsed_xml(database_content, config);
 
     Ok(db)
 }

@@ -80,13 +80,13 @@ merge = []
 # default = ["utilities", "save_kdbx4", "challenge_response", "merge"]
 
 [dependencies]
-aes = "0.9.2"
+aes = "0.9.3"
 base32 = { version = "0.5.1", optional = true }
 base64 = "0.23.1"
 block-modes = "0.9.1"
 byteorder = "1.5.0"
 cbc = "0.2.1"
-chacha20 = "0.10.1"
+chacha20 = "0.10.2"
 challenge_response = { version = "0.5.46", optional = true, default-features = false, features = [
   "rusb",
 ] }
@@ -97,13 +97,13 @@ chrono = { version = "0.4.45", default-features = false, features = [
 ] }
 cipher = { version = "0.5.2", features = ["alloc", "block-padding"] }
 clap = { version = "4.6.6", optional = true, features = ["derive"] }
-flate2 = "1.1.9"
+flate2 = "1.1.10"
 getrandom = { version = "0.4.3", features = ["std", "wasm_js"] }
 hex = { version = "0.4.3" }
 hex-literal = "1.1.0"
 hmac = "0.13.0"
-indexmap = { version = "2.14.0", features = ["serde"] }
-quick-xml = { version = "0.41.0", features = ["serialize"] }
+indexmap = { version = "2.14.1", features = ["serde"] }
+quick-xml = { version = "0.42.0", features = ["serialize"] }
 rpassword = { version = "7.5.4", optional = true }
 rust-argon2 = "3.0.0"
 salsa20 = "0.11.0"
@@ -116,7 +116,7 @@ thiserror = "2.0.20"
 totp-lite = { version = "2.0.1", optional = true }
 twofish = "0.8.0"
 url = { version = "2.5.8", optional = true }
-uuid = { version = "1.24.0", features = ["v4", "serde", "js"] }
+uuid = { version = "1.26.0", features = ["v4", "serde", "js"] }
 zeroize = { version = "1.9.0", features = ["zeroize_derive"] }
 
 # Browser-only deps: wasm32-unknown-unknown is the canonical browser target.
