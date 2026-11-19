@@ -1,3 +1,4 @@
+#[cfg(feature = "challenge_response_usb")]
 use challenge_response::{
     ChallengeResponse,
     config::{Config, Mode, Slot},
@@ -6,8 +7,11 @@ use cipher::InvalidLength;
 use hex::FromHexError;
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
-use crate::{crypt::CryptographyError, error::DatabaseKeyError, key::KeyElement};
+#[cfg(feature = "challenge_response_usb")]
+use crate::error::DatabaseKeyError;
+use crate::{crypt::CryptographyError, key::KeyElement};
 
+#[cfg(feature = "challenge_response_usb")]
 fn parse_yubikey_slot(slot_number: &str) -> Result<Slot, ChallengeResponseKeyError> {
     if let Some(slot) = Slot::from_str(slot_number) {
         return Ok(slot);
@@ -18,9 +22,11 @@ fn parse_yubikey_slot(slot_number: &str) -> Result<Slot, ChallengeResponseKeyErr
 #[derive(Debug, Clone, PartialEq, Zeroize, ZeroizeOnDrop)]
 pub enum ChallengeResponseKey {
     LocalChallenge(String),
+    #[cfg(feature = "challenge_response_usb")]
     YubikeyChallenge(Yubikey, String),
 }
 
+#[cfg(feature = "challenge_response_usb")]
 #[derive(Debug, Clone, PartialEq, Zeroize, ZeroizeOnDrop)]
 pub struct Yubikey {
     pub serial_number: u32,
@@ -36,6 +42,7 @@ impl ChallengeResponseKey {
                 let response = crate::crypt::calculate_hmac_sha1(&[challenge], &secret_bytes)?.to_vec();
                 Ok(response)
             }
+            #[cfg(feature = "challenge_response_usb")]
             ChallengeResponseKey::YubikeyChallenge(yubikey, slot_number) => {
                 let mut challenge_response_client = ChallengeResponse::new()?;
                 let slot = parse_yubikey_slot(slot_number)?;
@@ -58,6 +65,7 @@ impl ChallengeResponseKey {
         }
     }
 
+    #[cfg(feature = "challenge_response_usb")]
     pub fn get_available_yubikeys() -> Result<Vec<Yubikey>, DatabaseKeyError> {
         let mut challenge_response_client = ChallengeResponse::new().map_err(ChallengeResponseKeyError::from)?;
         let mut response: Vec<Yubikey> = vec![];
@@ -78,6 +86,7 @@ impl ChallengeResponseKey {
         Ok(response)
     }
 
+    #[cfg(feature = "challenge_response_usb")]
     pub fn get_yubikey(serial_number: Option<u32>) -> Result<Yubikey, DatabaseKeyError> {
         let all_yubikeys = ChallengeResponseKey::get_available_yubikeys()?;
         if all_yubikeys.is_empty() {
@@ -117,6 +126,7 @@ pub enum ChallengeResponseKeyError {
     #[error("Invalid key slot: {0}")]
     InvalidSlot(String),
 
+    #[cfg(feature = "challenge_response_usb")]
     #[error(transparent)]
     Api(#[from] challenge_response::error::ChallengeResponseError),
 
