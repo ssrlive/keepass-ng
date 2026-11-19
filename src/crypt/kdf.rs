@@ -6,7 +6,10 @@ use sha2::{Digest, Sha256};
 use super::CryptographyError;
 
 pub(crate) trait Kdf {
-    fn transform_key(&self, composite_key: &Array<u8, U32>) -> Result<Array<u8, U32>, CryptographyError>;
+    fn transform_key(
+        &self,
+        composite_key: &Array<u8, U32>,
+    ) -> Result<Array<u8, U32>, CryptographyError>;
 }
 
 pub struct AesKdf {
@@ -15,11 +18,22 @@ pub struct AesKdf {
 }
 
 impl Kdf for AesKdf {
-    fn transform_key(&self, composite_key: &Array<u8, U32>) -> Result<Array<u8, U32>, CryptographyError> {
-        let seed_arr = self.seed.as_slice().try_into().map_err(|_| cipher::InvalidLength)?;
+    fn transform_key(
+        &self,
+        composite_key: &Array<u8, U32>,
+    ) -> Result<Array<u8, U32>, CryptographyError> {
+        let seed_arr = self
+            .seed
+            .as_slice()
+            .try_into()
+            .map_err(|_| cipher::InvalidLength)?;
         let cipher = Aes256::new(&seed_arr);
-        let mut block1 = composite_key[0..16].try_into().map_err(|_| cipher::InvalidLength)?;
-        let mut block2 = composite_key[16..].try_into().map_err(|_| cipher::InvalidLength)?;
+        let mut block1 = composite_key[0..16]
+            .try_into()
+            .map_err(|_| cipher::InvalidLength)?;
+        let mut block2 = composite_key[16..]
+            .try_into()
+            .map_err(|_| cipher::InvalidLength)?;
         for _ in 0..self.rounds {
             cipher.encrypt_block(&mut block1);
             cipher.encrypt_block(&mut block2);
@@ -44,7 +58,10 @@ pub struct Argon2Kdf {
 }
 
 impl Kdf for Argon2Kdf {
-    fn transform_key(&self, composite_key: &Array<u8, U32>) -> Result<Array<u8, U32>, CryptographyError> {
+    fn transform_key(
+        &self,
+        composite_key: &Array<u8, U32>,
+    ) -> Result<Array<u8, U32>, CryptographyError> {
         // Disable Argon2 multithreading on wasm32 targets to avoid panics on platforms without thread support.
         let thread_mode = if cfg!(target_arch = "wasm32") {
             argon2::ThreadMode::Sequential
@@ -67,7 +84,9 @@ impl Kdf for Argon2Kdf {
 
         let key = argon2::hash_raw(composite_key, &self.salt, &config)?;
 
-        key.as_slice().try_into().map_err(|_| cipher::InvalidLength.into())
+        key.as_slice()
+            .try_into()
+            .map_err(|_| cipher::InvalidLength.into())
     }
 }
 
@@ -108,7 +127,9 @@ mod tests {
         )
         .expect("argon2 test vector should derive successfully");
 
-        let actual = kdf.transform_key(&composite_key).expect("argon2 kdf should derive successfully");
+        let actual = kdf
+            .transform_key(&composite_key)
+            .expect("argon2 kdf should derive successfully");
 
         assert_eq!(actual.as_slice(), expected.as_slice());
     }

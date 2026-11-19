@@ -40,7 +40,8 @@ impl FromStr for Color {
             return Err(ParseColorError(str.to_string()));
         }
 
-        let var = u64::from_str_radix(str.trim_start_matches('#'), 16).map_err(|_e| ParseColorError(str.to_string()))?;
+        let var = u64::from_str_radix(str.trim_start_matches('#'), 16)
+            .map_err(|_e| ParseColorError(str.to_string()))?;
 
         let r = ((var >> 16) & 0xff) as u8;
         let g = ((var >> 8) & 0xff) as u8;

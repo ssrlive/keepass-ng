@@ -45,14 +45,16 @@ fn kpscript_lists_our_vault() {
             MasterKey::Keyfile(keyfile_kind) => {
                 let keyfile_path = dir.path().join("keyfile");
                 let mut file = File::create(&keyfile_path).expect("create temp keyfile");
-                file.write_all(&keyfile_kind.to_bytes()).expect("write keyfile");
+                file.write_all(&keyfile_kind.to_bytes())
+                    .expect("write keyfile");
 
                 command.arg(format!("-keyfile:{}", keyfile_path.display()))
             }
             MasterKey::PasswordAndKeyfile(password, keyfile_kind) => {
                 let keyfile_path = dir.path().join("keyfile");
                 let mut file = File::create(&keyfile_path).expect("create temp keyfile");
-                file.write_all(&keyfile_kind.to_bytes()).expect("write keyfile");
+                file.write_all(&keyfile_kind.to_bytes())
+                    .expect("write keyfile");
 
                 command
                     .arg(format!("-keyfile:{}", keyfile_path.display()))
@@ -73,13 +75,20 @@ fn kpscript_lists_our_vault() {
             );
         }
         let stdout = String::from_utf8_lossy(&out.stdout);
-        assert!(stdout.contains("entry-"), "KPScript output didn't list our entries: {:?}", stdout);
+        assert!(
+            stdout.contains("entry-"),
+            "KPScript output didn't list our entries: {:?}",
+            stdout
+        );
     }
 }
 
 #[test_with::executable(keepassxc-cli)]
 fn keepassxc_cli_lists_our_vault() {
-    let combos: Vec<_> = round_trip_combos().into_iter().filter(|c| !c.label.ends_with("kf-hex")).collect();
+    let combos: Vec<_> = round_trip_combos()
+        .into_iter()
+        .filter(|c| !c.label.ends_with("kf-hex"))
+        .collect();
 
     for combo in combos {
         println!("Testing combo: {}", combo.label);
@@ -94,23 +103,32 @@ fn keepassxc_cli_lists_our_vault() {
 
         let mut command = Command::new("keepassxc-cli");
 
-        let command = command.arg("ls").arg(&path).stdout(Stdio::piped()).stderr(Stdio::piped());
+        let command = command
+            .arg("ls")
+            .arg(&path)
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped());
 
         let (command, password) = match combo.master_key {
             MasterKey::Password(password) => (command, Some(password)),
             MasterKey::Keyfile(keyfile_kind) => {
                 let keyfile_path = dir.path().join("keyfile");
                 let mut file = File::create(&keyfile_path).expect("create temp keyfile");
-                file.write_all(&keyfile_kind.to_bytes()).expect("write keyfile");
+                file.write_all(&keyfile_kind.to_bytes())
+                    .expect("write keyfile");
 
-                let command = command.arg("--key-file").arg(keyfile_path).arg("--no-password");
+                let command = command
+                    .arg("--key-file")
+                    .arg(keyfile_path)
+                    .arg("--no-password");
 
                 (command, None)
             }
             MasterKey::PasswordAndKeyfile(password, keyfile_kind) => {
                 let keyfile_path = dir.path().join("keyfile");
                 let mut file = File::create(&keyfile_path).expect("create temp keyfile");
-                file.write_all(&keyfile_kind.to_bytes()).expect("write keyfile");
+                file.write_all(&keyfile_kind.to_bytes())
+                    .expect("write keyfile");
 
                 let command = command.arg("--key-file").arg(keyfile_path);
 

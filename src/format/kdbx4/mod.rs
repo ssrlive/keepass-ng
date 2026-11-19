@@ -9,7 +9,9 @@ use crate::{
 
 #[cfg(feature = "save_kdbx4")]
 pub(crate) use crate::format::kdbx4::dump::dump_kdbx4;
-pub use crate::format::kdbx4::parse::{Kdbx4InnerHeaderError, Kdbx4OpenError, Kdbx4OuterHeaderError};
+pub use crate::format::kdbx4::parse::{
+    Kdbx4InnerHeaderError, Kdbx4OpenError, Kdbx4OuterHeaderError,
+};
 pub(crate) use crate::format::kdbx4::parse::{decrypt_kdbx4, parse_kdbx4};
 
 /// Size for a master seed in bytes
@@ -62,7 +64,9 @@ struct KDBX4InnerHeader {
 mod kdbx4_tests {
     use super::*;
     use crate::{
-        config::{CompressionConfig, DatabaseConfig, InnerCipherConfig, KdfConfig, OuterCipherConfig},
+        config::{
+            CompressionConfig, DatabaseConfig, InnerCipherConfig, KdfConfig, OuterCipherConfig,
+        },
         db::{Attachment, Database, Entry, Group, Value, group_add_child, node::*},
         format::{DatabaseVersion, KDBX4_CURRENT_MINOR_VERSION, kdbx4::dump::dump_kdbx4},
         key::DatabaseKey,
@@ -87,12 +91,11 @@ mod kdbx4_tests {
             password += &std::char::from_u32(random_char as u32).unwrap().to_string();
         }
 
-        let db_key =
-            DatabaseKey::new()
-                .with_password(&password)
-                .with_challenge_response_key(crate::key::ChallengeResponseKey::LocalChallenge(
-                    "0102030405060708090a0b0c0d0e0f1011121314".to_string(),
-                ));
+        let db_key = DatabaseKey::new()
+            .with_password(&password)
+            .with_challenge_response_key(crate::key::ChallengeResponseKey::LocalChallenge(
+                "0102030405060708090a0b0c0d0e0f1011121314".to_string(),
+            ));
 
         let mut encrypted_db = Vec::new();
         dump_kdbx4(&db, &db_key, &mut encrypted_db).unwrap();
@@ -108,7 +111,9 @@ mod kdbx4_tests {
         let root_group = rc_refcell_node(Group::new("Root"));
 
         let entry_with_password = rc_refcell_node(Entry::default());
-        entry_with_password.borrow_mut().set_title(Some("Demo Entry"));
+        entry_with_password
+            .borrow_mut()
+            .set_title(Some("Demo Entry"));
 
         with_node_mut::<Entry, _, _>(&entry_with_password, |entry| {
             entry.set_password(Some("secret"));
@@ -146,11 +151,19 @@ mod kdbx4_tests {
 
     #[test]
     pub fn test_config_matrix() {
-        let outer_cipher_configs = [OuterCipherConfig::AES256, OuterCipherConfig::Twofish, OuterCipherConfig::ChaCha20];
+        let outer_cipher_configs = [
+            OuterCipherConfig::AES256,
+            OuterCipherConfig::Twofish,
+            OuterCipherConfig::ChaCha20,
+        ];
 
         let compression_configs = [CompressionConfig::None, CompressionConfig::GZip];
 
-        let inner_cipher_configs = [InnerCipherConfig::Plain, InnerCipherConfig::Salsa20, InnerCipherConfig::ChaCha20];
+        let inner_cipher_configs = [
+            InnerCipherConfig::Plain,
+            InnerCipherConfig::Salsa20,
+            InnerCipherConfig::ChaCha20,
+        ];
 
         let kdf_configs = [
             KdfConfig::Aes { rounds: 10 },
@@ -217,7 +230,10 @@ mod kdbx4_tests {
         let children = group_get_children(&decrypted_db.root).unwrap();
         assert_eq!(children.len(), 1);
         with_node::<Entry, _, _>(&children[0], |entry| {
-            assert_eq!(entry.attachments["attachment"].get(), &vec![0x01, 0x02, 0x03, 0x04]);
+            assert_eq!(
+                entry.attachments["attachment"].get(),
+                &vec![0x01, 0x02, 0x03, 0x04]
+            );
         })
         .unwrap();
     }

@@ -22,7 +22,10 @@ fn key() -> DatabaseKey {
     DatabaseKey::new().with_password(PASSWORD)
 }
 
-fn build_db_with_tagged_entry_and_group(entry_tags: Vec<String>, group_tags: Vec<String>) -> Database {
+fn build_db_with_tagged_entry_and_group(
+    entry_tags: Vec<String>,
+    group_tags: Vec<String>,
+) -> Database {
     let db = Database::new(Default::default());
     let root_uuid = db.root.borrow().get_uuid();
 
@@ -105,10 +108,26 @@ fn entry_and_group_round_trip_tags_identically() {
     let entry = node_by_title::<Entry>(&parsed, "tagged-entry");
     let group = node_by_title::<Group>(&parsed, "tagged-group");
 
-    let entry_tags_after = entry.borrow().downcast_ref::<Entry>().unwrap().get_tags().to_vec();
-    let group_tags_after = group.borrow().downcast_ref::<Group>().unwrap().tags().to_vec();
-    assert_eq!(entry_tags_after, entry_tags, "entry tags lost during round trip");
-    assert_eq!(group_tags_after, group_tags, "group tags lost during round trip");
+    let entry_tags_after = entry
+        .borrow()
+        .downcast_ref::<Entry>()
+        .unwrap()
+        .get_tags()
+        .to_vec();
+    let group_tags_after = group
+        .borrow()
+        .downcast_ref::<Group>()
+        .unwrap()
+        .tags()
+        .to_vec();
+    assert_eq!(
+        entry_tags_after, entry_tags,
+        "entry tags lost during round trip"
+    );
+    assert_eq!(
+        group_tags_after, group_tags,
+        "group tags lost during round trip"
+    );
 }
 
 #[test]
@@ -117,12 +136,18 @@ fn reader_accepts_comma_delimited_entry_tags() {
     // This test verifies that with the centralized splitter, ','-delimited
     // tags (as produced by older KeePassXC writers) still parse correctly.
     let path = std::path::Path::new("tests/resources/test_db_kdbx4_with_password_aes.kdbx");
-    let db = Database::open(&mut std::fs::File::open(path).expect("open fixture"), key()).expect("parse fixture");
+    let db = Database::open(&mut std::fs::File::open(path).expect("open fixture"), key())
+        .expect("parse fixture");
 
     let entry = node_by_title::<Entry>(&db, "ASDF");
 
     assert_eq!(
-        entry.borrow().downcast_ref::<Entry>().unwrap().get_tags().to_vec(),
+        entry
+            .borrow()
+            .downcast_ref::<Entry>()
+            .unwrap()
+            .get_tags()
+            .to_vec(),
         vec!["keepass-rs".to_string(), "test".to_string()],
         "',' delimited entry tags from the KeePassXC fixture must parse into a list",
     );
@@ -134,7 +159,8 @@ fn reader_accepts_semicolon_delimited_group_tags() {
     // `;`-delimited (`a;b;c`). The centralized splitter must keep that
     // working.
     let path = std::path::Path::new("tests/resources/test_db_kdbx41_with_password_aes.kdbx");
-    let db = Database::open(&mut std::fs::File::open(path).expect("open fixture"), key()).expect("parse fixture");
+    let db = Database::open(&mut std::fs::File::open(path).expect("open fixture"), key())
+        .expect("parse fixture");
 
     let group = node_by_title::<Group>(&db, "Group with tags");
 

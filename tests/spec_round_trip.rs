@@ -5,7 +5,10 @@
 
 mod common;
 
-use common::{Combo, baseline_combo, entry_with_attachment, root_entries, root_groups, round_trip_combos, total_attachments};
+use common::{
+    Combo, baseline_combo, entry_with_attachment, root_entries, root_groups, round_trip_combos,
+    total_attachments,
+};
 use keepass_ng::db::{Database, Entry, Node, with_node};
 
 #[test]
@@ -19,7 +22,12 @@ fn matrix_round_trip_minimal_database() {
             combo.label,
             bytes.len()
         );
-        assert_eq!(&bytes[..4], &[0x03, 0xd9, 0xa2, 0x9a], "combo {} missing kdbx magic", combo.label);
+        assert_eq!(
+            &bytes[..4],
+            &[0x03, 0xd9, 0xa2, 0x9a],
+            "combo {} missing kdbx magic",
+            combo.label
+        );
         let parsed = Database::open(&mut bytes.as_slice(), combo.get_key())
             .unwrap_or_else(|e| panic!("combo {} reopen failed: {:?}", combo.label, e));
         assert_eq!(parsed, db, "combo {} round-trip mismatch", combo.label);
@@ -44,11 +52,27 @@ fn matrix_round_trip_rich_database_subset() {
         let parsed = Database::open(&mut bytes.as_slice(), combo.get_key())
             .unwrap_or_else(|e| panic!("combo {} reopen failed: {:?}", combo.label, e));
 
-        assert_eq!(root_entries(&parsed).len(), 10, "{} root entry count", combo.label);
-        assert_eq!(root_groups(&parsed).len(), 1, "{} root group count", combo.label);
-        assert_eq!(total_attachments(&parsed), 3, "{} num_attachments mismatch", combo.label);
+        assert_eq!(
+            root_entries(&parsed).len(),
+            10,
+            "{} root entry count",
+            combo.label
+        );
+        assert_eq!(
+            root_groups(&parsed).len(),
+            1,
+            "{} root group count",
+            combo.label
+        );
+        assert_eq!(
+            total_attachments(&parsed),
+            3,
+            "{} num_attachments mismatch",
+            combo.label
+        );
 
-        let entry = entry_with_attachment(&parsed, "small.bin").unwrap_or_else(|| panic!("{}: no entry holds small.bin", combo.label));
+        let entry = entry_with_attachment(&parsed, "small.bin")
+            .unwrap_or_else(|| panic!("{}: no entry holds small.bin", combo.label));
         with_node::<Entry, _, _>(&entry, |entry| {
             assert_eq!(
                 entry.attachments["small.bin"].data.get().as_slice(),
@@ -71,13 +95,18 @@ fn matrix_round_trip_rich_database_subset() {
         })
         .unwrap();
 
-        let names: Vec<String> = with_node::<Entry, _, _>(&entry, |entry| entry.attachments.keys().cloned().collect()).unwrap();
+        let names: Vec<String> =
+            with_node::<Entry, _, _>(&entry, |entry| entry.attachments.keys().cloned().collect())
+                .unwrap();
         for n in ["small.bin", "noise.bin", "nonutf8.bin"] {
             assert!(names.contains(&n.to_string()), "{} {} name", combo.label, n);
         }
 
         assert!(root_groups(&parsed).iter().any(|group| {
-            with_node::<keepass_ng::db::Group, _, _>(group, |group| group.get_title() == Some("Recycle Bin")).unwrap_or(false)
+            with_node::<keepass_ng::db::Group, _, _>(group, |group| {
+                group.get_title() == Some("Recycle Bin")
+            })
+            .unwrap_or(false)
         }));
     }
 }
@@ -104,7 +133,12 @@ fn protected_field_decrypts_after_round_trip() {
 
     let entry = root_entries(&parsed)
         .into_iter()
-        .find(|e| with_node::<Entry, _, _>(e, |entry| entry.get_title().is_some_and(|t| t.starts_with("entry-"))).unwrap_or(false))
+        .find(|e| {
+            with_node::<Entry, _, _>(e, |entry| {
+                entry.get_title().is_some_and(|t| t.starts_with("entry-"))
+            })
+            .unwrap_or(false)
+        })
         .expect("at least one entry-NN");
     let pw = with_node::<Entry, _, _>(&entry, |entry| entry.get("Password").map(str::to_owned))
         .flatten()
@@ -113,7 +147,13 @@ fn protected_field_decrypts_after_round_trip() {
 
     let mut found = false;
     for e in root_entries(&parsed) {
-        if with_node::<Entry, _, _>(&e, |entry| entry.get_additional_attribute("custom.protected.0").is_some()).unwrap_or(false) {
+        if with_node::<Entry, _, _>(&e, |entry| {
+            entry
+                .get_additional_attribute("custom.protected.0")
+                .is_some()
+        })
+        .unwrap_or(false)
+        {
             found = true;
             break;
         }

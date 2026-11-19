@@ -53,7 +53,11 @@ fn purge_history_for_entry(entry: &NodePtr) -> Result<(), BoxError> {
         if let Some(history) = entry.get_history() {
             let history_size = history.get_entries().len();
             if history_size != 0 {
-                println!("Removing {} history entries from {}", history_size, entry.get_uuid());
+                println!(
+                    "Removing {} history entries from {}",
+                    history_size,
+                    entry.get_uuid()
+                );
             }
         }
         entry.purge_history();

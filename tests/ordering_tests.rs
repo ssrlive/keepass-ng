@@ -18,11 +18,17 @@ fn group_and_entry_order_should_survive_round_trip() -> Result<(), Box<dyn std::
     // Read entries and groups
     let actual_group_titles = root_groups(&actual)
         .into_iter()
-        .map(|group| with_node::<Group, _, _>(&group, |group| group.get_title().unwrap_or("").to_string()).unwrap())
+        .map(|group| {
+            with_node::<Group, _, _>(&group, |group| group.get_title().unwrap_or("").to_string())
+                .unwrap()
+        })
         .collect::<Vec<String>>();
     let actual_entry_titles = root_entries(&actual)
         .into_iter()
-        .map(|entry| with_node::<Entry, _, _>(&entry, |entry| entry.get_title().unwrap_or("").to_string()).unwrap())
+        .map(|entry| {
+            with_node::<Entry, _, _>(&entry, |entry| entry.get_title().unwrap_or("").to_string())
+                .unwrap()
+        })
         .collect::<Vec<String>>();
 
     // Check titles are in correct order
@@ -33,7 +39,8 @@ fn group_and_entry_order_should_survive_round_trip() -> Result<(), Box<dyn std::
 }
 
 #[test]
-fn group_and_entry_order_should_survive_round_trip_after_deletion() -> Result<(), Box<dyn std::error::Error>> {
+fn group_and_entry_order_should_survive_round_trip_after_deletion()
+-> Result<(), Box<dyn std::error::Error>> {
     let mut db = setup_database();
     let key = DatabaseKey::new().with_password(DEMO_PASSWORD);
 
@@ -68,26 +75,38 @@ fn group_and_entry_order_should_survive_round_trip_after_deletion() -> Result<()
     // Read entries and groups
     let actual_group_titles = root_groups(&actual)
         .into_iter()
-        .map(|group| with_node::<Group, _, _>(&group, |group| group.get_title().unwrap_or("").to_string()).unwrap())
+        .map(|group| {
+            with_node::<Group, _, _>(&group, |group| group.get_title().unwrap_or("").to_string())
+                .unwrap()
+        })
         .collect::<Vec<String>>();
     let actual_entry_titles = root_entries(&actual)
         .into_iter()
-        .map(|entry| with_node::<Entry, _, _>(&entry, |entry| entry.get_title().unwrap_or("").to_string()).unwrap())
+        .map(|entry| {
+            with_node::<Entry, _, _>(&entry, |entry| entry.get_title().unwrap_or("").to_string())
+                .unwrap()
+        })
         .collect::<Vec<String>>();
 
     // Check titles are in correct order
-    assert_eq!(actual_group_titles, filter_indexes(generate_group_titles(), &deleted_group_indexes),);
-    assert_eq!(actual_entry_titles, filter_indexes(generate_entry_titles(), &deleted_entry_indexes),);
+    assert_eq!(
+        actual_group_titles,
+        filter_indexes(generate_group_titles(), &deleted_group_indexes),
+    );
+    assert_eq!(
+        actual_entry_titles,
+        filter_indexes(generate_entry_titles(), &deleted_entry_indexes),
+    );
 
     Ok(())
 }
 
 fn generate_entry_titles() -> Vec<String> {
-    (0..20).into_iter().map(|index| format!("Entry_{index}")).collect()
+    (0..20).map(|index| format!("Entry_{index}")).collect()
 }
 
 fn generate_group_titles() -> Vec<String> {
-    (0..20).into_iter().map(|index| format!("Group_{index}")).collect()
+    (0..20).map(|index| format!("Group_{index}")).collect()
 }
 
 fn setup_database() -> Database {
@@ -99,11 +118,15 @@ fn setup_database() -> Database {
 
     for (index, entry_title) in entry_titles.iter().enumerate() {
         let entry = db.create_new_entry(root_uuid, index).expect("create entry");
-        with_node_mut::<Entry, _, _>(&entry, |entry| entry.set_title(Some(entry_title))).expect("configure entry");
+        with_node_mut::<Entry, _, _>(&entry, |entry| entry.set_title(Some(entry_title)))
+            .expect("configure entry");
     }
     for (index, group_title) in group_titles.iter().enumerate() {
-        let group = db.create_new_group(root_uuid, entry_titles.len() + index).expect("create group");
-        with_node_mut::<Group, _, _>(&group, |group| group.set_title(Some(group_title))).expect("configure group");
+        let group = db
+            .create_new_group(root_uuid, entry_titles.len() + index)
+            .expect("create group");
+        with_node_mut::<Group, _, _>(&group, |group| group.set_title(Some(group_title)))
+            .expect("configure group");
     }
 
     db

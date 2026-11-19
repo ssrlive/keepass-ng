@@ -45,7 +45,8 @@ pub fn main() -> Result<(), BoxError> {
 
     let db = Database::open(&mut source, key)?;
 
-    let entry = Group::get(&db.root, &[&args.entry]).ok_or("Could not find entry with provided name")?;
+    let entry =
+        Group::get(&db.root, &[&args.entry]).ok_or("Could not find entry with provided name")?;
     with_node::<Entry, _, _>(&entry, |entry| {
         let totp = entry.get_otp().unwrap();
         println!("Token is {}", totp.value_now().unwrap().code);

@@ -6,7 +6,9 @@
 mod common;
 
 use common::{DEMO_PASSWORD, combo_by_label, fast_combo};
-use keepass_ng::{DatabaseKey, DatabaseKeyError, DatabaseOpenError, DatabaseVersionParseError, db::Database};
+use keepass_ng::{
+    DatabaseKey, DatabaseKeyError, DatabaseOpenError, DatabaseVersionParseError, db::Database,
+};
 
 fn baseline_blob() -> (Vec<u8>, DatabaseKey) {
     let combo = fast_combo();
@@ -23,7 +25,9 @@ fn mutation_bad_magic() {
     assert!(
         matches!(
             res,
-            Err(DatabaseOpenError::Version(DatabaseVersionParseError::InvalidKDBXIdentifier))
+            Err(DatabaseOpenError::Version(
+                DatabaseVersionParseError::InvalidKDBXIdentifier
+            ))
         ),
         "BadMagic: unexpected result: {:?}",
         res
@@ -39,7 +43,9 @@ fn mutation_bad_kdbx_version() {
     assert!(
         matches!(
             res,
-            Err(DatabaseOpenError::Version(DatabaseVersionParseError::InvalidKDBXVersion { .. }))
+            Err(DatabaseOpenError::Version(
+                DatabaseVersionParseError::InvalidKDBXVersion { .. }
+            ))
         ),
         "BadKdbxVersion: unexpected result: {:?}",
         res
@@ -127,7 +133,10 @@ fn mutation_wrong_password() {
     let wrong = DatabaseKey::new().with_password("not-the-password");
     let res = Database::open(&mut &blob[..], wrong);
     assert!(
-        matches!(res, Err(DatabaseOpenError::Key(DatabaseKeyError::IncorrectKey))),
+        matches!(
+            res,
+            Err(DatabaseOpenError::Key(DatabaseKeyError::IncorrectKey))
+        ),
         "WrongPassword: unexpected result: {:?}",
         res
     );
@@ -148,7 +157,10 @@ fn mutation_keyfile_mismatch() {
 
     let res = Database::open(&mut &bytes[..], wrong);
     assert!(
-        matches!(res, Err(DatabaseOpenError::Key(DatabaseKeyError::IncorrectKey))),
+        matches!(
+            res,
+            Err(DatabaseOpenError::Key(DatabaseKeyError::IncorrectKey))
+        ),
         "KeyfileMismatch: unexpected result: {:?}",
         res
     );
@@ -158,7 +170,8 @@ fn locate_header_end(blob: &[u8]) -> Option<usize> {
     let mut off = 12usize;
     while off + 5 <= blob.len() {
         let tag = blob[off];
-        let len = u32::from_le_bytes([blob[off + 1], blob[off + 2], blob[off + 3], blob[off + 4]]) as usize;
+        let len = u32::from_le_bytes([blob[off + 1], blob[off + 2], blob[off + 3], blob[off + 4]])
+            as usize;
         off += 5 + len;
         if tag == 0 {
             return Some(off);
@@ -171,7 +184,8 @@ fn locate_header_field(blob: &[u8], tag_wanted: u8) -> Option<usize> {
     let mut off = 12usize;
     while off + 5 <= blob.len() {
         let tag = blob[off];
-        let len = u32::from_le_bytes([blob[off + 1], blob[off + 2], blob[off + 3], blob[off + 4]]) as usize;
+        let len = u32::from_le_bytes([blob[off + 1], blob[off + 2], blob[off + 3], blob[off + 4]])
+            as usize;
         if tag == tag_wanted {
             return Some(off + 5);
         }

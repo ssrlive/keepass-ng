@@ -47,10 +47,16 @@ fn parse_header(data: &[u8]) -> Result<KDBHeader, DatabaseIntegrityError> {
 }
 
 fn from_utf8(data: &[u8]) -> String {
-    String::from_utf8_lossy(data).trim_end_matches('\0').to_owned()
+    String::from_utf8_lossy(data)
+        .trim_end_matches('\0')
+        .to_owned()
 }
 
-fn ensure_length(field_type: u16, field_size: u32, expected_field_size: u32) -> Result<(), KdbOpenError> {
+fn ensure_length(
+    field_type: u16,
+    field_size: u32,
+    expected_field_size: u32,
+) -> Result<(), KdbOpenError> {
     if field_size == expected_field_size {
         Ok(())
     } else {
@@ -92,7 +98,11 @@ fn collapse_tail_groups(branch: &mut Vec<NodePtr>, level: usize, root: &NodePtr)
 // A map from a GroupId to a path identifying (by name) a group in the group tree.
 type GidMap = HashMap<u32, Vec<String>>;
 
-fn parse_groups(root: &NodePtr, header_num_groups: u32, data: &mut &[u8]) -> Result<GidMap, KdbOpenError> {
+fn parse_groups(
+    root: &NodePtr,
+    header_num_groups: u32,
+    data: &mut &[u8],
+) -> Result<GidMap, KdbOpenError> {
     // Loop over group TLVs
     let mut gid_map: HashMap<u32, Vec<String>> = HashMap::new(); // the gid to group path map
     let mut branch: Vec<NodePtr> = Vec::new(); // the current branch in the group tree
@@ -103,9 +113,17 @@ fn parse_groups(root: &NodePtr, header_num_groups: u32, data: &mut &[u8]) -> Res
     let mut num_groups = 0; // the total number of parsed groups
     while num_groups < header_num_groups as usize {
         // Read group TLV
-        let field_type = data.get(0..2).ok_or(KdbOpenError::UnexpectedEof).map(LittleEndian::read_u16)?;
-        let field_size = data.get(2..6).ok_or(KdbOpenError::UnexpectedEof).map(LittleEndian::read_u32)?;
-        let field_value = data.get(6..6 + field_size as usize).ok_or(KdbOpenError::UnexpectedEof)?;
+        let field_type = data
+            .get(0..2)
+            .ok_or(KdbOpenError::UnexpectedEof)
+            .map(LittleEndian::read_u16)?;
+        let field_size = data
+            .get(2..6)
+            .ok_or(KdbOpenError::UnexpectedEof)
+            .map(LittleEndian::read_u32)?;
+        let field_value = data
+            .get(6..6 + field_size as usize)
+            .ok_or(KdbOpenError::UnexpectedEof)?;
 
         match field_type {
             0x0000 => {} // KeePass ignores this field type
@@ -140,7 +158,8 @@ fn parse_groups(root: &NodePtr, header_num_groups: u32, data: &mut &[u8]) -> Res
                 // current sub-branch)
                 if level < branch.len() {
                     group_path.truncate(level);
-                    collapse_tail_groups(&mut branch, level, root).ok_or(KdbOpenError::IncompleteGroup)?;
+                    collapse_tail_groups(&mut branch, level, root)
+                        .ok_or(KdbOpenError::IncompleteGroup)?;
                 }
                 if level == branch.len() {
                     group_path.push(group.borrow().get_title().unwrap_or("").to_string());
@@ -166,7 +185,9 @@ fn parse_groups(root: &NodePtr, header_num_groups: u32, data: &mut &[u8]) -> Res
             }
         }
 
-        *data = data.get(6 + field_size as usize..).ok_or(KdbOpenError::UnexpectedEof)?;
+        *data = data
+            .get(6 + field_size as usize..)
+            .ok_or(KdbOpenError::UnexpectedEof)?;
     }
     if gid.is_some() {
         return Err(KdbOpenError::IncompleteGroup);
@@ -177,16 +198,29 @@ fn parse_groups(root: &NodePtr, header_num_groups: u32, data: &mut &[u8]) -> Res
     Ok(gid_map)
 }
 
-fn parse_entries(root: &NodePtr, gid_map: &GidMap, header_num_entries: u32, data: &mut &[u8]) -> Result<(), KdbOpenError> {
+fn parse_entries(
+    root: &NodePtr,
+    gid_map: &GidMap,
+    header_num_entries: u32,
+    data: &mut &[u8],
+) -> Result<(), KdbOpenError> {
     // Loop over entry TLVs
     let mut entry = Entry::default(); // the current entry
     let mut gid: Option<u32> = None; // the current entry's group id
     let mut num_entries = 0;
     while num_entries < header_num_entries {
         // Read entry TLV
-        let field_type = data.get(0..2).ok_or(KdbOpenError::UnexpectedEof).map(LittleEndian::read_u16)?;
-        let field_size = data.get(2..6).ok_or(KdbOpenError::UnexpectedEof).map(LittleEndian::read_u32)?;
-        let field_value = data.get(6..6 + field_size as usize).ok_or(KdbOpenError::UnexpectedEof)?;
+        let field_type = data
+            .get(0..2)
+            .ok_or(KdbOpenError::UnexpectedEof)
+            .map(LittleEndian::read_u16)?;
+        let field_size = data
+            .get(2..6)
+            .ok_or(KdbOpenError::UnexpectedEof)
+            .map(LittleEndian::read_u32)?;
+        let field_value = data
+            .get(6..6 + field_size as usize)
+            .ok_or(KdbOpenError::UnexpectedEof)?;
 
         match field_type {
             0x0000 => {} // KeePass ignores this field type
@@ -205,7 +239,10 @@ fn parse_entries(root: &NodePtr, gid_map: &GidMap, header_num_entries: u32, data
             }
             0x0004 | 0x0005 | 0x0006 | 0x0008 | 0x000d => {
                 // Title/URL/UserName/Additional/BinaryDesc
-                entry.set_unprotected_field_pair(entry_name(field_type), Some(&from_utf8(field_value)));
+                entry.set_unprotected_field_pair(
+                    entry_name(field_type),
+                    Some(&from_utf8(field_value)),
+                );
             }
             0x0007 => {
                 // Password
@@ -230,7 +267,8 @@ fn parse_entries(root: &NodePtr, gid_map: &GidMap, header_num_entries: u32, data
                     .map(std::string::String::as_str)
                     .collect();
 
-                let group = Group::get(root, group_path.as_slice()).ok_or(KdbOpenError::IncompleteGroup)?;
+                let group =
+                    Group::get(root, group_path.as_slice()).ok_or(KdbOpenError::IncompleteGroup)?;
                 with_node_mut::<Group, _, _>(&group, |group| {
                     let count = group.get_children().len();
                     group.add_child(rc_refcell_node(entry), count);
@@ -247,7 +285,9 @@ fn parse_entries(root: &NodePtr, gid_map: &GidMap, header_num_entries: u32, data
             }
         }
 
-        *data = data.get(6 + field_size as usize..).ok_or(KdbOpenError::UnexpectedEof)?;
+        *data = data
+            .get(6 + field_size as usize..)
+            .ok_or(KdbOpenError::UnexpectedEof)?;
     }
     if gid.is_some() {
         return Err(KdbOpenError::IncompleteEntry);
@@ -291,7 +331,9 @@ pub(crate) fn parse_kdb(data: &[u8], db_key: &DatabaseKey) -> Result<Database, D
         rounds: u64::from(header.transform_rounds),
     };
 
-    let transformed_key = kdf_config.get_kdf_seeded(&header.transform_seed).transform_key(&composite_key)?;
+    let transformed_key = kdf_config
+        .get_kdf_seeded(&header.transform_seed)
+        .transform_key(&composite_key)?;
 
     let master_key = calculate_sha256(&[&header.master_seed, transformed_key.as_slice()]);
 
@@ -300,7 +342,9 @@ pub(crate) fn parse_kdb(data: &[u8], db_key: &DatabaseKey) -> Result<Database, D
     } else if header.flags & 8 != 0 {
         OuterCipherConfig::Twofish
     } else {
-        return Err(DatabaseIntegrityError::from(KdbOpenError::InvalidFixedCipherID(header.flags)).into());
+        return Err(
+            DatabaseIntegrityError::from(KdbOpenError::InvalidFixedCipherID(header.flags)).into(),
+        );
     };
 
     // Decrypt payload
@@ -341,7 +385,9 @@ pub enum KdbOpenError {
     #[error("Unexpected end of file while reading KDB data")]
     UnexpectedEof,
 
-    #[error("Field of type {field_type} has invalid length {field_size}, expected {expected_field_size}")]
+    #[error(
+        "Field of type {field_type} has invalid length {field_size}, expected {expected_field_size}"
+    )]
     InvalidFieldLength {
         field_type: u16,
         field_size: u32,

@@ -7,25 +7,49 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct TimesXml {
-    #[serde(default, with = "cs_opt_string", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        with = "cs_opt_string",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub creation_time: Option<Timestamp>,
 
-    #[serde(default, with = "cs_opt_string", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        with = "cs_opt_string",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub last_modification_time: Option<Timestamp>,
 
-    #[serde(default, with = "cs_opt_string", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        with = "cs_opt_string",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub last_access_time: Option<Timestamp>,
 
-    #[serde(default, with = "cs_opt_string", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        with = "cs_opt_string",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub expiry_time: Option<Timestamp>,
 
     #[serde(default, with = "cs_opt_bool", skip_serializing_if = "Option::is_none")]
     pub expires: Option<bool>,
 
-    #[serde(default, with = "cs_opt_fromstr", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        with = "cs_opt_fromstr",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub usage_count: Option<usize>,
 
-    #[serde(default, with = "cs_opt_string", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        with = "cs_opt_string",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub location_changed: Option<Timestamp>,
 }
 
@@ -78,27 +102,32 @@ mod tests {
 
         assert_eq!(
             times.creation_time.unwrap().time,
-            chrono::NaiveDateTime::parse_from_str("2023-10-05T12:34:56", "%Y-%m-%dT%H:%M:%S").unwrap()
+            chrono::NaiveDateTime::parse_from_str("2023-10-05T12:34:56", "%Y-%m-%dT%H:%M:%S")
+                .unwrap()
         );
 
         assert_eq!(
             times.last_modification_time.unwrap().time,
-            chrono::NaiveDateTime::parse_from_str("2023-10-06T12:34:56", "%Y-%m-%dT%H:%M:%S").unwrap()
+            chrono::NaiveDateTime::parse_from_str("2023-10-06T12:34:56", "%Y-%m-%dT%H:%M:%S")
+                .unwrap()
         );
 
         assert_eq!(
             times.last_access_time.unwrap().time,
-            chrono::NaiveDateTime::parse_from_str("2023-10-07T12:34:56", "%Y-%m-%dT%H:%M:%S").unwrap()
+            chrono::NaiveDateTime::parse_from_str("2023-10-07T12:34:56", "%Y-%m-%dT%H:%M:%S")
+                .unwrap()
         );
 
         assert_eq!(
             times.expiry_time.unwrap().time,
-            chrono::NaiveDateTime::parse_from_str("2023-12-31T23:59:59", "%Y-%m-%dT%H:%M:%S").unwrap()
+            chrono::NaiveDateTime::parse_from_str("2023-12-31T23:59:59", "%Y-%m-%dT%H:%M:%S")
+                .unwrap()
         );
 
         assert_eq!(
             times.location_changed.unwrap().time,
-            chrono::NaiveDateTime::parse_from_str("2023-10-08T12:34:56", "%Y-%m-%dT%H:%M:%S").unwrap()
+            chrono::NaiveDateTime::parse_from_str("2023-10-08T12:34:56", "%Y-%m-%dT%H:%M:%S")
+                .unwrap()
         );
     }
 }

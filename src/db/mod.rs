@@ -48,8 +48,20 @@ mod database_tests {
     #[test]
     fn test_open_invalid_version_header_size() {
         assert!(Database::parse(&[], DatabaseKey::new().with_password("testing")).is_err());
-        assert!(Database::parse(&[0, 0, 0, 0, 0, 0, 0, 0], DatabaseKey::new().with_password("testing")).is_err());
-        assert!(Database::parse(&[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], DatabaseKey::new().with_password("testing")).is_err());
+        assert!(
+            Database::parse(
+                &[0, 0, 0, 0, 0, 0, 0, 0],
+                DatabaseKey::new().with_password("testing")
+            )
+            .is_err()
+        );
+        assert!(
+            Database::parse(
+                &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                DatabaseKey::new().with_password("testing")
+            )
+            .is_err()
+        );
     }
 
     #[cfg(feature = "save_kdbx4")]

@@ -24,7 +24,11 @@ pub fn split_tags(raw: &str) -> Vec<String> {
 /// Render a list of tags as a `<Tags>` element value, or `None` if there are no tags.
 #[cfg(feature = "save_kdbx4")]
 pub fn join_tags(tags: &[String]) -> Option<String> {
-    if tags.is_empty() { None } else { Some(tags.join(TAG_DELIMITER)) }
+    if tags.is_empty() {
+        None
+    } else {
+        Some(tags.join(TAG_DELIMITER))
+    }
 }
 
 #[cfg(test)]
@@ -77,7 +81,10 @@ mod tests {
     #[cfg(feature = "save_kdbx4")]
     #[test]
     fn join_uses_canonical_delimiter() {
-        assert_eq!(join_tags(&["a".into(), "b".into(), "c".into()]), Some("a;b;c".into()));
+        assert_eq!(
+            join_tags(&["a".into(), "b".into(), "c".into()]),
+            Some("a;b;c".into())
+        );
     }
 
     #[cfg(feature = "save_kdbx4")]

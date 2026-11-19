@@ -3,7 +3,10 @@ mod file_read_tests {
     use keepass_ng::ChallengeResponseKey;
     use keepass_ng::{
         DatabaseIntegrityError, DatabaseKey, DatabaseOpenError, DatabaseVersion,
-        db::{CustomDataValue, Database, Entry, Group, Node, NodeIterator, NodePtr, group_get_children, with_node},
+        db::{
+            CustomDataValue, Database, Entry, Group, Node, NodeIterator, NodePtr,
+            group_get_children, with_node,
+        },
     };
     use std::{fs::File, path::Path};
     use uuid::uuid;
@@ -372,10 +375,16 @@ mod file_read_tests {
 
         assert_eq!(db.root.borrow().get_title().unwrap(), "Root");
         let recycle_bin_uuid = db.get_recycle_bin().unwrap().borrow().get_uuid();
-        assert_eq!(recycle_bin_uuid, uuid!("563171fe-6598-42dc-8003-f98dde32e872"));
+        assert_eq!(
+            recycle_bin_uuid,
+            uuid!("563171fe-6598-42dc-8003-f98dde32e872")
+        );
 
         let recycle_group: Vec<NodePtr> = NodeIterator::new(&db.root)
-            .filter(|child| with_node::<Group, _, _>(child, |g| g.get_uuid() == recycle_bin_uuid).unwrap_or(false))
+            .filter(|child| {
+                with_node::<Group, _, _>(child, |g| g.get_uuid() == recycle_bin_uuid)
+                    .unwrap_or(false)
+            })
             .collect();
 
         assert_eq!(recycle_group.len(), 1);
@@ -409,7 +418,10 @@ mod file_read_tests {
     fn open_kdbx4_with_empty_root_group_name() -> Result<(), DatabaseOpenError> {
         let path = Path::new("tests/resources/test_db_kdbx4_with_empty_root_group_name.kdbx");
 
-        let db = Database::open(&mut File::open(path)?, DatabaseKey::new().with_password("demopass"))?;
+        let db = Database::open(
+            &mut File::open(path)?,
+            DatabaseKey::new().with_password("demopass"),
+        )?;
 
         println!("{db:?} DB Opened");
 
@@ -420,7 +432,7 @@ mod file_read_tests {
 
     #[test]
     #[ignore]
-    #[cfg(feature = "challenge_response")]
+    #[cfg(feature = "challenge_response_usb")]
     fn open_kdbx4_with_yubikey_challenge_response_key() -> Result<(), DatabaseOpenError> {
         let path = Path::new("tests/resources/test_db_with_challenge_response_key.kdbx");
         let yubikey = ChallengeResponseKey::get_yubikey(None)?;
@@ -428,7 +440,10 @@ mod file_read_tests {
             &mut File::open(path)?,
             DatabaseKey::new()
                 .with_password("demopass")
-                .with_challenge_response_key(ChallengeResponseKey::YubikeyChallenge(yubikey, "2".to_string())),
+                .with_challenge_response_key(ChallengeResponseKey::YubikeyChallenge(
+                    yubikey,
+                    "2".to_string(),
+                )),
         )?;
 
         assert_eq!(db.root.borrow().get_title().unwrap(), "Root");
@@ -440,7 +455,10 @@ mod file_read_tests {
     fn open_kdbx4_with_empty_group_names() -> Result<(), DatabaseOpenError> {
         let path = Path::new("tests/resources/test_db_kdbx4_with_empty_group_names.kdbx");
 
-        let db = Database::open(&mut File::open(path)?, DatabaseKey::new().with_password("demopass"))?;
+        let db = Database::open(
+            &mut File::open(path)?,
+            DatabaseKey::new().with_password("demopass"),
+        )?;
 
         println!("{db:?} DB Opened");
 
@@ -453,7 +471,10 @@ mod file_read_tests {
     #[test]
     fn open_kdbx41_with_password() -> Result<(), DatabaseOpenError> {
         let path = Path::new("tests/resources/test_db_kdbx41_with_password_aes.kdbx");
-        let db = Database::open(&mut File::open(path)?, DatabaseKey::new().with_password("demopass"))?;
+        let db = Database::open(
+            &mut File::open(path)?,
+            DatabaseKey::new().with_password("demopass"),
+        )?;
 
         assert_eq!(db.config.version, DatabaseVersion::KDB4(1));
         assert_eq!(db.root.borrow().get_title(), Some("Database"));
@@ -480,10 +501,12 @@ mod file_read_tests {
             assert!(group.previous_parent_group().is_none());
         });
 
-        let no_quality_check = Group::get(&db.root.clone().into(), &["entry with no quality check"]).unwrap();
+        let no_quality_check =
+            Group::get(&db.root.clone().into(), &["entry with no quality check"]).unwrap();
         with_node::<Entry, _, _>(&no_quality_check, |entry| assert!(!entry.quality_check()));
 
-        let named_icon_entry = Group::get(&db.root.clone().into(), &["entry with named custom icon"]).unwrap();
+        let named_icon_entry =
+            Group::get(&db.root.clone().into(), &["entry with named custom icon"]).unwrap();
         with_node::<Entry, _, _>(&named_icon_entry, |entry| {
             assert!(entry.quality_check());
             let keepass_ng::db::Icon::Custom(icon_uuid) = entry.get_icon() else {
@@ -494,7 +517,8 @@ mod file_read_tests {
             assert!(icon.last_modification_time.is_some());
         });
 
-        let custom_data_entry = Group::get(&db.root.clone().into(), &["entry with custom data"]).unwrap();
+        let custom_data_entry =
+            Group::get(&db.root.clone().into(), &["entry with custom data"]).unwrap();
         with_node::<Entry, _, _>(&custom_data_entry, |entry| {
             let custom_data = entry.custom_data().get("KPRPC JSON").unwrap();
             let value = custom_data.value.as_ref().unwrap();

@@ -6,7 +6,8 @@
 use chrono::{NaiveDate, NaiveDateTime};
 use keepass_ng::db::DataTransferObfuscation;
 use keepass_ng::db::{
-    AutoType, AutoTypeAssociation, CustomDataItem, CustomDataValue, Database, Entry, Group, Node, NodeIterator, with_node, with_node_mut,
+    AutoType, AutoTypeAssociation, CustomDataItem, CustomDataValue, Database, Entry, Group, Node,
+    NodeIterator, with_node, with_node_mut,
 };
 use keepass_ng::{DatabaseKey, DatabaseVersion};
 use uuid::Uuid;
@@ -15,12 +16,20 @@ const PASSWORD: &str = "demopass";
 
 fn save_then_open(db: &Database) -> Database {
     let mut buf = Vec::new();
-    db.save(&mut buf, DatabaseKey::new().with_password(PASSWORD)).expect("save");
-    Database::open(&mut buf.as_slice(), DatabaseKey::new().with_password(PASSWORD)).expect("open")
+    db.save(&mut buf, DatabaseKey::new().with_password(PASSWORD))
+        .expect("save");
+    Database::open(
+        &mut buf.as_slice(),
+        DatabaseKey::new().with_password(PASSWORD),
+    )
+    .expect("open")
 }
 
 fn fixed_time() -> NaiveDateTime {
-    NaiveDate::from_ymd_opt(2024, 6, 15).unwrap().and_hms_opt(12, 30, 45).unwrap()
+    NaiveDate::from_ymd_opt(2024, 6, 15)
+        .unwrap()
+        .and_hms_opt(12, 30, 45)
+        .unwrap()
 }
 
 /// Build a database touching every public KDBX 4.1 field we can reach.
@@ -35,7 +44,9 @@ fn build_database() -> (Database, Uuid) {
         entry.set_title(Some("feature-bag"));
         entry.set_username(Some("alice"));
         entry.set_password(Some("hunter2"));
-        entry.get_tags_mut().extend(["a".to_string(), "b".to_string(), "c".to_string()]);
+        entry
+            .get_tags_mut()
+            .extend(["a".to_string(), "b".to_string(), "c".to_string()]);
         entry.custom_data_mut().insert(
             "entry-string".to_string(),
             CustomDataItem {
@@ -59,14 +70,18 @@ fn build_database() -> (Database, Uuid) {
                 sequence: Some("{USERNAME}{TAB}{PASSWORD}{ENTER}".to_string()),
             }],
         }));
-        entry.get_times_mut().set_last_modification(Some(fixed_time()));
+        entry
+            .get_times_mut()
+            .set_last_modification(Some(fixed_time()));
     })
     .expect("configure entry");
 
     let group = db.create_new_group(root_uuid, 1).expect("create group");
     with_node_mut::<Group, _, _>(&group, |group| {
         group.set_title(Some("tagged-group"));
-        group.get_tags_mut().extend(["root-tag".to_string(), "shared".to_string()]);
+        group
+            .get_tags_mut()
+            .extend(["root-tag".to_string(), "shared".to_string()]);
         group.custom_data_mut().insert(
             "group-string".to_string(),
             CustomDataItem {
@@ -74,7 +89,9 @@ fn build_database() -> (Database, Uuid) {
                 last_modification_time: Some(fixed_time()),
             },
         );
-        group.get_times_mut().set_last_modification(Some(fixed_time()));
+        group
+            .get_times_mut()
+            .set_last_modification(Some(fixed_time()));
     })
     .expect("configure group");
 
@@ -84,7 +101,11 @@ fn build_database() -> (Database, Uuid) {
 
 fn find_node<T: Node + 'static>(db: &Database, uuid: Uuid) -> keepass_ng::db::NodePtr {
     NodeIterator::new(&db.root)
-        .find(|node| node.borrow().downcast_ref::<T>().is_some_and(|node| node.get_uuid() == uuid))
+        .find(|node| {
+            node.borrow()
+                .downcast_ref::<T>()
+                .is_some_and(|node| node.get_uuid() == uuid)
+        })
         .expect("node survives")
 }
 
@@ -93,7 +114,10 @@ fn database_round_trips_kdbx41_fields() {
     let (db, entry_uuid) = build_database();
     let parsed = save_then_open(&db);
     assert_eq!(parsed.config.version, DatabaseVersion::KDB4(1));
-    assert_eq!(parsed.deleted_objects.get(&Uuid::nil()), Some(&Some(fixed_time())));
+    assert_eq!(
+        parsed.deleted_objects.get(&Uuid::nil()),
+        Some(&Some(fixed_time()))
+    );
 
     let entry = find_node::<Entry>(&parsed, entry_uuid);
     with_node::<Entry, _, _>(&entry, |entry| {
@@ -115,11 +139,20 @@ fn database_round_trips_kdbx41_fields() {
                 last_modification_time: None,
             })
         );
-        assert_eq!(entry.get_times().get_last_modification(), Some(fixed_time()));
+        assert_eq!(
+            entry.get_times().get_last_modification(),
+            Some(fixed_time())
+        );
         let autotype = entry.get_autotype().expect("autotype survives");
         assert!(autotype.enabled);
-        assert_eq!(autotype.data_transfer_obfuscation, DataTransferObfuscation::UseClipboard);
-        assert_eq!(autotype.associations[0].window.as_deref(), Some("Login - *"));
+        assert_eq!(
+            autotype.data_transfer_obfuscation,
+            DataTransferObfuscation::UseClipboard
+        );
+        assert_eq!(
+            autotype.associations[0].window.as_deref(),
+            Some("Login - *")
+        );
     });
 
     let group = Group::get(&parsed.root, &["tagged-group"]).expect("group survives");
@@ -132,7 +165,10 @@ fn database_round_trips_kdbx41_fields() {
                 last_modification_time: Some(fixed_time()),
             })
         );
-        assert_eq!(group.get_times().get_last_modification(), Some(fixed_time()));
+        assert_eq!(
+            group.get_times().get_last_modification(),
+            Some(fixed_time())
+        );
     });
 }
 

@@ -90,7 +90,9 @@ impl Database {
         for (uuid, source_icon) in &other.meta.custom_icons {
             let Some(destination_icon) = self.meta.custom_icons.get_mut(uuid) else {
                 if let Some(Some(deletion_time)) = self.deleted_objects.get(uuid)
-                    && source_icon.last_modification_time.is_none_or(|modified| modified <= *deletion_time)
+                    && source_icon
+                        .last_modification_time
+                        .is_none_or(|modified| modified <= *deletion_time)
                 {
                     continue;
                 }
@@ -103,7 +105,10 @@ impl Database {
                 continue;
             };
 
-            let source_is_newer = match (source_icon.last_modification_time, destination_icon.last_modification_time) {
+            let source_is_newer = match (
+                source_icon.last_modification_time,
+                destination_icon.last_modification_time,
+            ) {
                 (Some(source), Some(destination)) => source > destination,
                 (Some(_), None) => true,
                 _ => false,
@@ -122,15 +127,16 @@ impl Database {
 
     fn merge_deletions(&mut self, other: &Database) -> Result<MergeLog, MergeError> {
         // Utility function to search for a UUID in the deletion queue.
-        let is_in_deleted_queue = |uuid: Uuid, deleted_groups_queue: &VecDeque<(Uuid, NaiveDateTime)>| -> bool {
-            for (deleted_uuid, _) in deleted_groups_queue {
-                // This group still has a child group, but it is not going to be deleted.
-                if *deleted_uuid == uuid {
-                    return true;
+        let is_in_deleted_queue =
+            |uuid: Uuid, deleted_groups_queue: &VecDeque<(Uuid, NaiveDateTime)>| -> bool {
+                for (deleted_uuid, _) in deleted_groups_queue {
+                    // This group still has a child group, but it is not going to be deleted.
+                    if *deleted_uuid == uuid {
+                        return true;
+                    }
                 }
-            }
-            false
-        };
+                false
+            };
         let mut log = MergeLog::default();
         let mut new_deleted_objects = self.deleted_objects.clone();
         // We start by deleting the entries, since we will only remove groups if they are empty.
@@ -143,7 +149,8 @@ impl Database {
                 Some(l) => l,
                 None => continue,
             };
-            let parent_group = Group::find_group(&self.root, &entry_location).ok_or(MergeError::FindGroupError(entry_location))?;
+            let parent_group = Group::find_group(&self.root, &entry_location)
+                .ok_or(MergeError::FindGroupError(entry_location))?;
 
             let entry = match Group::find_entry(&parent_group, &[*uuid]) {
                 Some(e) => e,
@@ -151,16 +158,19 @@ impl Database {
                 None => continue,
             };
 
-            let entry_last_modification = match with_node::<Entry, _, _>(&entry, |e| e.get_times().get_last_modification()).unwrap() {
-                Some(t) => t,
-                None => {
-                    log.warnings.push(format!(
-                        "Entry {} did not have a last modification timestamp",
-                        entry.borrow().downcast_ref::<Entry>().unwrap().uuid
-                    ));
-                    Times::now()
-                }
-            };
+            let entry_last_modification =
+                match with_node::<Entry, _, _>(&entry, |e| e.get_times().get_last_modification())
+                    .unwrap()
+                {
+                    Some(t) => t,
+                    None => {
+                        log.warnings.push(format!(
+                            "Entry {} did not have a last modification timestamp",
+                            entry.borrow().downcast_ref::<Entry>().unwrap().uuid
+                        ));
+                        Times::now()
+                    }
+                };
             if entry_last_modification < deletion_time {
                 with_node_mut::<Group, _, _>(&parent_group, |pg| pg.remove_node(*uuid)).unwrap()?;
                 log.events.push(MergeEvent {
@@ -186,7 +196,8 @@ impl Database {
                 Some(l) => l,
                 None => continue,
             };
-            let parent_group = Group::find_group(&self.root, &group_location).ok_or(MergeError::FindGroupError(group_location))?;
+            let parent_group = Group::find_group(&self.root, &group_location)
+                .ok_or(MergeError::FindGroupError(group_location))?;
 
             let group = match Group::find_group(&parent_group, &[deleted_uuid]) {
                 Some(g) => g,
@@ -197,15 +208,18 @@ impl Database {
                 }
             };
             // Not deleting a group if it still has entries.
-            if !with_node::<Group, _, _>(&group, |g| g.entries()).unwrap().is_empty() {
+            if !with_node::<Group, _, _>(&group, |g| g.entries())
+                .unwrap()
+                .is_empty()
+            {
                 continue;
             }
             // This group still has a child group that might get deleted in the future, so we delay
             // decision to delete it or not.
             if with_node::<Group, _, _>(&group, |g| {
-                g.groups()
-                    .iter()
-                    .any(|child| is_in_deleted_queue(child.borrow().get_uuid(), &deleted_groups_queue))
+                g.groups().iter().any(|child| {
+                    is_in_deleted_queue(child.borrow().get_uuid(), &deleted_groups_queue)
+                })
             })
             .unwrap()
             {
@@ -213,21 +227,28 @@ impl Database {
                 continue;
             }
             // This group still a groups that won't be deleted, so we don't delete it.
-            if !with_node::<Group, _, _>(&group, |g| g.groups()).unwrap().is_empty() {
+            if !with_node::<Group, _, _>(&group, |g| g.groups())
+                .unwrap()
+                .is_empty()
+            {
                 continue;
             }
-            let group_last_modification = match with_node::<Group, _, _>(&group, |g| g.get_times().get_last_modification()).unwrap() {
-                Some(t) => t,
-                None => {
-                    log.warnings.push(format!(
-                        "Group {} did not have a last modification timestamp",
-                        group.borrow().downcast_ref::<Group>().unwrap().uuid
-                    ));
-                    Times::now()
-                }
-            };
+            let group_last_modification =
+                match with_node::<Group, _, _>(&group, |g| g.get_times().get_last_modification())
+                    .unwrap()
+                {
+                    Some(t) => t,
+                    None => {
+                        log.warnings.push(format!(
+                            "Group {} did not have a last modification timestamp",
+                            group.borrow().downcast_ref::<Group>().unwrap().uuid
+                        ));
+                        Times::now()
+                    }
+                };
             if group_last_modification < deletion_time {
-                with_node_mut::<Group, _, _>(&parent_group, |pg| pg.remove_node(deleted_uuid)).unwrap()?;
+                with_node_mut::<Group, _, _>(&parent_group, |pg| pg.remove_node(deleted_uuid))
+                    .unwrap()?;
                 log.events.push(MergeEvent {
                     event_type: MergeEventType::GroupDeleted,
                     node_uuid: deleted_uuid,
@@ -267,13 +288,20 @@ impl Database {
         None
     }
 
-    fn merge_group(&self, current_group_path: &[Uuid], current_group: &NodePtr, is_in_deleted_group: bool) -> Result<MergeLog, MergeError> {
+    fn merge_group(
+        &self,
+        current_group_path: &[Uuid],
+        current_group: &NodePtr,
+        is_in_deleted_group: bool,
+    ) -> Result<MergeLog, MergeError> {
         let mut log = MergeLog::default();
-        if let Some(destination_group_location) = Self::find_node_location(&self.root, current_group.borrow().get_uuid()) {
+        if let Some(destination_group_location) =
+            Self::find_node_location(&self.root, current_group.borrow().get_uuid())
+        {
             let mut destination_group_path = destination_group_location.clone();
             destination_group_path.push(current_group.borrow().get_uuid());
-            let destination_group =
-                Group::find_group(&self.root, &destination_group_path).ok_or(MergeError::FindGroupError(destination_group_path))?;
+            let destination_group = Group::find_group(&self.root, &destination_group_path)
+                .ok_or(MergeError::FindGroupError(destination_group_path))?;
             let group_update_merge_events = Group::merge_with(&destination_group, current_group)?;
             log.append(&group_update_merge_events);
         }
@@ -293,22 +321,34 @@ impl Database {
                     .duplicate();
                 // The entry already exists but is not at the right location. We might have to
                 // relocate it.
-                if current_group_path.last() != destination_entry_location.last() && !is_in_deleted_group {
+                if current_group_path.last() != destination_entry_location.last()
+                    && !is_in_deleted_group
+                {
                     let source_location_changed_time =
-                        match with_node::<Entry, _, _>(other_entry, |e| e.get_times().get_location_changed()).unwrap() {
+                        match with_node::<Entry, _, _>(other_entry, |e| {
+                            e.get_times().get_location_changed()
+                        })
+                        .unwrap()
+                        {
                             Some(t) => t,
                             None => {
-                                log.warnings
-                                    .push(format!("Entry {other_entry_uuid} did not have a location updated timestamp"));
+                                log.warnings.push(format!(
+                                "Entry {other_entry_uuid} did not have a location updated timestamp"
+                            ));
                                 Times::epoch()
                             }
                         };
                     let destination_location_changed =
-                        match with_node::<Entry, _, _>(&existing_entry, |e| e.get_times().get_location_changed()).unwrap() {
+                        match with_node::<Entry, _, _>(&existing_entry, |e| {
+                            e.get_times().get_location_changed()
+                        })
+                        .unwrap()
+                        {
                             Some(t) => t,
                             None => {
-                                log.warnings
-                                    .push(format!("Entry {other_entry_uuid} did not have a location updated timestamp"));
+                                log.warnings.push(format!(
+                                "Entry {other_entry_uuid} did not have a location updated timestamp"
+                            ));
                                 Times::now()
                             }
                         };
@@ -328,7 +368,8 @@ impl Database {
                         existing_entry_location = current_group_path.to_owned();
                         existing_entry_location.push(other_entry_uuid);
                         with_node_mut::<Entry, _, _>(&existing_entry, |e| {
-                            e.get_times_mut().set_location_changed(Some(source_location_changed_time));
+                            e.get_times_mut()
+                                .set_location_changed(Some(source_location_changed_time));
                         });
                     }
                 }
@@ -345,10 +386,11 @@ impl Database {
                 if node_is_equals_to(&existing_entry, &merged_entry) {
                     continue;
                 }
-                let existing_entry =
-                    Group::find_entry(&self.root, &existing_entry_location).ok_or(MergeError::FindEntryError(existing_entry_location))?;
+                let existing_entry = Group::find_entry(&self.root, &existing_entry_location)
+                    .ok_or(MergeError::FindEntryError(existing_entry_location))?;
                 // *existing_entry = merged_entry.clone();
-                with_node_mut::<Entry, _, _>(&existing_entry, |e| e.replaced_with(&merged_entry)).unwrap();
+                with_node_mut::<Entry, _, _>(&existing_entry, |e| e.replaced_with(&merged_entry))
+                    .unwrap();
                 log.events.push(MergeEvent {
                     event_type: MergeEventType::EntryUpdated,
                     node_uuid: merged_entry.borrow().get_uuid(),
@@ -366,8 +408,8 @@ impl Database {
             // The entry doesn't exist in the destination, we create it
             // let new_entry = other_entry.to_owned().clone();
             let new_entry = other_entry.borrow().duplicate();
-            let new_entry_parent_group =
-                Group::find_group(&self.root, current_group_path).ok_or(MergeError::FindGroupError(current_group_path.to_owned()))?;
+            let new_entry_parent_group = Group::find_group(&self.root, current_group_path)
+                .ok_or(MergeError::FindGroupError(current_group_path.to_owned()))?;
 
             // new_entry_parent_group.add_child(new_entry.clone());
             group_add_child(&new_entry_parent_group, new_entry.clone(), 0).unwrap();
@@ -377,7 +419,12 @@ impl Database {
                 node_uuid: new_entry.borrow().get_uuid(),
             });
         }
-        for other_group in &current_group.borrow().downcast_ref::<Group>().unwrap().groups() {
+        for other_group in &current_group
+            .borrow()
+            .downcast_ref::<Group>()
+            .unwrap()
+            .groups()
+        {
             let mut new_group_location = current_group_path.to_owned();
             let other_group_uuid = other_group.borrow().get_uuid();
             new_group_location.push(other_group_uuid);
@@ -397,20 +444,31 @@ impl Database {
                     let existing_group = Group::find_group(&self.root, &existing_group_location)
                         .ok_or(MergeError::FindGroupError(existing_group_location))?;
                     let existing_group_location_changed =
-                        match with_node::<Group, _, _>(&existing_group, |g| g.get_times().get_location_changed()).unwrap() {
+                        match with_node::<Group, _, _>(&existing_group, |g| {
+                            g.get_times().get_location_changed()
+                        })
+                        .unwrap()
+                        {
                             Some(t) => t,
                             None => {
                                 let uuid = existing_group.borrow().get_uuid();
-                                log.warnings.push(format!("Entry {uuid} did not have a location changed timestamp"));
+                                log.warnings.push(format!(
+                                    "Entry {uuid} did not have a location changed timestamp"
+                                ));
                                 Times::now()
                             }
                         };
                     let other_group_location_changed =
-                        match with_node::<Group, _, _>(other_group, |g| g.get_times().get_location_changed()).unwrap() {
+                        match with_node::<Group, _, _>(other_group, |g| {
+                            g.get_times().get_location_changed()
+                        })
+                        .unwrap()
+                        {
                             Some(t) => t,
                             None => {
-                                log.warnings
-                                    .push(format!("Entry {other_group_uuid} did not have a location changed timestamp"));
+                                log.warnings.push(format!(
+                                "Entry {other_group_uuid} did not have a location changed timestamp"
+                            ));
                                 Times::epoch()
                             }
                         };
@@ -426,14 +484,19 @@ impl Database {
                             event_type: MergeEventType::GroupLocationUpdated,
                             node_uuid: other_group_uuid,
                         });
-                        let new_merge_log = self.merge_group(&new_group_location, other_group, is_in_deleted_group)?;
+                        let new_merge_log = self.merge_group(
+                            &new_group_location,
+                            other_group,
+                            is_in_deleted_group,
+                        )?;
                         log.append(&new_merge_log);
                         continue;
                     }
                 }
                 // The group already exists and is at the right location, so we can proceed and merge
                 // the two groups.
-                let new_merge_log = self.merge_group(&new_group_location, other_group, is_in_deleted_group)?;
+                let new_merge_log =
+                    self.merge_group(&new_group_location, other_group, is_in_deleted_group)?;
                 log.append(&new_merge_log);
                 continue;
             }
@@ -446,10 +509,12 @@ impl Database {
                 event_type: MergeEventType::GroupCreated,
                 node_uuid: new_group.borrow().get_uuid(),
             });
-            let new_group_parent_group =
-                Group::find_group(&self.root, current_group_path).ok_or(MergeError::FindGroupError(current_group_path.to_owned()))?;
-            with_node_mut::<Group, _, _>(&new_group_parent_group, |g| g.add_child(new_group, 0)).unwrap();
-            let new_merge_log = self.merge_group(&new_group_location, other_group, is_in_deleted_group)?;
+            let new_group_parent_group = Group::find_group(&self.root, current_group_path)
+                .ok_or(MergeError::FindGroupError(current_group_path.to_owned()))?;
+            with_node_mut::<Group, _, _>(&new_group_parent_group, |g| g.add_child(new_group, 0))
+                .unwrap();
+            let new_merge_log =
+                self.merge_group(&new_group_location, other_group, is_in_deleted_group)?;
             log.append(&new_merge_log);
         }
         Ok(log)
@@ -462,14 +527,17 @@ impl Database {
         to: &[Uuid],
         new_location_changed_timestamp: NaiveDateTime,
     ) -> Result<(), MergeError> {
-        let source_group = Group::find_group(&self.root, from).ok_or(MergeError::FindGroupError(from.to_owned()))?;
-        let relocated_node = with_node_mut::<Group, _, _>(&source_group, |s| s.remove_node(node_uuid)).unwrap()?;
+        let source_group = Group::find_group(&self.root, from)
+            .ok_or(MergeError::FindGroupError(from.to_owned()))?;
+        let relocated_node =
+            with_node_mut::<Group, _, _>(&source_group, |s| s.remove_node(node_uuid)).unwrap()?;
         relocated_node
             .borrow_mut()
             .get_times_mut()
             .set_location_changed(Some(new_location_changed_timestamp));
 
-        let destination_group = Group::find_group(&self.root, to).ok_or(MergeError::FindGroupError(to.to_owned()))?;
+        let destination_group =
+            Group::find_group(&self.root, to).ok_or(MergeError::FindGroupError(to.to_owned()))?;
         group_add_child(&destination_group, relocated_node, 0).unwrap();
         Ok(())
     }
@@ -493,13 +561,21 @@ impl Group {
     pub(crate) fn find_group(group: &NodePtr, path: &[Uuid]) -> Option<NodePtr> {
         let path: Vec<String> = path.iter().map(|p| p.to_string()).collect();
         let node_ref = Self::get_by_uuid(group, &path)?;
-        if node_is_group(&node_ref) { Some(node_ref) } else { None }
+        if node_is_group(&node_ref) {
+            Some(node_ref)
+        } else {
+            None
+        }
     }
 
     pub(crate) fn find_entry(group: &NodePtr, path: &[Uuid]) -> Option<NodePtr> {
         let path: Vec<String> = path.iter().map(|p| p.to_string()).collect();
         let node_ref = Self::get_by_uuid(group, &path)?;
-        if node_is_entry(&node_ref) { Some(node_ref) } else { None }
+        if node_is_entry(&node_ref) {
+            Some(node_ref)
+        } else {
+            None
+        }
     }
 
     pub(crate) fn remove_node(&mut self, uuid: Uuid) -> Result<NodePtr, MergeError> {
@@ -513,7 +589,9 @@ impl Group {
         });
 
         let title = self.get_title().unwrap_or("No title").to_string();
-        let node = removed_node.ok_or(MergeError::GenericError(format!("Could not find node {uuid} in group \"{title}\"")))?;
+        let node = removed_node.ok_or(MergeError::GenericError(format!(
+            "Could not find node {uuid} in group \"{title}\""
+        )))?;
         Ok(node)
     }
 
@@ -549,29 +627,41 @@ impl Group {
         let other = other.borrow();
         let other = other
             .downcast_ref::<Group>()
-            .ok_or(MergeError::GenericError("Could not downcast node to group".to_string()))?;
+            .ok_or(MergeError::GenericError(
+                "Could not downcast node to group".to_string(),
+            ))?;
         let source_last_modification = match other.times.get_last_modification() {
             Some(t) => t,
             None => {
-                log.warnings
-                    .push(format!("Group {group_uuid} did not have a last modification timestamp"));
+                log.warnings.push(format!(
+                    "Group {group_uuid} did not have a last modification timestamp"
+                ));
                 Times::epoch()
             }
         };
-        let destination_last_modification = match group.borrow().get_times().get_last_modification() {
+        let destination_last_modification = match group.borrow().get_times().get_last_modification()
+        {
             Some(t) => t,
             None => {
-                log.warnings
-                    .push(format!("Group {group_uuid} did not have a last modification timestamp"));
+                log.warnings.push(format!(
+                    "Group {group_uuid} did not have a last modification timestamp"
+                ));
                 Times::now()
             }
         };
         if destination_last_modification == source_last_modification {
-            if group.borrow().downcast_ref::<Group>().unwrap()._has_diverged_from(other) {
+            if group
+                .borrow()
+                .downcast_ref::<Group>()
+                .unwrap()
+                ._has_diverged_from(other)
+            {
                 // This should never happen.
                 // This means that a group was updated without updating the last modification
                 // timestamp.
-                return Err(MergeError::GroupModificationTimeNotUpdated(other.uuid.to_string()));
+                return Err(MergeError::GroupModificationTimeNotUpdated(
+                    other.uuid.to_string(),
+                ));
             }
             return Ok(log);
         }
@@ -617,16 +707,23 @@ impl Group {
     fn replace_entry(root: &NodePtr, entry: &NodePtr) -> bool {
         let uuid = entry.borrow().get_uuid();
         if let Some(target_entry) = search_node_by_uuid_with_specific_type::<Entry>(root, uuid) {
-            return with_node_mut::<Entry, _, _>(&target_entry, |e| e.replaced_with(entry)).unwrap_or(false);
+            return with_node_mut::<Entry, _, _>(&target_entry, |e| e.replaced_with(entry))
+                .unwrap_or(false);
         }
         false
     }
 
     pub(crate) fn has_group(&self, uuid: Uuid) -> bool {
-        self.children.iter().any(|n| n.borrow().get_uuid() == uuid && node_is_group(n))
+        self.children
+            .iter()
+            .any(|n| n.borrow().get_uuid() == uuid && node_is_group(n))
     }
 
-    fn get_or_create_group(group: &NodePtr, location: &[Uuid], create_groups: bool) -> crate::Result<NodePtr> {
+    fn get_or_create_group(
+        group: &NodePtr,
+        location: &[Uuid],
+        create_groups: bool,
+    ) -> crate::Result<NodePtr> {
         if location.is_empty() {
             return Err("Empty location.".into());
         }
@@ -641,7 +738,9 @@ impl Group {
         let next_location = &remaining_location[0];
         let mut next_location_uuid = *next_location;
 
-        if !with_node::<Group, _, _>(group, |g| g.has_group(next_location_uuid)).unwrap() && create_groups {
+        if !with_node::<Group, _, _>(group, |g| g.has_group(next_location_uuid)).unwrap()
+            && create_groups
+        {
             let mut current_group: Option<NodePtr> = None;
             for i in (0..(remaining_location.len())).rev() {
                 let mut new_group = Group::new(&remaining_location[i].to_string());
@@ -676,7 +775,11 @@ impl Group {
         }
     }
 
-    pub(crate) fn insert_entry(group: &NodePtr, entry: NodePtr, location: &[Uuid]) -> crate::Result<()> {
+    pub(crate) fn insert_entry(
+        group: &NodePtr,
+        entry: NodePtr,
+        location: &[Uuid],
+    ) -> crate::Result<()> {
         let group = Self::get_or_create_group(group, location, true)?;
         with_node_mut::<Group, _, _>(&group, |g| {
             let count = g.children.len();
@@ -687,7 +790,11 @@ impl Group {
         Ok(())
     }
 
-    pub(crate) fn remove_entry(group: &NodePtr, uuid: Uuid, location: &[Uuid]) -> crate::Result<NodePtr> {
+    pub(crate) fn remove_entry(
+        group: &NodePtr,
+        uuid: Uuid,
+        location: &[Uuid],
+    ) -> crate::Result<NodePtr> {
         let group = Self::get_or_create_group(group, location, false)?;
 
         let mut removed_entry: Option<NodePtr> = None;
@@ -715,7 +822,8 @@ impl Group {
         });
 
         if let Some(entry) = removed_entry {
-            with_node_mut::<Group, _, _>(&group, |g| g.reset_children(new_nodes)).ok_or("Could not reset children")?;
+            with_node_mut::<Group, _, _>(&group, |g| g.reset_children(new_nodes))
+                .ok_or("Could not reset children")?;
             Ok(entry)
         } else {
             let title = group.borrow().get_title().unwrap_or("No title").to_string();
@@ -740,7 +848,11 @@ impl Group {
         None
     }
 
-    pub(crate) fn add_entry(parent: &NodePtr, entry: NodePtr, location: &[Uuid]) -> crate::Result<()> {
+    pub(crate) fn add_entry(
+        parent: &NodePtr,
+        entry: NodePtr,
+        location: &[Uuid],
+    ) -> crate::Result<()> {
         if location.is_empty() {
             panic!("TODO handle this with a Response.");
         }
@@ -786,7 +898,9 @@ impl Group {
         let mut log = MergeLog::default();
 
         let other_entries = with_node::<Group, _, _>(other_group, |g| Ok(g.get_all_entries(&[])))
-            .unwrap_or(Err(crate::Error::from("Could not downcast other group to group")))?;
+            .unwrap_or(Err(crate::Error::from(
+            "Could not downcast other group to group",
+        )))?;
 
         // Handle entry relocation.
         for (entry, entry_location) in &other_entries {
@@ -798,28 +912,33 @@ impl Group {
                 None => continue,
             };
 
-            let the_entry_location = with_node::<Group, _, _>(root, |g| Ok(g.find_entry_location(entry_uuid)))
-                .unwrap_or(Err("Could not downcast root to group"))?;
+            let the_entry_location =
+                with_node::<Group, _, _>(root, |g| Ok(g.find_entry_location(entry_uuid)))
+                    .unwrap_or(Err("Could not downcast root to group"))?;
 
             let existing_entry_location = match the_entry_location {
                 Some(l) => l,
                 None => continue,
             };
 
-            let source_location_changed_time = if let Some(t) = entry.borrow().get_times().get_location_changed() {
-                t
-            } else {
-                log.warnings
-                    .push(format!("Entry {entry_uuid} did not have a location updated timestamp"));
-                Times::epoch()
-            };
-            let destination_location_changed = if let Some(t) = existing_entry.borrow().get_times().get_location_changed() {
-                t
-            } else {
-                log.warnings
-                    .push(format!("Entry {entry_uuid} did not have a location updated timestamp"));
-                Times::now()
-            };
+            let source_location_changed_time =
+                if let Some(t) = entry.borrow().get_times().get_location_changed() {
+                    t
+                } else {
+                    log.warnings.push(format!(
+                        "Entry {entry_uuid} did not have a location updated timestamp"
+                    ));
+                    Times::epoch()
+                };
+            let destination_location_changed =
+                if let Some(t) = existing_entry.borrow().get_times().get_location_changed() {
+                    t
+                } else {
+                    log.warnings.push(format!(
+                        "Entry {entry_uuid} did not have a location updated timestamp"
+                    ));
+                    Times::now()
+                };
             if source_location_changed_time > destination_location_changed {
                 log.events.push(MergeEvent {
                     event_type: MergeEventType::EntryLocationUpdated,
@@ -839,36 +958,43 @@ impl Group {
                     continue;
                 }
 
-                let source_last_modification = if let Some(t) = entry.borrow().get_times().get_last_modification() {
-                    t
-                } else {
-                    log.warnings
-                        .push(format!("Entry {entry_uuid} did not have a last modification timestamp"));
-                    Times::epoch()
-                };
-                let destination_last_modification = if let Some(t) = existing_entry.borrow().get_times().get_last_modification() {
-                    t
-                } else {
-                    log.warnings
-                        .push(format!("Entry {entry_uuid} did not have a last modification timestamp"));
-                    Times::now()
-                };
+                let source_last_modification =
+                    if let Some(t) = entry.borrow().get_times().get_last_modification() {
+                        t
+                    } else {
+                        log.warnings.push(format!(
+                            "Entry {entry_uuid} did not have a last modification timestamp"
+                        ));
+                        Times::epoch()
+                    };
+                let destination_last_modification =
+                    if let Some(t) = existing_entry.borrow().get_times().get_last_modification() {
+                        t
+                    } else {
+                        log.warnings.push(format!(
+                            "Entry {entry_uuid} did not have a last modification timestamp"
+                        ));
+                        Times::now()
+                    };
 
                 if destination_last_modification == source_last_modification {
                     if !node_is_equals_to(&existing_entry, entry) {
                         // This should never happen.
                         // This means that an entry was updated without updating the last modification
                         // timestamp.
-                        return Err("Entries have the same modification time but are not the same!".into());
+                        return Err(
+                            "Entries have the same modification time but are not the same!".into(),
+                        );
                     }
                     continue;
                 }
 
-                let (merged_entry, entry_merge_log) = if destination_last_modification > source_last_modification {
-                    Entry::merge(&existing_entry, entry)?
-                } else {
-                    Entry::merge(entry, &existing_entry)?
-                };
+                let (merged_entry, entry_merge_log) =
+                    if destination_last_modification > source_last_modification {
+                        Entry::merge(&existing_entry, entry)?
+                    } else {
+                        Entry::merge(entry, &existing_entry)?
+                    };
                 let Some(merged_entry) = merged_entry else {
                     continue;
                 };
@@ -919,7 +1045,11 @@ impl Group {
 }
 
 #[cfg(test)]
-pub fn entry_set_field_and_commit(entry: &NodePtr, field_name: &str, field_value: &str) -> crate::Result<()> {
+pub fn entry_set_field_and_commit(
+    entry: &NodePtr,
+    field_name: &str,
+    field_value: &str,
+) -> crate::Result<()> {
     with_node_mut::<Entry, _, _>(entry, |entry| {
         entry.set_field_and_commit(field_name, field_value);
         Ok(())
@@ -929,30 +1059,47 @@ pub fn entry_set_field_and_commit(entry: &NodePtr, field_name: &str, field_value
 }
 
 impl Entry {
-    pub(crate) fn merge(entry: &NodePtr, other: &NodePtr) -> Result<(Option<NodePtr>, MergeLog), MergeError> {
+    pub(crate) fn merge(
+        entry: &NodePtr,
+        other: &NodePtr,
+    ) -> Result<(Option<NodePtr>, MergeLog), MergeError> {
         let mut log = MergeLog::default();
-        let source_last_modification = match with_node::<Entry, _, _>(other, |e| e.get_times().get_last_modification()).unwrap() {
-            Some(t) => t,
-            None => {
-                let info = format!("Entry {} did not have a last modification timestamp", other.borrow().get_uuid());
-                log.warnings.push(info);
-                Times::epoch()
-            }
-        };
+        let source_last_modification =
+            match with_node::<Entry, _, _>(other, |e| e.get_times().get_last_modification())
+                .unwrap()
+            {
+                Some(t) => t,
+                None => {
+                    let info = format!(
+                        "Entry {} did not have a last modification timestamp",
+                        other.borrow().get_uuid()
+                    );
+                    log.warnings.push(info);
+                    Times::epoch()
+                }
+            };
 
-        let destination_last_modification = match with_node::<Entry, _, _>(entry, |e| e.get_times().get_last_modification()).unwrap() {
-            Some(t) => t,
-            None => {
-                let info = format!("Entry {} did not have a last modification timestamp", entry.borrow().get_uuid());
-                log.warnings.push(info);
-                Times::epoch()
-            }
-        };
+        let destination_last_modification =
+            match with_node::<Entry, _, _>(entry, |e| e.get_times().get_last_modification())
+                .unwrap()
+            {
+                Some(t) => t,
+                None => {
+                    let info = format!(
+                        "Entry {} did not have a last modification timestamp",
+                        entry.borrow().get_uuid()
+                    );
+                    log.warnings.push(info);
+                    Times::epoch()
+                }
+            };
 
         if destination_last_modification == source_last_modification {
             if !crate::db::merge::has_diverged_from(entry, other) {
                 // This should never happen. This means that an entry was updated without updating the last modification timestamp.
-                return Err(MergeError::EntryModificationTimeNotUpdated(other.borrow().get_uuid().to_string()));
+                return Err(MergeError::EntryModificationTimeNotUpdated(
+                    other.borrow().get_uuid().to_string(),
+                ));
             }
             return Ok((None, log));
         }
@@ -968,8 +1115,12 @@ impl Entry {
         })
         .unwrap()?;
 
-        if let location_changed_timestamp @ Some(_) = entry.borrow().get_times().get_location_changed() {
-            merged_entry.get_times_mut().set_location_changed(location_changed_timestamp);
+        if let location_changed_timestamp @ Some(_) =
+            entry.borrow().get_times().get_location_changed()
+        {
+            merged_entry
+                .get_times_mut()
+                .set_location_changed(location_changed_timestamp);
         }
         Ok((Some(rc_refcell_node(merged_entry)), entry_merge_log))
     }
@@ -979,23 +1130,29 @@ impl Entry {
         let mut source_history = match &other.history {
             Some(h) => h.clone(),
             None => {
-                log.warnings
-                    .push(format!("Entry {} from source database had no history.", self.uuid));
+                log.warnings.push(format!(
+                    "Entry {} from source database had no history.",
+                    self.uuid
+                ));
                 History::default()
             }
         };
         let mut destination_history = match &self.history {
             Some(h) => h.clone(),
             None => {
-                log.warnings
-                    .push(format!("Entry {} from destination database had no history.", self.uuid));
+                log.warnings.push(format!(
+                    "Entry {} from destination database had no history.",
+                    self.uuid
+                ));
                 History::default()
             }
         };
         let mut response = self.clone();
         if other.has_uncommited_changes() {
-            log.warnings
-                .push(format!("Entry {} from source database has uncommitted changes.", self.uuid));
+            log.warnings.push(format!(
+                "Entry {} from source database has uncommitted changes.",
+                self.uuid
+            ));
             source_history.add_entry(other.clone());
         }
         // TODO we should probably check for uncommitted changes in the destination
@@ -1132,7 +1289,8 @@ impl History {
             }
         }
 
-        let mut all_modification_times: Vec<&chrono::NaiveDateTime> = new_history_entries.keys().collect();
+        let mut all_modification_times: Vec<&chrono::NaiveDateTime> =
+            new_history_entries.keys().collect();
         all_modification_times.sort();
         all_modification_times.reverse();
         let mut new_entries: Vec<Entry> = vec![];
@@ -1150,8 +1308,9 @@ mod merge_tests {
     use uuid::Uuid;
 
     use crate::db::{
-        CustomIcon, Database, Entry, Group, Icon, Node, NodePtr, Times, group_add_child, group_get_children, node_is_group,
-        rc_refcell_node, search_node_by_uuid_with_specific_type, with_node, with_node_mut,
+        CustomIcon, Database, Entry, Group, Icon, Node, NodePtr, Times, group_add_child,
+        group_get_children, node_is_group, rc_refcell_node, search_node_by_uuid_with_specific_type,
+        with_node, with_node_mut,
     };
 
     fn get_entry(db: &Database, path: &[&str]) -> NodePtr {
@@ -1295,11 +1454,15 @@ mod merge_tests {
         assert_eq!(entry_count_after, entry_count_before + 1);
         assert_eq!(group_count_after, group_count_before);
 
-        let root_entries = with_node::<Group, _, _>(&destination_db.root, |group| group.entries()).unwrap();
+        let root_entries =
+            with_node::<Group, _, _>(&destination_db.root, |group| group.entries()).unwrap();
         assert_eq!(root_entries.len(), 2);
 
         let new_entry = get_entry(&destination_db, &["new_entry"]);
-        assert_eq!(new_entry.borrow().get_title().unwrap(), "new_entry".to_string());
+        assert_eq!(
+            new_entry.borrow().get_title().unwrap(),
+            "new_entry".to_string()
+        );
 
         // Merging the same group again should not create a duplicate entry.
         let merge_result = destination_db.merge(&source_db).unwrap();
@@ -1325,7 +1488,9 @@ mod merge_tests {
         deleted_entry.set_field_and_commit("Title", "deleted_entry");
         group_add_child(&source_db.root, rc_refcell_node(deleted_entry), 0).unwrap();
 
-        destination_db.deleted_objects.insert(deleted_entry_uuid, Some(Times::now()));
+        destination_db
+            .deleted_objects
+            .insert(deleted_entry_uuid, Some(Times::now()));
 
         let merge_result = destination_db.merge(&source_db).unwrap();
         assert_eq!(merge_result.warnings.len(), 0);
@@ -1359,7 +1524,9 @@ mod merge_tests {
         let entry_count_before = get_all_entries(&destination_db.root).len();
         let group_count_before = get_all_groups(&destination_db.root).len();
 
-        destination_db.deleted_objects.insert(deleted_group_uuid, Some(Times::now()));
+        destination_db
+            .deleted_objects
+            .insert(deleted_group_uuid, Some(Times::now()));
 
         let merge_result = destination_db.merge(&source_db).unwrap();
         assert_eq!(merge_result.warnings.len(), 0);
@@ -1373,10 +1540,12 @@ mod merge_tests {
         let deleted_group = Group::find_node_location(&destination_db.root, deleted_group_uuid);
         assert!(deleted_group.is_none());
 
-        let modified_entry_location = Group::find_node_location(&destination_db.root, modified_entry_uuid);
+        let modified_entry_location =
+            Group::find_node_location(&destination_db.root, modified_entry_uuid);
         assert!(modified_entry_location.is_some());
 
-        let modified_entry = Group::find_entry(&destination_db.root, &[modified_entry_uuid]).unwrap();
+        let modified_entry =
+            Group::find_entry(&destination_db.root, &[modified_entry_uuid]).unwrap();
         assert_eq!(modified_entry.borrow().get_title(), Some("modified_title"));
     }
 
@@ -1392,7 +1561,9 @@ mod merge_tests {
         let deleted_group_uuid = deleted_group.uuid;
         group_add_child(&source_db.root, rc_refcell_node(deleted_group), 0).unwrap();
 
-        destination_db.deleted_objects.insert(deleted_group_uuid, Some(Times::now()));
+        destination_db
+            .deleted_objects
+            .insert(deleted_group_uuid, Some(Times::now()));
 
         let merge_result = destination_db.merge(&source_db).unwrap();
         assert_eq!(merge_result.warnings.len(), 0);
@@ -1421,7 +1592,9 @@ mod merge_tests {
         let group_count_before = get_all_groups(&destination_db.root).len();
 
         thread::sleep(time::Duration::from_secs(1));
-        source_db.deleted_objects.insert(deleted_entry_uuid, Some(Times::now()));
+        source_db
+            .deleted_objects
+            .insert(deleted_entry_uuid, Some(Times::now()));
 
         let merge_result = destination_db.merge(&source_db).unwrap();
         assert_eq!(merge_result.warnings.len(), 0);
@@ -1435,7 +1608,11 @@ mod merge_tests {
         let new_entry = Group::find_node_location(&destination_db.root, deleted_entry_uuid);
         assert!(new_entry.is_none());
 
-        assert!(destination_db.deleted_objects.contains_key(&deleted_entry_uuid));
+        assert!(
+            destination_db
+                .deleted_objects
+                .contains_key(&deleted_entry_uuid)
+        );
     }
 
     #[test]
@@ -1451,7 +1628,9 @@ mod merge_tests {
         let group_count_before = get_all_groups(&destination_db.root).len();
 
         thread::sleep(time::Duration::from_secs(1));
-        source_db.deleted_objects.insert(deleted_group_uuid, Some(Times::now()));
+        source_db
+            .deleted_objects
+            .insert(deleted_group_uuid, Some(Times::now()));
 
         let merge_result = destination_db.merge(&source_db).unwrap();
         assert_eq!(merge_result.warnings.len(), 0);
@@ -1465,7 +1644,11 @@ mod merge_tests {
         let deleted_group = Group::find_node_location(&destination_db.root, deleted_group_uuid);
         assert!(deleted_group.is_none());
 
-        assert!(destination_db.deleted_objects.contains_key(&deleted_group_uuid));
+        assert!(
+            destination_db
+                .deleted_objects
+                .contains_key(&deleted_group_uuid)
+        );
     }
 
     #[test]
@@ -1476,7 +1659,9 @@ mod merge_tests {
         let deleted_entry_uuid = Uuid::new_v4();
 
         thread::sleep(time::Duration::from_secs(1));
-        source_db.deleted_objects.insert(deleted_entry_uuid, Some(Times::now()));
+        source_db
+            .deleted_objects
+            .insert(deleted_entry_uuid, Some(Times::now()));
 
         thread::sleep(time::Duration::from_secs(1));
         let mut deleted_entry = Entry::default();
@@ -1499,7 +1684,11 @@ mod merge_tests {
         let new_entry = Group::find_node_location(&destination_db.root, deleted_entry_uuid);
         assert!(new_entry.is_some());
 
-        assert!(!destination_db.deleted_objects.contains_key(&deleted_entry_uuid));
+        assert!(
+            !destination_db
+                .deleted_objects
+                .contains_key(&deleted_entry_uuid)
+        );
     }
 
     #[test]
@@ -1527,9 +1716,15 @@ mod merge_tests {
         group_add_child(&destination_db.root, rc_refcell_node(deleted_group), 0).unwrap();
 
         thread::sleep(time::Duration::from_secs(1));
-        source_db.deleted_objects.insert(deleted_entry_uuid, Some(Times::now()));
-        source_db.deleted_objects.insert(deleted_subgroup_uuid, Some(Times::now()));
-        source_db.deleted_objects.insert(deleted_group_uuid, Some(Times::now()));
+        source_db
+            .deleted_objects
+            .insert(deleted_entry_uuid, Some(Times::now()));
+        source_db
+            .deleted_objects
+            .insert(deleted_subgroup_uuid, Some(Times::now()));
+        source_db
+            .deleted_objects
+            .insert(deleted_group_uuid, Some(Times::now()));
 
         let entry_count_before = get_all_entries(&destination_db.root).len();
         let group_count_before = get_all_groups(&destination_db.root).len();
@@ -1545,14 +1740,27 @@ mod merge_tests {
 
         let deleted_entry = Group::find_node_location(&destination_db.root, deleted_entry_uuid);
         assert!(deleted_entry.is_none());
-        let deleted_subgroup = Group::find_node_location(&destination_db.root, deleted_subgroup_uuid);
+        let deleted_subgroup =
+            Group::find_node_location(&destination_db.root, deleted_subgroup_uuid);
         assert!(deleted_subgroup.is_none());
         let deleted_group = Group::find_node_location(&destination_db.root, deleted_group_uuid);
         assert!(deleted_group.is_none());
 
-        assert!(destination_db.deleted_objects.contains_key(&deleted_entry_uuid));
-        assert!(destination_db.deleted_objects.contains_key(&deleted_subgroup_uuid));
-        assert!(destination_db.deleted_objects.contains_key(&deleted_group_uuid));
+        assert!(
+            destination_db
+                .deleted_objects
+                .contains_key(&deleted_entry_uuid)
+        );
+        assert!(
+            destination_db
+                .deleted_objects
+                .contains_key(&deleted_subgroup_uuid)
+        );
+        assert!(
+            destination_db
+                .deleted_objects
+                .contains_key(&deleted_group_uuid)
+        );
     }
 
     #[test]
@@ -1574,9 +1782,15 @@ mod merge_tests {
         deleted_subgroup.add_child(rc_refcell_node(deleted_entry), 0);
 
         thread::sleep(time::Duration::from_secs(1));
-        source_db.deleted_objects.insert(deleted_entry_uuid, Some(Times::now()));
-        source_db.deleted_objects.insert(deleted_subgroup_uuid, Some(Times::now()));
-        source_db.deleted_objects.insert(deleted_group_uuid, Some(Times::now()));
+        source_db
+            .deleted_objects
+            .insert(deleted_entry_uuid, Some(Times::now()));
+        source_db
+            .deleted_objects
+            .insert(deleted_subgroup_uuid, Some(Times::now()));
+        source_db
+            .deleted_objects
+            .insert(deleted_group_uuid, Some(Times::now()));
 
         thread::sleep(time::Duration::from_secs(1));
         let mut deleted_group = Group::new("deleted_group");
@@ -1599,14 +1813,27 @@ mod merge_tests {
 
         let deleted_entry = Group::find_node_location(&destination_db.root, deleted_entry_uuid);
         assert!(deleted_entry.is_none());
-        let deleted_subgroup = Group::find_node_location(&destination_db.root, deleted_subgroup_uuid);
+        let deleted_subgroup =
+            Group::find_node_location(&destination_db.root, deleted_subgroup_uuid);
         assert!(deleted_subgroup.is_none());
         let deleted_group = Group::find_node_location(&destination_db.root, deleted_group_uuid);
         assert!(deleted_group.is_some());
 
-        assert!(destination_db.deleted_objects.contains_key(&deleted_entry_uuid));
-        assert!(destination_db.deleted_objects.contains_key(&deleted_subgroup_uuid));
-        assert!(!destination_db.deleted_objects.contains_key(&deleted_group_uuid));
+        assert!(
+            destination_db
+                .deleted_objects
+                .contains_key(&deleted_entry_uuid)
+        );
+        assert!(
+            destination_db
+                .deleted_objects
+                .contains_key(&deleted_subgroup_uuid)
+        );
+        assert!(
+            !destination_db
+                .deleted_objects
+                .contains_key(&deleted_group_uuid)
+        );
     }
 
     #[test]
@@ -1617,7 +1844,9 @@ mod merge_tests {
         let deleted_group_uuid = Uuid::new_v4();
 
         thread::sleep(time::Duration::from_secs(1));
-        source_db.deleted_objects.insert(deleted_group_uuid, Some(Times::now()));
+        source_db
+            .deleted_objects
+            .insert(deleted_group_uuid, Some(Times::now()));
 
         thread::sleep(time::Duration::from_secs(1));
         let mut deleted_group = Group::new("deleted_group");
@@ -1639,7 +1868,11 @@ mod merge_tests {
         let deleted_group = Group::find_node_location(&destination_db.root, deleted_group_uuid);
         assert!(deleted_group.is_some());
 
-        assert!(!destination_db.deleted_objects.contains_key(&deleted_group_uuid));
+        assert!(
+            !destination_db
+                .deleted_objects
+                .contains_key(&deleted_group_uuid)
+        );
     }
 
     #[test]
@@ -1660,7 +1893,9 @@ mod merge_tests {
         let group_count_before = get_all_groups(&destination_db.root).len();
 
         thread::sleep(time::Duration::from_secs(1));
-        source_db.deleted_objects.insert(deleted_group_uuid, Some(Times::now()));
+        source_db
+            .deleted_objects
+            .insert(deleted_group_uuid, Some(Times::now()));
 
         let merge_result = destination_db.merge(&source_db).unwrap();
         assert_eq!(merge_result.warnings.len(), 0);
@@ -1676,7 +1911,11 @@ mod merge_tests {
         let new_entry = Group::find_node_location(&destination_db.root, new_entry_uuid);
         assert!(new_entry.is_some());
 
-        assert!(!destination_db.deleted_objects.contains_key(&deleted_group_uuid));
+        assert!(
+            !destination_db
+                .deleted_objects
+                .contains_key(&deleted_group_uuid)
+        );
         assert!(!destination_db.deleted_objects.contains_key(&new_entry_uuid));
     }
 
@@ -1688,7 +1927,8 @@ mod merge_tests {
         let entry_count_before = get_all_entries(&destination_db.root).len();
         let group_count_before = get_all_groups(&destination_db.root).len();
 
-        let source_sub_group = with_node::<Group, _, _>(&source_db.root, |group| group.groups()).unwrap()[0].clone();
+        let source_sub_group =
+            with_node::<Group, _, _>(&source_db.root, |group| group.groups()).unwrap()[0].clone();
 
         let mut new_entry = Entry::default();
         let new_entry_uuid = new_entry.uuid;
@@ -1705,7 +1945,8 @@ mod merge_tests {
         assert_eq!(entry_count_after, entry_count_before + 1);
         assert_eq!(group_count_after, group_count_before);
 
-        let created_entry_location = Group::find_node_location(&destination_db.root, new_entry_uuid).unwrap();
+        let created_entry_location =
+            Group::find_node_location(&destination_db.root, new_entry_uuid).unwrap();
         assert_eq!(created_entry_location.len(), 2);
     }
 
@@ -1736,7 +1977,8 @@ mod merge_tests {
         assert_eq!(entry_count_after, entry_count_before + 1);
         assert_eq!(group_count_after, group_count_before + 2);
 
-        let created_entry_location = Group::find_node_location(&destination_db.root, new_entry_uuid).unwrap();
+        let created_entry_location =
+            Group::find_node_location(&destination_db.root, new_entry_uuid).unwrap();
         assert_eq!(created_entry_location.len(), 3);
     }
 
@@ -1754,7 +1996,10 @@ mod merge_tests {
         source_db
             .relocate_node(
                 Uuid::parse_str(ENTRY2_ID).unwrap(),
-                &[Uuid::parse_str(GROUP1_ID).unwrap(), Uuid::parse_str(SUBGROUP1_ID).unwrap()],
+                &[
+                    Uuid::parse_str(GROUP1_ID).unwrap(),
+                    Uuid::parse_str(SUBGROUP1_ID).unwrap(),
+                ],
                 &[Uuid::parse_str(GROUP2_ID).unwrap()],
                 new_location_changed_timestamp,
             )
@@ -1769,13 +2014,19 @@ mod merge_tests {
         assert_eq!(group_count_after, group_count_before);
         assert_eq!(entry_count_after, entry_count_before);
 
-        let moved_entry_location = Group::find_node_location(&destination_db.root, Uuid::parse_str(ENTRY2_ID).unwrap()).unwrap();
+        let moved_entry_location =
+            Group::find_node_location(&destination_db.root, Uuid::parse_str(ENTRY2_ID).unwrap())
+                .unwrap();
         assert_eq!(moved_entry_location.len(), 2);
         assert_eq!(&moved_entry_location[0].to_string(), ROOT_GROUP_ID);
         assert_eq!(&moved_entry_location[1].to_string(), GROUP2_ID);
 
         let moved_entry = get_entry(&destination_db, &["group2", "entry2"]);
-        let ts = moved_entry.borrow().get_times().get_location_changed().unwrap();
+        let ts = moved_entry
+            .borrow()
+            .get_times()
+            .get_location_changed()
+            .unwrap();
         assert_eq!(ts, new_location_changed_timestamp);
     }
 
@@ -1807,7 +2058,10 @@ mod merge_tests {
         source_db
             .relocate_node(
                 Uuid::parse_str(ENTRY2_ID).unwrap(),
-                &[Uuid::parse_str(GROUP1_ID).unwrap(), Uuid::parse_str(SUBGROUP1_ID).unwrap()],
+                &[
+                    Uuid::parse_str(GROUP1_ID).unwrap(),
+                    Uuid::parse_str(SUBGROUP1_ID).unwrap(),
+                ],
                 &[Uuid::parse_str(GROUP2_ID).unwrap()],
                 new_location_changed_timestamp,
             )
@@ -1836,15 +2090,28 @@ mod merge_tests {
         assert_eq!(group_count_after, group_count_before);
         assert_eq!(entry_count_after, entry_count_before);
 
-        let moved_entry_location = Group::find_node_location(&destination_db.root, Uuid::parse_str(ENTRY2_ID).unwrap()).unwrap();
+        let moved_entry_location =
+            Group::find_node_location(&destination_db.root, Uuid::parse_str(ENTRY2_ID).unwrap())
+                .unwrap();
         assert_eq!(moved_entry_location.len(), 2);
         assert_eq!(&moved_entry_location[0].to_string(), ROOT_GROUP_ID);
         assert_eq!(&moved_entry_location[1].to_string(), GROUP2_ID);
 
-        let moved_entry = get_entry(&destination_db, &["group2", "entry2_modified_in_destination"]);
-        let ts1 = moved_entry.borrow().get_times().get_last_modification().unwrap();
+        let moved_entry = get_entry(
+            &destination_db,
+            &["group2", "entry2_modified_in_destination"],
+        );
+        let ts1 = moved_entry
+            .borrow()
+            .get_times()
+            .get_last_modification()
+            .unwrap();
         assert_eq!(ts1, entry_modified_timestamp,);
-        let ts2 = moved_entry.borrow().get_times().get_location_changed().unwrap();
+        let ts2 = moved_entry
+            .borrow()
+            .get_times()
+            .get_location_changed()
+            .unwrap();
         assert_eq!(ts2, new_location_changed_timestamp);
     }
 
@@ -1876,7 +2143,10 @@ mod merge_tests {
         destination_db
             .relocate_node(
                 Uuid::parse_str(ENTRY2_ID).unwrap(),
-                &[Uuid::parse_str(GROUP1_ID).unwrap(), Uuid::parse_str(SUBGROUP1_ID).unwrap()],
+                &[
+                    Uuid::parse_str(GROUP1_ID).unwrap(),
+                    Uuid::parse_str(SUBGROUP1_ID).unwrap(),
+                ],
                 &[Uuid::parse_str(GROUP2_ID).unwrap()],
                 new_location_changed_timestamp,
             )
@@ -1891,15 +2161,25 @@ mod merge_tests {
         assert_eq!(group_count_after, group_count_before);
         assert_eq!(entry_count_after, entry_count_before);
 
-        let moved_entry_location = Group::find_node_location(&destination_db.root, Uuid::parse_str(ENTRY2_ID).unwrap()).unwrap();
+        let moved_entry_location =
+            Group::find_node_location(&destination_db.root, Uuid::parse_str(ENTRY2_ID).unwrap())
+                .unwrap();
         assert_eq!(moved_entry_location.len(), 2);
         assert_eq!(&moved_entry_location[0].to_string(), ROOT_GROUP_ID);
         assert_eq!(&moved_entry_location[1].to_string(), GROUP2_ID);
 
         let moved_entry = get_entry(&destination_db, &["group2", "entry2_modified_in_source"]);
-        let ts1 = moved_entry.borrow().get_times().get_last_modification().unwrap();
+        let ts1 = moved_entry
+            .borrow()
+            .get_times()
+            .get_last_modification()
+            .unwrap();
         assert_eq!(ts1, entry_modified_timestamp,);
-        let ts2 = moved_entry.borrow().get_times().get_location_changed().unwrap();
+        let ts2 = moved_entry
+            .borrow()
+            .get_times()
+            .get_location_changed()
+            .unwrap();
         assert_eq!(ts2, new_location_changed_timestamp);
     }
 
@@ -1935,7 +2215,8 @@ mod merge_tests {
         assert_eq!(entry_count_after, entry_count_before + 1);
         assert_eq!(group_count_after, group_count_before + 1);
 
-        let created_entry_location = Group::find_node_location(&destination_db.root, entry_uuid).unwrap();
+        let created_entry_location =
+            Group::find_node_location(&destination_db.root, entry_uuid).unwrap();
         assert_eq!(created_entry_location.len(), 2);
         assert_eq!(&created_entry_location[0].to_string(), ROOT_GROUP_ID);
         assert_eq!(created_entry_location[1], new_group_uuid);
@@ -1950,9 +2231,11 @@ mod merge_tests {
         let group_count_before = get_all_groups(&destination_db.root).len();
 
         let source_group_1 = get_group(&source_db, &["group1"]);
-        let source_sub_group_1 = with_node_mut::<Group, _, _>(&source_group_1, |g| g.remove_node(Uuid::parse_str(SUBGROUP1_ID).unwrap()))
-            .unwrap()
-            .unwrap();
+        let source_sub_group_1 = with_node_mut::<Group, _, _>(&source_group_1, |g| {
+            g.remove_node(Uuid::parse_str(SUBGROUP1_ID).unwrap())
+        })
+        .unwrap()
+        .unwrap();
         assert!(node_is_group(&source_sub_group_1));
         thread::sleep(time::Duration::from_secs(1));
         let new_location_changed_timestamp = Times::now();
@@ -1973,14 +2256,23 @@ mod merge_tests {
         assert_eq!(entry_count_after, entry_count_before);
         assert_eq!(group_count_after, group_count_before);
 
-        let created_entry_location = Group::find_node_location(&destination_db.root, Uuid::parse_str(ENTRY2_ID).unwrap()).unwrap();
+        let created_entry_location =
+            Group::find_node_location(&destination_db.root, Uuid::parse_str(ENTRY2_ID).unwrap())
+                .unwrap();
         assert_eq!(created_entry_location.len(), 3);
-        assert_eq!(created_entry_location[0], destination_db.root.borrow().get_uuid());
+        assert_eq!(
+            created_entry_location[0],
+            destination_db.root.borrow().get_uuid()
+        );
         assert_eq!(&created_entry_location[1].to_string(), GROUP2_ID);
         assert_eq!(&created_entry_location[2].to_string(), SUBGROUP1_ID);
 
         let relocated_group = get_group(&destination_db, &["group2", "subgroup1"]);
-        let ts = relocated_group.borrow().get_times().get_location_changed().unwrap();
+        let ts = relocated_group
+            .borrow()
+            .get_times()
+            .get_location_changed()
+            .unwrap();
         assert_eq!(ts, new_location_changed_timestamp);
     }
 
@@ -1992,15 +2284,24 @@ mod merge_tests {
         let entry_count_before = get_all_entries(&destination_db.root).len();
         let group_count_before = get_all_groups(&destination_db.root).len();
 
-        let entry = with_node::<Group, _, _>(&destination_db.root, |group| group.entries()).unwrap()[0].clone();
-        with_node_mut::<Entry, _, _>(&entry, |entry| entry.set_field_and_commit("Title", "entry1_updated")).unwrap();
+        let entry = with_node::<Group, _, _>(&destination_db.root, |group| group.entries())
+            .unwrap()[0]
+            .clone();
+        with_node_mut::<Entry, _, _>(&entry, |entry| {
+            entry.set_field_and_commit("Title", "entry1_updated")
+        })
+        .unwrap();
 
         let merge_result = destination_db.merge(&source_db).unwrap();
         assert_eq!(merge_result.warnings.len(), 0);
         assert_eq!(merge_result.events.len(), 0);
 
-        let entry = with_node::<Group, _, _>(&destination_db.root, |group| group.entries()).unwrap()[0].clone();
-        let merged_history = with_node::<Entry, _, _>(&entry, |entry| entry.history.clone()).unwrap().unwrap();
+        let entry = with_node::<Group, _, _>(&destination_db.root, |group| group.entries())
+            .unwrap()[0]
+            .clone();
+        let merged_history = with_node::<Entry, _, _>(&entry, |entry| entry.history.clone())
+            .unwrap()
+            .unwrap();
         assert!(merged_history.is_ordered());
         assert_eq!(merged_history.entries.len(), 2);
         let merged_entry = &merged_history.entries[1];
@@ -2011,7 +2312,9 @@ mod merge_tests {
         assert_eq!(entry_count_after, entry_count_before);
         assert_eq!(group_count_after, group_count_before);
 
-        let entry = with_node::<Group, _, _>(&destination_db.root, |group| group.entries()).unwrap()[0].clone();
+        let entry = with_node::<Group, _, _>(&destination_db.root, |group| group.entries())
+            .unwrap()[0]
+            .clone();
         assert_eq!(entry.borrow().get_title(), Some("entry1_updated"));
     }
 
@@ -2023,15 +2326,23 @@ mod merge_tests {
         let entry_count_before = get_all_entries(&destination_db.root).len();
         let group_count_before = get_all_groups(&destination_db.root).len();
 
-        let entry = with_node::<Group, _, _>(&source_db.root, |group| group.entries()).unwrap()[0].clone();
-        with_node_mut::<Entry, _, _>(&entry, |entry| entry.set_field_and_commit("Title", "entry1_updated")).unwrap();
+        let entry =
+            with_node::<Group, _, _>(&source_db.root, |group| group.entries()).unwrap()[0].clone();
+        with_node_mut::<Entry, _, _>(&entry, |entry| {
+            entry.set_field_and_commit("Title", "entry1_updated")
+        })
+        .unwrap();
 
         let merge_result = destination_db.merge(&source_db).unwrap();
         assert_eq!(merge_result.warnings.len(), 0);
         assert_eq!(merge_result.events.len(), 1);
 
-        let entry = with_node::<Group, _, _>(&destination_db.root, |group| group.entries()).unwrap()[0].clone();
-        let merged_history = with_node::<Entry, _, _>(&entry, |entry| entry.history.clone()).unwrap().unwrap();
+        let entry = with_node::<Group, _, _>(&destination_db.root, |group| group.entries())
+            .unwrap()[0]
+            .clone();
+        let merged_history = with_node::<Entry, _, _>(&entry, |entry| entry.history.clone())
+            .unwrap()
+            .unwrap();
         assert!(merged_history.is_ordered());
         assert_eq!(merged_history.entries.len(), 2);
         let merged_entry = &merged_history.entries[1];
@@ -2042,7 +2353,9 @@ mod merge_tests {
         assert_eq!(entry_count_after, entry_count_before);
         assert_eq!(group_count_after, group_count_before);
 
-        let entry = with_node::<Group, _, _>(&destination_db.root, |group| group.entries()).unwrap()[0].clone();
+        let entry = with_node::<Group, _, _>(&destination_db.root, |group| group.entries())
+            .unwrap()[0]
+            .clone();
         assert_eq!(entry.borrow().get_title(), Some("entry1_updated"));
     }
 
@@ -2054,11 +2367,20 @@ mod merge_tests {
         let entry_count_before = get_all_entries(&destination_db.root).len();
         let group_count_before = get_all_groups(&destination_db.root).len();
 
-        let entry = with_node::<Group, _, _>(&destination_db.root, |group| group.entries()).unwrap()[0].clone();
-        with_node_mut::<Entry, _, _>(&entry, |e| e.set_field_and_commit("Title", "entry1_updated_from_destination")).unwrap();
+        let entry = with_node::<Group, _, _>(&destination_db.root, |group| group.entries())
+            .unwrap()[0]
+            .clone();
+        with_node_mut::<Entry, _, _>(&entry, |e| {
+            e.set_field_and_commit("Title", "entry1_updated_from_destination")
+        })
+        .unwrap();
 
-        let entry = with_node::<Group, _, _>(&source_db.root, |group| group.entries()).unwrap()[0].clone();
-        with_node_mut::<Entry, _, _>(&entry, |entry| entry.set_field_and_commit("Title", "entry1_updated_from_source")).unwrap();
+        let entry =
+            with_node::<Group, _, _>(&source_db.root, |group| group.entries()).unwrap()[0].clone();
+        with_node_mut::<Entry, _, _>(&entry, |entry| {
+            entry.set_field_and_commit("Title", "entry1_updated_from_source")
+        })
+        .unwrap();
 
         let merge_result = destination_db.merge(&source_db).unwrap();
         assert_eq!(merge_result.warnings.len(), 0);
@@ -2069,14 +2391,24 @@ mod merge_tests {
         assert_eq!(entry_count_after, entry_count_before);
         assert_eq!(group_count_after, group_count_before);
 
-        let entry = with_node::<Group, _, _>(&destination_db.root, |group| group.entries()).unwrap()[0].clone();
-        assert_eq!(entry.borrow().get_title(), Some("entry1_updated_from_source"));
+        let entry = with_node::<Group, _, _>(&destination_db.root, |group| group.entries())
+            .unwrap()[0]
+            .clone();
+        assert_eq!(
+            entry.borrow().get_title(),
+            Some("entry1_updated_from_source")
+        );
 
-        let merged_history = with_node::<Entry, _, _>(&entry, |entry| entry.history.clone()).unwrap().unwrap();
+        let merged_history = with_node::<Entry, _, _>(&entry, |entry| entry.history.clone())
+            .unwrap()
+            .unwrap();
         assert!(merged_history.is_ordered());
         assert_eq!(merged_history.entries.len(), 3);
         let merged_entry = &merged_history.entries[1];
-        assert_eq!(merged_entry.get_title(), Some("entry1_updated_from_destination"));
+        assert_eq!(
+            merged_entry.get_title(),
+            Some("entry1_updated_from_destination")
+        );
 
         // Merging again should not result in any additional change.
         let merge_result = destination_db.merge(&destination_db.clone()).unwrap();
@@ -2113,7 +2445,10 @@ mod merge_tests {
         assert_eq!(group_count_after, group_count_before);
 
         let modified_group = get_group(&destination_db, &["group1", "subgroup1_updated_name"]);
-        assert_eq!(modified_group.borrow().get_title().unwrap(), "subgroup1_updated_name");
+        assert_eq!(
+            modified_group.borrow().get_title().unwrap(),
+            "subgroup1_updated_name"
+        );
         let ts = modified_group.borrow().get_times().get_last_modification();
         assert_eq!(ts, Some(new_modification_timestamp));
     }
@@ -2147,7 +2482,10 @@ mod merge_tests {
         assert_eq!(group_count_after, group_count_before);
 
         let modified_group = get_group(&destination_db, &["group1", "subgroup1_updated_name"]);
-        assert_eq!(modified_group.borrow().get_title(), Some("subgroup1_updated_name"));
+        assert_eq!(
+            modified_group.borrow().get_title(),
+            Some("subgroup1_updated_name")
+        );
         assert_eq!(
             modified_group.borrow().get_times().get_last_modification(),
             Some(new_modification_timestamp),
@@ -2192,7 +2530,10 @@ mod merge_tests {
         assert_eq!(group_count_after, group_count_before);
 
         let modified_group = get_group(&destination_db, &["group2", "subgroup1_updated_name"]);
-        assert_eq!(modified_group.borrow().get_title(), Some("subgroup1_updated_name"));
+        assert_eq!(
+            modified_group.borrow().get_title(),
+            Some("subgroup1_updated_name")
+        );
         assert_eq!(
             modified_group.borrow().get_times().get_last_modification(),
             Some(new_modification_timestamp),
@@ -2239,7 +2580,10 @@ mod merge_tests {
         assert_eq!(group_count_after, group_count_before);
 
         let modified_group = get_group(&destination_db, &["group2", "subgroup1_updated_name"]);
-        assert_eq!(modified_group.borrow().get_title(), Some("subgroup1_updated_name"));
+        assert_eq!(
+            modified_group.borrow().get_title(),
+            Some("subgroup1_updated_name")
+        );
         assert_eq!(
             modified_group.borrow().get_times().get_last_modification(),
             Some(new_modification_timestamp)
@@ -2260,10 +2604,16 @@ mod merge_tests {
             new_icon_id,
             CustomIcon::new(new_icon_id, None, Some(Times::now()), vec![1, 2, 3, 4]),
         );
-        let entry = search_node_by_uuid_with_specific_type::<Entry>(&source_db.root, Uuid::parse_str(ENTRY1_ID).unwrap()).unwrap();
+        let entry = search_node_by_uuid_with_specific_type::<Entry>(
+            &source_db.root,
+            Uuid::parse_str(ENTRY1_ID).unwrap(),
+        )
+        .unwrap();
         with_node_mut::<Entry, _, _>(&entry, |entry| {
             entry.icon = Icon::Custom(new_icon_id);
-            entry.get_times_mut().set_last_modification(Some(Times::now()));
+            entry
+                .get_times_mut()
+                .set_last_modification(Some(Times::now()));
         });
 
         let merge_result = destination_db.merge(&source_db).unwrap();
@@ -2278,10 +2628,10 @@ mod merge_tests {
         let mut destination_db = create_test_database();
 
         let icon_id = Uuid::new_v4();
-        destination_db
-            .meta
-            .custom_icons
-            .insert(icon_id, CustomIcon::new(icon_id, None, Some(Times::epoch()), vec![1, 2, 3, 4]));
+        destination_db.meta.custom_icons.insert(
+            icon_id,
+            CustomIcon::new(icon_id, None, Some(Times::epoch()), vec![1, 2, 3, 4]),
+        );
 
         let mut source_db = destination_db.clone();
 
@@ -2302,10 +2652,10 @@ mod merge_tests {
         let mut destination_db = create_test_database();
 
         let icon_id = Uuid::new_v4();
-        destination_db
-            .meta
-            .custom_icons
-            .insert(icon_id, CustomIcon::new(icon_id, None, Some(Times::epoch()), vec![1, 2, 3, 4]));
+        destination_db.meta.custom_icons.insert(
+            icon_id,
+            CustomIcon::new(icon_id, None, Some(Times::epoch()), vec![1, 2, 3, 4]),
+        );
 
         let source_db = destination_db.clone();
 

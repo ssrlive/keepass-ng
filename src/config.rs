@@ -87,11 +87,17 @@ pub enum OuterCipherConfigError {
 }
 
 impl OuterCipherConfig {
-    pub(crate) fn get_cipher(&self, key: &[u8], iv: &[u8]) -> Result<Box<dyn ciphers::Cipher>, CryptographyError> {
+    pub(crate) fn get_cipher(
+        &self,
+        key: &[u8],
+        iv: &[u8],
+    ) -> Result<Box<dyn ciphers::Cipher>, CryptographyError> {
         match self {
             OuterCipherConfig::AES256 => Ok(Box::new(ciphers::AES256Cipher::new(key, iv))),
             OuterCipherConfig::Twofish => Ok(Box::new(ciphers::TwofishCipher::new(key, iv))),
-            OuterCipherConfig::ChaCha20 => Ok(Box::new(ciphers::ChaCha20Cipher::new_key_iv(key, iv)?)),
+            OuterCipherConfig::ChaCha20 => {
+                Ok(Box::new(ciphers::ChaCha20Cipher::new_key_iv(key, iv)?))
+            }
         }
     }
 
@@ -149,11 +155,20 @@ pub enum InnerCipherConfigError {
 }
 
 impl InnerCipherConfig {
-    pub(crate) fn get_cipher(&self, protected_stream_key: &[u8]) -> Result<Box<dyn ciphers::Cipher>, CryptographyError> {
+    pub(crate) fn get_cipher(
+        &self,
+        protected_stream_key: &[u8],
+    ) -> Result<Box<dyn ciphers::Cipher>, CryptographyError> {
         match self {
-            InnerCipherConfig::Plain => Ok(Box::new(ciphers::PlainCipher::new(protected_stream_key))),
-            InnerCipherConfig::Salsa20 => Ok(Box::new(ciphers::Salsa20Cipher::new(protected_stream_key))),
-            InnerCipherConfig::ChaCha20 => Ok(Box::new(ciphers::ChaCha20Cipher::new(protected_stream_key)?)),
+            InnerCipherConfig::Plain => {
+                Ok(Box::new(ciphers::PlainCipher::new(protected_stream_key)))
+            }
+            InnerCipherConfig::Salsa20 => {
+                Ok(Box::new(ciphers::Salsa20Cipher::new(protected_stream_key)))
+            }
+            InnerCipherConfig::ChaCha20 => Ok(Box::new(ciphers::ChaCha20Cipher::new(
+                protected_stream_key,
+            )?)),
         }
     }
 
@@ -222,7 +237,10 @@ pub enum KdfConfig {
         parallelism: u32,
 
         /// The version of the Argon2 algorithm to use when deriving keys
-        #[cfg_attr(feature = "serialization", serde(serialize_with = "serialize_argon2_version"))]
+        #[cfg_attr(
+            feature = "serialization",
+            serde(serialize_with = "serialize_argon2_version")
+        )]
         version: argon2::Version,
     },
     /// Derive keys with Argon2id
@@ -240,7 +258,10 @@ pub enum KdfConfig {
         parallelism: u32,
 
         /// The version of the Argon2 algorithm to use when deriving keys
-        #[cfg_attr(feature = "serialization", serde(serialize_with = "serialize_argon2_version"))]
+        #[cfg_attr(
+            feature = "serialization",
+            serde(serialize_with = "serialize_argon2_version")
+        )]
         version: argon2::Version,
     },
 }
@@ -279,7 +300,9 @@ impl KdfConfig {
     /// For writing out a database, generate a new KDF seed from the config and return the KDF
     /// and the generated seed
     #[cfg(feature = "save_kdbx4")]
-    pub(crate) fn get_kdf_and_seed(&self) -> Result<(Box<dyn kdf::Kdf>, Vec<u8>), getrandom::Error> {
+    pub(crate) fn get_kdf_and_seed(
+        &self,
+    ) -> Result<(Box<dyn kdf::Kdf>, Vec<u8>), getrandom::Error> {
         let mut kdf_seed = vec![0; self.seed_size()];
         getrandom::fill(&mut kdf_seed)?;
 

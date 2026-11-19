@@ -41,7 +41,9 @@ impl TryFrom<Icon> for IconId {
     fn try_from(icon: Icon) -> Result<Self, Self::Error> {
         match icon {
             Icon::BuiltIn(icon_id) => Ok(icon_id),
-            Icon::Custom(_) => Err(std::io::Error::other("Custom icon cannot be converted to IconId")),
+            Icon::Custom(_) => Err(std::io::Error::other(
+                "Custom icon cannot be converted to IconId",
+            )),
         }
     }
 }
@@ -50,7 +52,9 @@ impl TryFrom<Icon> for Uuid {
     type Error = std::io::Error;
     fn try_from(icon: Icon) -> Result<Self, Self::Error> {
         match icon {
-            Icon::BuiltIn(_) => Err(std::io::Error::other("Built-in icon cannot be converted to Uuid")),
+            Icon::BuiltIn(_) => Err(std::io::Error::other(
+                "Built-in icon cannot be converted to Uuid",
+            )),
             Icon::Custom(uuid) => Ok(uuid),
         }
     }
@@ -82,7 +86,12 @@ impl CustomIcon {
         self.name.as_deref()
     }
 
-    pub fn new(id: Uuid, name: Option<String>, last_modification_time: Option<NaiveDateTime>, data: Vec<u8>) -> Self {
+    pub fn new(
+        id: Uuid,
+        name: Option<String>,
+        last_modification_time: Option<NaiveDateTime>,
+        data: Vec<u8>,
+    ) -> Self {
         Self {
             id,
             name,

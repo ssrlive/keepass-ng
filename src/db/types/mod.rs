@@ -23,9 +23,9 @@ pub use icon::{CustomIcon, Icon};
 pub use iconid::IconId;
 pub use meta::{MemoryProtection, Meta};
 pub use node::{
-    Node, NodeIterator, NodePtr, SerializableNodePtr, group_add_child, group_get_children, group_remove_node_by_uuid, node_is_entry,
-    node_is_equals_to, node_is_group, rc_refcell_node, search_node_by_uuid, search_node_by_uuid_with_specific_type, with_node,
-    with_node_mut,
+    Node, NodeIterator, NodePtr, SerializableNodePtr, group_add_child, group_get_children,
+    group_remove_node_by_uuid, node_is_entry, node_is_equals_to, node_is_group, rc_refcell_node,
+    search_node_by_uuid, search_node_by_uuid_with_specific_type, with_node, with_node_mut,
 };
 pub use times::Times;
 pub use value::Value;
@@ -89,7 +89,11 @@ impl Database {
             }
 
             if let Some(entry) = node.downcast_ref::<Entry>() {
-                for history_entry in entry.get_history().iter().flat_map(|history| &history.entries) {
+                for history_entry in entry
+                    .get_history()
+                    .iter()
+                    .flat_map(|history| &history.entries)
+                {
                     if let Icon::Custom(uuid) = history_entry.icon {
                         referenced.insert(uuid);
                     }
@@ -98,7 +102,9 @@ impl Database {
         }
 
         let before = self.meta.custom_icons.len();
-        self.meta.custom_icons.retain(|uuid, _| referenced.contains(uuid));
+        self.meta
+            .custom_icons
+            .retain(|uuid, _| referenced.contains(uuid));
         before - self.meta.custom_icons.len()
     }
 
@@ -138,7 +144,10 @@ impl Database {
         }
     }
 
-    pub(crate) fn from_parsed_xml(parsed: crate::format::xml_db::ParsedXml, config: DatabaseConfig) -> Database {
+    pub(crate) fn from_parsed_xml(
+        parsed: crate::format::xml_db::ParsedXml,
+        config: DatabaseConfig,
+    ) -> Database {
         Self {
             config,
             root: rc_refcell_node(parsed.root_group).into(),
@@ -168,7 +177,10 @@ impl Database {
 
     pub fn node_is_recycle_bin(&self, node: &NodePtr) -> bool {
         let uuid = node.borrow().get_uuid();
-        node_is_group(node) && self.get_recycle_bin().is_some_and(|bin| bin.borrow().get_uuid() == uuid)
+        node_is_group(node)
+            && self
+                .get_recycle_bin()
+                .is_some_and(|bin| bin.borrow().get_uuid() == uuid)
     }
 
     pub fn node_is_in_recycle_bin(&self, node: Uuid) -> bool {
@@ -203,7 +215,9 @@ impl Database {
             return Err(Error::RecycleBinAlreadyExists);
         }
         let recycle_bin = rc_refcell_node(Group::new("Recycle Bin"));
-        recycle_bin.borrow_mut().set_icon(Icon::BuiltIn(IconId::RECYCLE_BIN));
+        recycle_bin
+            .borrow_mut()
+            .set_icon(Icon::BuiltIn(IconId::RECYCLE_BIN));
         self.meta.recyclebin_uuid = Some(recycle_bin.borrow().get_uuid());
         let count = group_get_children(&self.root).ok_or("")?.len();
         group_add_child(&self.root, recycle_bin.clone(), count)?;
@@ -217,7 +231,10 @@ impl Database {
             return Ok(node);
         }
         let node_in_recycle_bin = self.node_is_in_recycle_bin(uuid);
-        let recycle_bin = self.get_recycle_bin().ok_or("").or_else(|_| self.create_recycle_bin())?;
+        let recycle_bin = self
+            .get_recycle_bin()
+            .ok_or("")
+            .or_else(|_| self.create_recycle_bin())?;
         let recycle_bin_uuid = recycle_bin.borrow().get_uuid();
         // This can remove the recycle bin itself, or node in the recycle bin, or node not in the recycle bin
         let node = group_remove_node_by_uuid(&self.root, uuid)?;
@@ -233,7 +250,11 @@ impl Database {
         search_node_by_uuid(&self.root, uuid)
     }
 
-    fn create_new_node<T: Node + Default>(&self, parent: Uuid, index: usize) -> crate::Result<NodePtr> {
+    fn create_new_node<T: Node + Default>(
+        &self,
+        parent: Uuid,
+        index: usize,
+    ) -> crate::Result<NodePtr> {
         let new_node = rc_refcell_node(T::default());
         let parent = search_node_by_uuid_with_specific_type::<Group>(&self.root, parent)
             .or_else(|| Some(self.root.clone().into()))

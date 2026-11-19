@@ -4,10 +4,11 @@
 use std::io::Cursor;
 
 use keepass_ng::{
-    CompressionConfig, DatabaseConfig, DatabaseKey, DatabaseVersion, InnerCipherConfig, KdfConfig, OuterCipherConfig,
+    CompressionConfig, DatabaseConfig, DatabaseKey, DatabaseVersion, InnerCipherConfig, KdfConfig,
+    OuterCipherConfig,
     db::{
-        Database, Entry, Group, Node, NodeIterator, Value, group_add_child, group_get_children, node_is_entry, node_is_group,
-        rc_refcell_node, with_node, with_node_mut,
+        Database, Entry, Group, Node, NodeIterator, Value, group_add_child, group_get_children,
+        node_is_entry, node_is_group, rc_refcell_node, with_node, with_node_mut,
     },
 };
 
@@ -129,7 +130,10 @@ pub fn round_trip_combos() -> Vec<Combo> {
         ("chacha20", OuterCipherConfig::ChaCha20),
         ("twofish", OuterCipherConfig::Twofish),
     ];
-    let comp = [("gz", CompressionConfig::GZip), ("none", CompressionConfig::None)];
+    let comp = [
+        ("gz", CompressionConfig::GZip),
+        ("none", CompressionConfig::None),
+    ];
     let inner = [
         ("inner-chacha20", InnerCipherConfig::ChaCha20),
         ("inner-salsa20", InnerCipherConfig::Salsa20),
@@ -144,7 +148,8 @@ pub fn round_trip_combos() -> Vec<Combo> {
         for (cm_l, cm) in &comp {
             for (ic_l, ic) in &inner {
                 for (kd_l, kd) in &kdfs {
-                    let label: &'static str = Box::leak(format!("{oc_l}+{cm_l}+{ic_l}+{kd_l}").into_boxed_str());
+                    let label: &'static str =
+                        Box::leak(format!("{oc_l}+{cm_l}+{ic_l}+{kd_l}").into_boxed_str());
                     combos.push(Combo {
                         label,
                         outer_cipher: oc.clone(),
@@ -168,7 +173,8 @@ pub fn round_trip_combos() -> Vec<Combo> {
         ("kf-xmlv2", KeyfileKind::XmlV2(keyfile_seed)),
     ];
     for (kf_l, kf) in &kinds {
-        let label: &'static str = Box::leak(format!("aes256+gz+inner-chacha20+argon2d+{kf_l}").into_boxed_str());
+        let label: &'static str =
+            Box::leak(format!("aes256+gz+inner-chacha20+argon2d+{kf_l}").into_boxed_str());
         combos.push(Combo {
             label,
             outer_cipher: OuterCipherConfig::AES256,
@@ -224,7 +230,9 @@ impl Combo {
             MasterKey::Password(p) => DatabaseKey::new().with_password(p),
             MasterKey::Keyfile(k) => {
                 let bytes = k.to_bytes();
-                DatabaseKey::new().with_keyfile(&mut Cursor::new(bytes)).expect("keyfile read")
+                DatabaseKey::new()
+                    .with_keyfile(&mut Cursor::new(bytes))
+                    .expect("keyfile read")
             }
             MasterKey::PasswordAndKeyfile(p, k) => {
                 let bytes = k.to_bytes();
@@ -240,7 +248,8 @@ impl Combo {
         let db = Database::new(self.get_config());
         let root_uuid = db.root.borrow().get_uuid();
         let entry = db.create_new_entry(root_uuid, 0).expect("create entry");
-        with_node_mut::<Entry, _, _>(&entry, |entry| entry.set_title(Some("only-entry"))).expect("entry node");
+        with_node_mut::<Entry, _, _>(&entry, |entry| entry.set_title(Some("only-entry")))
+            .expect("entry node");
         db
     }
 
@@ -261,13 +270,21 @@ impl Combo {
                 entry.set_password(Some(&format!("pw-{i:02}")));
                 entry.set_url(Some(&format!("https://example.invalid/{i}")));
                 entry
-                    .set_additional_attribute(&format!("custom.unprotected.{i}"), Some(&format!("plain-{i}")))
+                    .set_additional_attribute(
+                        &format!("custom.unprotected.{i}"),
+                        Some(&format!("plain-{i}")),
+                    )
                     .unwrap();
                 entry
-                    .set_additional_attribute(&format!("custom.protected.{i}"), Some(&format!("secret-{i}")))
+                    .set_additional_attribute(
+                        &format!("custom.protected.{i}"),
+                        Some(&format!("secret-{i}")),
+                    )
                     .unwrap();
                 if i % 2 == 0 {
-                    entry.get_tags_mut().extend([format!("tag-{i}"), "fixture".to_string()]);
+                    entry
+                        .get_tags_mut()
+                        .extend([format!("tag-{i}"), "fixture".to_string()]);
                 }
             })
             .expect("entry node");
@@ -281,21 +298,25 @@ impl Combo {
 
         let first_entry = first_entry.expect("at least one entry created");
         with_node_mut::<Entry, _, _>(&first_entry, |entry| {
-            entry
-                .attachments
-                .insert("small.bin".to_string(), crate_attachment(Value::unprotected(b"small".to_vec())));
+            entry.attachments.insert(
+                "small.bin".to_string(),
+                crate_attachment(Value::unprotected(b"small".to_vec())),
+            );
             let noise = {
                 let mut buf = vec![0u8; 4 * 1024];
                 let mut r = StdRng::seed_from_u64(MASTER_SEED ^ 0xA);
                 r.fill_bytes(&mut buf);
                 buf
             };
-            entry
-                .attachments
-                .insert("noise.bin".to_string(), crate_attachment(Value::unprotected(noise)));
+            entry.attachments.insert(
+                "noise.bin".to_string(),
+                crate_attachment(Value::unprotected(noise)),
+            );
             entry.attachments.insert(
                 "nonutf8.bin".to_string(),
-                crate_attachment(Value::unprotected(vec![0xFF, 0xFE, 0xFD, 0x80, 0x81, 0x82, 0x00, 0x01])),
+                crate_attachment(Value::unprotected(vec![
+                    0xFF, 0xFE, 0xFD, 0x80, 0x81, 0x82, 0x00, 0x01,
+                ])),
             );
         })
         .expect("entry node");
@@ -319,7 +340,8 @@ pub fn save_to_vec(db: &Database, key: DatabaseKey) -> Vec<u8> {
 #[cfg(feature = "save_kdbx4")]
 pub fn save_then_open(db: &Database, key: DatabaseKey) -> std::io::Result<Database> {
     let mut buf = Vec::new();
-    db.save(&mut buf, key.clone()).map_err(std::io::Error::other)?;
+    db.save(&mut buf, key.clone())
+        .map_err(std::io::Error::other)?;
     Database::open(&mut buf.as_slice(), key).map_err(std::io::Error::other)
 }
 
@@ -346,5 +368,8 @@ pub fn total_attachments(db: &Database) -> usize {
 }
 
 pub fn entry_with_attachment(db: &Database, name: &str) -> Option<keepass_ng::db::NodePtr> {
-    NodeIterator::new(&db.root).find(|node| with_node::<Entry, _, _>(node, |entry| entry.attachments.contains_key(name)).unwrap_or(false))
+    NodeIterator::new(&db.root).find(|node| {
+        with_node::<Entry, _, _>(node, |entry| entry.attachments.contains_key(name))
+            .unwrap_or(false)
+    })
 }

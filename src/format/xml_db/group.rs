@@ -23,13 +23,26 @@ pub(crate) struct GroupXml {
     #[serde(default, with = "cs_opt_string")]
     pub name: Option<String>,
 
-    #[serde(default, with = "cs_opt_string", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        with = "cs_opt_string",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub notes: Option<String>,
 
-    #[serde(default, with = "cs_opt_string", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        with = "cs_opt_string",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub tags: Option<String>,
 
-    #[serde(default, rename = "IconID", with = "cs_opt_fromstr", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        rename = "IconID",
+        with = "cs_opt_fromstr",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub icon_id: Option<usize>,
 
     #[serde(
@@ -43,10 +56,19 @@ pub(crate) struct GroupXml {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub times: Option<TimesXml>,
 
-    #[serde(default, rename = "IsExpanded", with = "cs_opt_bool", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        rename = "IsExpanded",
+        with = "cs_opt_bool",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub is_expanded: Option<bool>,
 
-    #[serde(default, with = "cs_opt_string", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        with = "cs_opt_string",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub default_auto_type_sequence: Option<String>,
 
     #[serde(default, with = "cs_opt_bool")]
@@ -55,7 +77,11 @@ pub(crate) struct GroupXml {
     #[serde(default, with = "cs_opt_bool")]
     pub enable_searching: Option<bool>,
 
-    #[serde(default, with = "cs_opt_string", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        with = "cs_opt_string",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub last_top_visible_entry: Option<UuidBase64>,
 
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -88,7 +114,10 @@ impl GroupXml {
         target.icon = self
             .custom_icon_uuid
             .map(|uuid| crate::db::Icon::Custom(uuid.0))
-            .or_else(|| self.icon_id.and_then(|id| id.try_into().ok().map(crate::db::Icon::BuiltIn)))
+            .or_else(|| {
+                self.icon_id
+                    .and_then(|id| id.try_into().ok().map(crate::db::Icon::BuiltIn))
+            })
             .unwrap_or(crate::db::Icon::BuiltIn(crate::db::IconId::FOLDER));
 
         target.times = self.times.map(|t| t.into()).unwrap_or_default();
@@ -140,10 +169,12 @@ impl GroupXml {
         for child in source.get_children() {
             let child = child.borrow();
             if let Some(group) = child.downcast_ref::<crate::db::Group>() {
-                let group = GroupXml::db_to_xml(group, inner_cipher, attachments).map_err(std::io::Error::other)?;
+                let group = GroupXml::db_to_xml(group, inner_cipher, attachments)
+                    .map_err(std::io::Error::other)?;
                 children.push(GroupOrEntryXml::Group(group));
             } else if let Some(entry) = child.downcast_ref::<crate::db::Entry>() {
-                let entry = EntryXml::db_to_xml(entry, inner_cipher, attachments).map_err(std::io::Error::other)?;
+                let entry = EntryXml::db_to_xml(entry, inner_cipher, attachments)
+                    .map_err(std::io::Error::other)?;
                 children.push(GroupOrEntryXml::Entry(entry));
             } else {
                 let msg = format!("Unknown child type in group: {:?}", child);
@@ -236,14 +267,20 @@ mod tests {
         </Group>"#;
 
         let group: Test<GroupXml> = quick_xml::de::from_str(xml).unwrap();
-        assert_eq!(group.0.uuid.0.to_string(), "00010203-0405-0607-0809-0a0b0c0d0e0f");
+        assert_eq!(
+            group.0.uuid.0.to_string(),
+            "00010203-0405-0607-0809-0a0b0c0d0e0f"
+        );
         assert_eq!(group.0.name.as_deref(), Some("Example Group"));
         assert_eq!(group.0.notes.unwrap(), "This is a test group.");
         assert_eq!(group.0.icon_id.unwrap(), 48);
         let uuid = group.0.custom_icon_uuid.unwrap().0.to_string();
         assert_eq!(uuid, "a1a2a3a4-b1b2-c1c2-d1d2-d3d4d5d6d7d8");
         assert_eq!(group.0.is_expanded, Some(true));
-        assert_eq!(group.0.default_auto_type_sequence.unwrap(), "{USERNAME}{TAB}{PASSWORD}{ENTER}");
+        assert_eq!(
+            group.0.default_auto_type_sequence.unwrap(),
+            "{USERNAME}{TAB}{PASSWORD}{ENTER}"
+        );
         assert!(group.0.enable_auto_type.unwrap());
         assert!(!group.0.enable_searching.unwrap());
         assert!(group.0.custom_data.is_some());

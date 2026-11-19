@@ -52,7 +52,8 @@ pub fn main() -> Result<(), BoxError> {
 
     let yubikey = ChallengeResponseKey::get_yubikey(args.serial_number)?;
 
-    key = key.with_challenge_response_key(ChallengeResponseKey::YubikeyChallenge(yubikey, args.slot));
+    key =
+        key.with_challenge_response_key(ChallengeResponseKey::YubikeyChallenge(yubikey, args.slot));
 
     let db = Database::open(&mut source, key.clone())?;
 

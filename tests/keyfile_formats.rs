@@ -20,8 +20,11 @@ fn drive(kind: KeyfileKind, label: &str) {
     let db = combo.minimal_database();
     let saved = common::save_to_vec(&db, key);
 
-    let reopen_key = DatabaseKey::new().with_keyfile(&mut Cursor::new(bytes)).expect("keyfile parse 2");
-    let parsed = Database::open(&mut saved.as_slice(), reopen_key).unwrap_or_else(|e| panic!("{} reopen failed: {:?}", label, e));
+    let reopen_key = DatabaseKey::new()
+        .with_keyfile(&mut Cursor::new(bytes))
+        .expect("keyfile parse 2");
+    let parsed = Database::open(&mut saved.as_slice(), reopen_key)
+        .unwrap_or_else(|e| panic!("{} reopen failed: {:?}", label, e));
     assert_eq!(root_entries(&parsed).len(), 1);
     assert_eq!(root_groups(&parsed).len(), 0);
 }

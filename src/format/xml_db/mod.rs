@@ -26,7 +26,9 @@ impl<'de> Deserialize<'de> for UuidBase64 {
         D: serde::Deserializer<'de>,
     {
         let input = String::deserialize(deserializer)?;
-        let value = base64_engine::STANDARD.decode(input).map_err(serde::de::Error::custom)?;
+        let value = base64_engine::STANDARD
+            .decode(input)
+            .map_err(serde::de::Error::custom)?;
         let uuid = Uuid::from_slice(&value).map_err(serde::de::Error::custom)?;
         Ok(Self(uuid))
     }
@@ -68,7 +70,12 @@ struct DeletedObjectXml {
     #[serde(rename = "UUID")]
     uuid: UuidBase64,
 
-    #[serde(default, rename = "DeletionTime", alias = "deletion_time", with = "cs_opt_string")]
+    #[serde(
+        default,
+        rename = "DeletionTime",
+        alias = "deletion_time",
+        with = "cs_opt_string"
+    )]
     deletion_time: Option<timestamp::Timestamp>,
 }
 
@@ -118,10 +125,15 @@ pub(crate) fn parse_xml_bytes(
     let deleted_objects = parsed
         .root
         .deleted_objects
-        .unwrap_or(DeletedObjectsXml { objects: Vec::new() })
+        .unwrap_or(DeletedObjectsXml {
+            objects: Vec::new(),
+        })
         .objects
         .into_iter()
-        .filter_map(|item| item.deletion_time.map(|deletion_time| (item.uuid.0, Some(deletion_time.into()))))
+        .filter_map(|item| {
+            item.deletion_time
+                .map(|deletion_time| (item.uuid.0, Some(deletion_time.into())))
+        })
         .collect();
 
     Ok(ParsedXml {
@@ -132,12 +144,17 @@ pub(crate) fn parse_xml_bytes(
 }
 
 #[cfg(feature = "save_kdbx4")]
-pub(crate) fn to_xml_bytes(db: &Database, inner_cipher: &mut dyn Cipher) -> Result<(Vec<Attachment>, Vec<u8>), parse::XmlParseError> {
+pub(crate) fn to_xml_bytes(
+    db: &Database,
+    inner_cipher: &mut dyn Cipher,
+) -> Result<(Vec<Attachment>, Vec<u8>), parse::XmlParseError> {
     let root_group = db
         .root
         .borrow()
         .downcast_ref::<Group>()
-        .ok_or_else(|| parse::XmlParseError::Schema("database root node is not a group".to_string()))?
+        .ok_or_else(|| {
+            parse::XmlParseError::Schema("database root node is not a group".to_string())
+        })?
         .clone();
 
     let mut attachments = Vec::new();
@@ -165,7 +182,10 @@ pub(crate) fn to_xml_bytes(db: &Database, inner_cipher: &mut dyn Cipher) -> Resu
         "KeePassFile",
         &KeePassFileXml {
             meta: meta_xml,
-            root: RootXml { group, deleted_objects },
+            root: RootXml {
+                group,
+                deleted_objects,
+            },
         },
     )
     .map_err(parse::XmlParseError::XmlSerialize)?;
@@ -176,12 +196,15 @@ pub(crate) fn to_xml_bytes(db: &Database, inner_cipher: &mut dyn Cipher) -> Resu
 #[cfg(feature = "save_kdbx4")]
 #[cfg(test)]
 mod tests {
-    use super::{DeletedObjectXml, UuidBase64, parse_xml_bytes, timestamp::Timestamp, to_xml_bytes};
+    use super::{
+        DeletedObjectXml, UuidBase64, parse_xml_bytes, timestamp::Timestamp, to_xml_bytes,
+    };
     use crate::{
         config::{DatabaseConfig, InnerCipherConfig},
         db::{
-            AutoType, AutoTypeAssociation, CustomDataItem, CustomDataValue, CustomIcon, DataTransferObfuscation, Database, Entry, Group,
-            History, Icon, MemoryProtection, Meta, Times, group_get_children, node::*, node_is_equals_to, rc_refcell_node,
+            AutoType, AutoTypeAssociation, CustomDataItem, CustomDataValue, CustomIcon,
+            DataTransferObfuscation, Database, Entry, Group, History, Icon, MemoryProtection, Meta,
+            Times, group_get_children, node::*, node_is_equals_to, rc_refcell_node,
         },
         format::{kdbx4, xml_db::group::GroupXml},
         key::DatabaseKey,
@@ -263,9 +286,10 @@ mod tests {
         let mut db = Database::new(DatabaseConfig::default());
         db.root = root_group.into();
         let custom_icon_id = uuid!("22222222222222222222222222222222");
-        db.meta
-            .custom_icons
-            .insert(custom_icon_id, CustomIcon::new(custom_icon_id, None, None, Vec::new()));
+        db.meta.custom_icons.insert(
+            custom_icon_id,
+            CustomIcon::new(custom_icon_id, None, None, Vec::new()),
+        );
 
         let db_key = make_key();
 
@@ -303,12 +327,17 @@ mod tests {
             subgroup.times.set_expires(true);
             subgroup.times.set_usage_count(100);
             subgroup.times.set_creation(Some(NaiveDateTime::default()));
-            subgroup.times.set_expiry_time(Some(NaiveDateTime::default()));
-            subgroup.times.set_last_access(Some(NaiveDateTime::default()));
+            subgroup
+                .times
+                .set_expiry_time(Some(NaiveDateTime::default()));
+            subgroup
+                .times
+                .set_last_access(Some(NaiveDateTime::default()));
             subgroup.times.set_location_changed(Some(Times::now()));
             subgroup.times.set_last_modification(Some(Times::now()));
             subgroup.is_expanded = true;
-            subgroup.default_autotype_sequence = Some("{UP}{UP}{DOWN}{DOWN}{LEFT}{RIGHT}{LEFT}{RIGHT}BA".to_string());
+            subgroup.default_autotype_sequence =
+                Some("{UP}{UP}{DOWN}{DOWN}{LEFT}{RIGHT}{LEFT}{RIGHT}BA".to_string());
             subgroup.enable_autotype = Some(true);
             subgroup.enable_searching = Some(false);
 
@@ -348,9 +377,10 @@ mod tests {
     pub fn test_meta() {
         let mut db = Database::new(DatabaseConfig::default());
         let custom_icon_id = uuid!("11111111111111111111111111111111");
-        db.meta
-            .custom_icons
-            .insert(custom_icon_id, CustomIcon::new(custom_icon_id, None, None, vec![1, 2, 3, 4]));
+        db.meta.custom_icons.insert(
+            custom_icon_id,
+            CustomIcon::new(custom_icon_id, None, None, vec![1, 2, 3, 4]),
+        );
         with_node_mut::<Group, _, _>(&db.root, |root| {
             root.icon = Icon::Custom(custom_icon_id);
         })
@@ -421,8 +451,19 @@ mod tests {
         let decrypted_db = kdbx4::parse_kdbx4(&encrypted_db, &db_key).unwrap();
 
         assert_eq!(decrypted_db.meta, meta);
-        assert_eq!(decrypted_db.meta.custom_icons.get(&custom_icon_id).unwrap().data, vec![1, 2, 3, 4]);
-        assert_eq!(decrypted_db.root.borrow().get_icon(), Icon::Custom(custom_icon_id));
+        assert_eq!(
+            decrypted_db
+                .meta
+                .custom_icons
+                .get(&custom_icon_id)
+                .unwrap()
+                .data,
+            vec![1, 2, 3, 4]
+        );
+        assert_eq!(
+            decrypted_db.root.borrow().get_icon(),
+            Icon::Custom(custom_icon_id)
+        );
     }
 
     #[test]
@@ -451,11 +492,13 @@ mod tests {
         let deleted_object = DeletedObjectXml {
             uuid: UuidBase64(Uuid::nil()),
             deletion_time: Some(Timestamp::new_iso8601(
-                chrono::NaiveDateTime::parse_from_str("2026-08-15T12:34:56", "%Y-%m-%dT%H:%M:%S").unwrap(),
+                chrono::NaiveDateTime::parse_from_str("2026-08-15T12:34:56", "%Y-%m-%dT%H:%M:%S")
+                    .unwrap(),
             )),
         };
 
-        let serialized = quick_xml::se::to_string_with_root("DeletedObject", &deleted_object).unwrap();
+        let serialized =
+            quick_xml::se::to_string_with_root("DeletedObject", &deleted_object).unwrap();
 
         assert!(serialized.contains("<DeletionTime>"));
         assert!(!serialized.contains("<deletion_time>"));
@@ -485,7 +528,9 @@ mod tests {
                </DeletedObjects>
             </Root>
         </KeePassFile>"#;
-        let mut cipher = crate::config::InnerCipherConfig::Plain.get_cipher(&[]).unwrap();
+        let mut cipher = crate::config::InnerCipherConfig::Plain
+            .get_cipher(&[])
+            .unwrap();
         let parsed = parse_xml_bytes(xml.as_bytes(), &[], &mut *cipher).unwrap();
         let db = Database::from_parsed_xml(parsed, DatabaseConfig::default());
         let (_, serialized) = to_xml_bytes(&db, &mut *cipher).unwrap();

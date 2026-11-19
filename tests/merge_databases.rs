@@ -39,7 +39,9 @@ fn merge_databases_tests() -> Result<(), Box<dyn std::error::Error>> {
     // Edit shared field, but later for destination (destination wins).
     // Times::now() has second precision, so sleep 1 s between the two edits to
     // guarantee destination's timestamp is strictly greater than source's.
-    let source_shared_entry = source.search_node_by_uuid(shared_entry_id).ok_or("shared source entry missing")?;
+    let source_shared_entry = source
+        .search_node_by_uuid(shared_entry_id)
+        .ok_or("shared source entry missing")?;
     with_node_mut::<Entry, _, _>(&source_shared_entry, |entry| {
         let current_time = entry.get_times().get_last_modification().unwrap();
         entry.set_username(Some("LosingUser"));
@@ -79,12 +81,20 @@ fn merge_databases_tests() -> Result<(), Box<dyn std::error::Error>> {
 
     // Categorise each change by matching on the public event enums.
     println!("Applied {} change(s):", log.events.len());
-    for MergeEvent { node_uuid, event_type } in &log.events {
+    for MergeEvent {
+        node_uuid,
+        event_type,
+    } in &log.events
+    {
         let kind = match event_type {
-            MergeEventType::EntryCreated | MergeEventType::GroupCreated | MergeEventType::IconCreated => "created",
+            MergeEventType::EntryCreated
+            | MergeEventType::GroupCreated
+            | MergeEventType::IconCreated => "created",
             MergeEventType::EntryDeleted | MergeEventType::GroupDeleted => "deleted",
             MergeEventType::EntryLocationUpdated | MergeEventType::GroupLocationUpdated => "moved",
-            MergeEventType::EntryUpdated | MergeEventType::GroupUpdated | MergeEventType::IconUpdated => "updated",
+            MergeEventType::EntryUpdated
+            | MergeEventType::GroupUpdated
+            | MergeEventType::IconUpdated => "updated",
         };
         println!("  - {kind} object {node_uuid}");
     }
@@ -107,7 +117,11 @@ fn merge_databases_tests() -> Result<(), Box<dyn std::error::Error>> {
     with_node::<Entry, _, _>(&merged_shared_entry, |entry| {
         assert_eq!(entry.get_username(), Some("WinningUser"));
     });
-    assert!(destination.search_node_by_uuid(source_entry.borrow().get_uuid()).is_some());
+    assert!(
+        destination
+            .search_node_by_uuid(source_entry.borrow().get_uuid())
+            .is_some()
+    );
 
     Ok(())
 }

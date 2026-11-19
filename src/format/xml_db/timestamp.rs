@@ -62,7 +62,9 @@ impl<'de> Deserialize<'de> for Timestamp {
 
             // If we don't have a valid ISO 8601 string, assume we have found a Base64 encoded int.
             _ => {
-                let v = base64_engine::STANDARD.decode(t).map_err(serde::de::Error::custom)?;
+                let v = base64_engine::STANDARD
+                    .decode(t)
+                    .map_err(serde::de::Error::custom)?;
 
                 // Cast the decoded base64 Vec into the array expected by i64::from_le_bytes
                 let mut a: [u8; 8] = [0, 0, 0, 0, 0, 0, 0, 0];
@@ -133,7 +135,8 @@ mod tests {
     fn test_serialize_timestamp_iso8601() {
         let ts = Timestamp {
             mode: TimestampMode::Iso8601,
-            time: NaiveDateTime::parse_from_str("2023-10-05T12:34:56", "%Y-%m-%dT%H:%M:%S").unwrap(),
+            time: NaiveDateTime::parse_from_str("2023-10-05T12:34:56", "%Y-%m-%dT%H:%M:%S")
+                .unwrap(),
         };
         let serialized = quick_xml::se::to_string(&Test(ts)).unwrap();
         assert_eq!(serialized, "<Test>2023-10-05T12:34:56Z</Test>");
