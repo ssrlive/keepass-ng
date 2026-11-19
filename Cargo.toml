@@ -3,7 +3,6 @@ name = "keepass-ng"
 description = "KeePass .kdbx database file parser with ehancements"
 edition = "2024"
 
-homepage = "https://github.com/ssrlive/keepass-ng"
 repository = "https://github.com/ssrlive/keepass-ng"
 documentation = "https://docs.rs/keepass-ng"
 
@@ -59,31 +58,35 @@ required-features = ["utilities", "save_kdbx4"]
 
 [[bin]]
 name = "kp-yk-add"
-required-features = ["utilities", "save_kdbx4", "challenge_response"]
+required-features = ["utilities", "save_kdbx4", "challenge_response_usb"]
 
 [[bin]]
 name = "kp-yk-remove"
-required-features = ["utilities", "save_kdbx4", "challenge_response"]
+required-features = ["utilities", "save_kdbx4", "challenge_response_usb"]
 
 [[bin]]
 name = "kp-yk-recover"
-required-features = ["utilities", "save_kdbx4", "challenge_response"]
+required-features = ["utilities", "save_kdbx4", "challenge_response_usb"]
 
 [features]
 utilities = ["clap", "rpassword", "serialization", "totp"]
 serialization = ["serde_json", "chrono/serde"]
 totp = ["totp-lite", "url", "base32"]
 save_kdbx4 = []
-challenge_response = ["sha1", "dep:challenge_response"]
+challenge_response = ["sha1"]
+challenge_response_usb = [
+  "challenge_response",
+  "dep:challenge_response",
+  "challenge_response/rusb",
+]
 merge = []
 
 # default = ["utilities", "save_kdbx4", "challenge_response", "merge"]
 
 [dependencies]
-aes = "0.9.3"
+aes = "0.9.4"
 base32 = { version = "0.5.1", optional = true }
 base64 = "0.23.1"
-block-modes = "0.9.1"
 byteorder = "1.5.0"
 cbc = "0.2.1"
 chacha20 = "0.10.2"
@@ -96,41 +99,41 @@ chrono = { version = "0.4.45", default-features = false, features = [
   "std",
 ] }
 cipher = { version = "0.5.2", features = ["alloc", "block-padding"] }
-clap = { version = "4.6.6", optional = true, features = ["derive"] }
-flate2 = "1.1.10"
+clap = { version = "4.6.10", optional = true, features = ["derive"] }
+flate2 = "1.1.11"
 getrandom = { version = "0.4.3", features = ["std", "wasm_js"] }
 hex = { version = "0.4.3" }
 hex-literal = "1.1.0"
 hmac = "0.13.0"
-indexmap = { version = "2.14.1", features = ["serde"] }
+indexmap = { version = "2.14.2", features = ["serde"] }
 quick-xml = { version = "0.42.0", features = ["serialize"] }
-rpassword = { version = "7.5.4", optional = true }
+rpassword = { version = "7.5.5", optional = true }
 rust-argon2 = "3.0.0"
 salsa20 = "0.11.0"
 secrecy = "0.10.3"
 serde = { version = "1.0.229", features = ["derive"] }
-serde_json = { version = "1.0.151", optional = true }
+serde_json = { version = "1.0.154", optional = true }
 sha1 = { version = "0.11.0", optional = true }
-sha2 = "0.11.0"
-thiserror = "2.0.20"
+sha2 = "0.11.1"
+thiserror = "2.0.21"
 totp-lite = { version = "2.0.1", optional = true }
 twofish = "0.8.0"
-url = { version = "2.5.8", optional = true }
-uuid = { version = "1.26.0", features = ["v4", "serde", "js"] }
-zeroize = { version = "1.9.0", features = ["zeroize_derive"] }
+url = { version = "2.5.9", optional = true }
+uuid = { version = "1.29.3", features = ["v4", "serde", "js"] }
+zeroize = { version = "1.9.2", features = ["zeroize_derive"] }
 
 # Browser-only deps: wasm32-unknown-unknown is the canonical browser target.
 # wasi-flavoured wasm32 targets (wasm32-wasip1, wasm32-wasip2) use their own
 # backends in getrandom/uuid and cannot resolve js-sys' wasm-bindgen
 # placeholder imports, so they must NOT pull these in.
 [target.'cfg(all(target_arch = "wasm32", target_os = "unknown"))'.dependencies]
-js-sys = "0.3.104"
+js-sys = "0.3.107"
 
 [dev-dependencies]
-rand = "0.10.2"
+rand = "0.10.4"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 tempfile = "3.27.0"
-test-with = { version = "0.17.0", default-features = false, features = [
+test-with = { version = "0.17.3", default-features = false, features = [
   "executable",
 ] }
