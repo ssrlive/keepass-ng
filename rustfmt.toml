@@ -1,2 +1,4 @@
-max_width = 140
-# newline_style = 'unix'
+# rustfmt defaults to edition 2015 when invoked directly on a file (as CI's
+# per-file formatting job does); without this the import sorting disagrees
+# with `cargo fmt`, which formats with the Cargo.toml edition (2024).
+edition = "2024"

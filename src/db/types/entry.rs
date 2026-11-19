@@ -161,7 +161,11 @@ impl Entry {
         self.history = None;
     }
 
-    pub(crate) fn set_unprotected_field_pair(&mut self, field_name: &str, field_value: Option<&str>) {
+    pub(crate) fn set_unprotected_field_pair(
+        &mut self,
+        field_name: &str,
+        field_value: Option<&str>,
+    ) {
         if let Some(field_value) = field_value {
             let v = Value::Unprotected(field_value.to_string());
             self.fields.insert(field_name.to_string(), v);
@@ -170,7 +174,11 @@ impl Entry {
         }
     }
 
-    pub(crate) fn set_protected_field_pair<T: AsRef<[u8]>>(&mut self, field_name: &str, field_value: Option<T>) {
+    pub(crate) fn set_protected_field_pair<T: AsRef<[u8]>>(
+        &mut self,
+        field_name: &str,
+        field_value: Option<T>,
+    ) {
         if let Some(field_value) = field_value {
             let value = String::from_utf8_lossy(field_value.as_ref()).into_owned();
             let v = Value::protected(value);
@@ -180,7 +188,11 @@ impl Entry {
         }
     }
 
-    pub(crate) fn set_binary_field_pair<T: AsRef<[u8]>>(&mut self, field_name: &str, field_value: Option<T>) {
+    pub(crate) fn set_binary_field_pair<T: AsRef<[u8]>>(
+        &mut self,
+        field_name: &str,
+        field_value: Option<T>,
+    ) {
         if let Some(field_value) = field_value {
             self.attachments.insert(
                 field_name.to_string(),
@@ -206,7 +218,9 @@ impl<'a> Entry {
 
     /// Get a bytes field by name
     pub fn get_bytes(&'a self, key: &str) -> Option<&'a [u8]> {
-        self.attachments.get(key).map(|attachment| attachment.data.get().as_slice())
+        self.attachments
+            .get(key)
+            .map(|attachment| attachment.data.get().as_slice())
     }
 
     pub fn get_autotype(&self) -> Option<&AutoType> {
@@ -231,7 +245,11 @@ impl<'a> Entry {
     const EXCLUDED_FIELDS: [&'static str; 9] = ["Password", "BinaryData", "otp", "Title", "URL", "UserName", "Notes", "Additional", "BinaryDesc"];
 
     /// Set or remove additional attributes (custom string data)
-    pub fn set_additional_attribute(&mut self, key: &str, value: Option<&str>) -> crate::Result<()> {
+    pub fn set_additional_attribute(
+        &mut self,
+        key: &str,
+        value: Option<&str>,
+    ) -> crate::Result<()> {
         if Self::EXCLUDED_FIELDS.contains(&key) {
             return Err(format!("Cannot set additional attribute for field {key}").into());
         }
@@ -375,7 +393,10 @@ mod entry_tests {
         assert!(entry.update_history());
         assert!(entry.history.is_some());
         assert_eq!(entry.history.as_ref().unwrap().entries.len(), 1);
-        assert_ne!(entry.times.get_last_modification().unwrap(), last_modification_time);
+        assert_ne!(
+            entry.times.get_last_modification().unwrap(),
+            last_modification_time
+        );
         last_modification_time = entry.times.get_last_modification().unwrap();
         thread::sleep(time::Duration::from_secs(1));
 
@@ -384,35 +405,50 @@ mod entry_tests {
         assert!(!entry.update_history());
         assert!(entry.history.is_some());
         assert_eq!(entry.history.as_ref().unwrap().entries.len(), 1);
-        assert_eq!(entry.times.get_last_modification().unwrap(), last_modification_time);
+        assert_eq!(
+            entry.times.get_last_modification().unwrap(),
+            last_modification_time
+        );
 
         entry.set_title(Some("first title"));
 
         assert!(entry.update_history());
         assert!(entry.history.is_some());
         assert_eq!(entry.history.as_ref().unwrap().entries.len(), 2);
-        assert_ne!(entry.times.get_last_modification().unwrap(), last_modification_time);
+        assert_ne!(
+            entry.times.get_last_modification().unwrap(),
+            last_modification_time
+        );
         last_modification_time = entry.times.get_last_modification().unwrap();
         thread::sleep(time::Duration::from_secs(1));
 
         assert!(!entry.update_history());
         assert!(entry.history.is_some());
         assert_eq!(entry.history.as_ref().unwrap().entries.len(), 2);
-        assert_eq!(entry.times.get_last_modification().unwrap(), last_modification_time);
+        assert_eq!(
+            entry.times.get_last_modification().unwrap(),
+            last_modification_time
+        );
 
         entry.set_title(Some("second title"));
 
         assert!(entry.update_history());
         assert!(entry.history.is_some());
         assert_eq!(entry.history.as_ref().unwrap().entries.len(), 3);
-        assert_ne!(entry.times.get_last_modification().unwrap(), last_modification_time);
+        assert_ne!(
+            entry.times.get_last_modification().unwrap(),
+            last_modification_time
+        );
         last_modification_time = entry.times.get_last_modification().unwrap();
         thread::sleep(time::Duration::from_secs(1));
 
         assert!(!entry.update_history());
         assert!(entry.history.is_some());
         assert_eq!(entry.history.as_ref().unwrap().entries.len(), 3);
-        assert_eq!(entry.times.get_last_modification().unwrap(), last_modification_time);
+        assert_eq!(
+            entry.times.get_last_modification().unwrap(),
+            last_modification_time
+        );
 
         let last_history_entry = entry.history.as_ref().unwrap().entries.first().unwrap();
         assert_eq!(last_history_entry.get_title().unwrap(), "second title");

@@ -1,7 +1,10 @@
 mod large_file_roundtrip_tests {
     use keepass_ng::{
         DatabaseKey,
-        db::{Database, Entry, Group, Node, NodeIterator, group_add_child, rc_refcell_node, with_node, with_node_mut},
+        db::{
+            Database, Entry, Group, Node, NodeIterator, group_add_child, rc_refcell_node,
+            with_node, with_node_mut,
+        },
     };
 
     /// This can be tuned based on how "large" we expect databases to realistically be.
@@ -33,7 +36,10 @@ mod large_file_roundtrip_tests {
         // Define database key.
         let _key = DatabaseKey::new().with_password(TEST_DATABASE_PASSWORD);
         #[cfg(feature = "save_kdbx4")]
-        db.save(&mut std::fs::File::create(TEST_DATABASE_FILE_NAME)?, _key.clone())?;
+        db.save(
+            &mut std::fs::File::create(TEST_DATABASE_FILE_NAME)?,
+            _key.clone(),
+        )?;
 
         // Read the database that was written in the previous block.
         #[cfg(feature = "save_kdbx4")]
@@ -42,7 +48,10 @@ mod large_file_roundtrip_tests {
         let mut entry_counter = 0;
         for node in NodeIterator::new(&db.root) {
             with_node::<Group, _, _>(&node, |group| {
-                println!("Saw group '{}'", group.get_title().expect("Title should be defined"));
+                println!(
+                    "Saw group '{}'",
+                    group.get_title().expect("Title should be defined")
+                );
             });
             with_node::<Entry, _, _>(&node, |entry| {
                 assert_eq!(

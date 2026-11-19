@@ -50,7 +50,8 @@ pub fn main() -> Result<(), BoxError> {
 
     let yubikey = ChallengeResponseKey::get_yubikey(args.serial_number)?;
 
-    let new_key = key.with_challenge_response_key(ChallengeResponseKey::YubikeyChallenge(yubikey, args.slot));
+    let new_key =
+        key.with_challenge_response_key(ChallengeResponseKey::YubikeyChallenge(yubikey, args.slot));
 
     let mut out_file = File::create(args.out_kdbx)?;
 

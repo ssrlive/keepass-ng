@@ -49,7 +49,9 @@ impl VariantDictionary {
     }
 
     pub(crate) fn parse(buffer: &[u8]) -> Result<VariantDictionary, VariantDictionaryError> {
-        let version = buffer.get(0..2).ok_or(VariantDictionaryError::UnexpectedEof)?;
+        let version = buffer
+            .get(0..2)
+            .ok_or(VariantDictionaryError::UnexpectedEof)?;
         let version = LittleEndian::read_u16(version);
 
         if version != VARIANT_DICTIONARY_VERSION {
@@ -60,22 +62,32 @@ impl VariantDictionary {
         let mut data = HashMap::new();
 
         while pos + 9 < buffer.len() {
-            let value_type = *buffer.get(pos).ok_or(VariantDictionaryError::UnexpectedEof)?;
+            let value_type = *buffer
+                .get(pos)
+                .ok_or(VariantDictionaryError::UnexpectedEof)?;
             pos += 1;
 
-            let key_length = buffer.get(pos..(pos + 4)).ok_or(VariantDictionaryError::UnexpectedEof)?;
+            let key_length = buffer
+                .get(pos..(pos + 4))
+                .ok_or(VariantDictionaryError::UnexpectedEof)?;
             let key_length = LittleEndian::read_u32(key_length) as usize;
             pos += 4;
 
-            let key = buffer.get(pos..(pos + key_length)).ok_or(VariantDictionaryError::UnexpectedEof)?;
+            let key = buffer
+                .get(pos..(pos + key_length))
+                .ok_or(VariantDictionaryError::UnexpectedEof)?;
             let key = String::from_utf8_lossy(key).to_string();
             pos += key_length;
 
-            let value_length = buffer.get(pos..(pos + 4)).ok_or(VariantDictionaryError::UnexpectedEof)?;
+            let value_length = buffer
+                .get(pos..(pos + 4))
+                .ok_or(VariantDictionaryError::UnexpectedEof)?;
             let value_length = LittleEndian::read_u32(value_length) as usize;
             pos += 4;
 
-            let value_buffer = buffer.get(pos..(pos + value_length)).ok_or(VariantDictionaryError::UnexpectedEof)?;
+            let value_buffer = buffer
+                .get(pos..(pos + value_length))
+                .ok_or(VariantDictionaryError::UnexpectedEof)?;
             pos += value_length;
 
             let value = match value_type {
@@ -84,7 +96,9 @@ impl VariantDictionary {
                 BOOL_TYPE_ID => VariantDictionaryValue::Bool(value_buffer != [0]),
                 I32_TYPE_ID => VariantDictionaryValue::Int32(LittleEndian::read_i32(value_buffer)),
                 I64_TYPE_ID => VariantDictionaryValue::Int64(LittleEndian::read_i64(value_buffer)),
-                STR_TYPE_ID => VariantDictionaryValue::String(String::from_utf8_lossy(value_buffer).to_string()),
+                STR_TYPE_ID => VariantDictionaryValue::String(
+                    String::from_utf8_lossy(value_buffer).to_string(),
+                ),
                 BYTES_TYPE_ID => VariantDictionaryValue::ByteArray(value_buffer.to_vec()),
                 _ => {
                     return Err(VariantDictionaryError::InvalidValueType { value_type });
@@ -94,7 +108,12 @@ impl VariantDictionary {
             data.insert(key, value);
         }
 
-        if pos == buffer.len() || *buffer.get(pos).ok_or(VariantDictionaryError::UnexpectedEof)? != VARIANT_DICTIONARY_END {
+        if pos == buffer.len()
+            || *buffer
+                .get(pos)
+                .ok_or(VariantDictionaryError::UnexpectedEof)?
+                != VARIANT_DICTIONARY_END
+        {
             // even though we can determine when to stop parsing a VariantDictionary by where we
             // are in the buffer, there should always be a value_type = 0 entry to denote that a
             // VariantDictionary is finished
@@ -167,9 +186,13 @@ impl VariantDictionary {
         let vdv = self
             .0
             .get(key)
-            .ok_or_else(|| VariantDictionaryError::MissingKey { key: key.to_owned() })?;
+            .ok_or_else(|| VariantDictionaryError::MissingKey {
+                key: key.to_owned(),
+            })?;
 
-        vdv.into().ok_or_else(|| VariantDictionaryError::Mistyped { key: key.to_owned() })
+        vdv.into().ok_or_else(|| VariantDictionaryError::Mistyped {
+            key: key.to_owned(),
+        })
     }
 
     /// Set a value in the VariantDictionary
@@ -364,7 +387,10 @@ mod variant_dictionary_tests {
     #[test]
     fn parsing_errors() -> Result<(), VariantDictionaryError> {
         let res = VariantDictionary::parse("not-a-variant-dictionary".as_bytes());
-        assert!(matches!(res, Err(VariantDictionaryError::InvalidVersion { .. })));
+        assert!(matches!(
+            res,
+            Err(VariantDictionaryError::InvalidVersion { .. })
+        ));
 
         let res = VariantDictionary::parse(&hex!("0001"));
         assert!(matches!(res, Err(VariantDictionaryError::NotTerminated)));
@@ -381,7 +407,10 @@ mod variant_dictionary_tests {
         //                                        |   | |       |   |       |
         let res = VariantDictionary::parse(&hex!("0001AA0200000041420000000000"));
         dbg!(&res);
-        assert!(matches!(res, Err(VariantDictionaryError::InvalidValueType { value_type: 0xAA })));
+        assert!(matches!(
+            res,
+            Err(VariantDictionaryError::InvalidValueType { value_type: 0xAA })
+        ));
 
         Ok(())
     }
@@ -415,7 +444,10 @@ mod variant_dictionary_tests {
         assert_eq!(vd.get_typed::<i64>("a-i64").unwrap(), &-31337i64);
         assert_eq!(vd.get_typed::<bool>("a-bool").unwrap(), &true);
         assert_eq!(vd.get_typed::<String>("a-string").unwrap(), "Testing");
-        assert_eq!(vd.get_typed::<Vec<u8>>("a-bytes").unwrap(), "testing".as_bytes());
+        assert_eq!(
+            vd.get_typed::<Vec<u8>>("a-bytes").unwrap(),
+            "testing".as_bytes()
+        );
 
         let mut vd_data = Vec::new();
         vd.dump(&mut vd_data).unwrap();

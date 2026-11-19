@@ -3,7 +3,10 @@
 fn save_and_load_file_roundtrip() -> Result<(), Box<dyn std::error::Error>> {
     use keepass_ng::{
         DatabaseKey,
-        db::{Database, Entry, Group, Node, group_add_child, rc_refcell_node, with_node, with_node_mut},
+        db::{
+            Database, Entry, Group, Node, group_add_child, rc_refcell_node, with_node,
+            with_node_mut,
+        },
     };
     use std::fs::File;
 

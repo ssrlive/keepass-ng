@@ -27,11 +27,18 @@ fn drive(label: &str, payloads: Vec<Vec<u8>>) {
     .unwrap();
 
     let bytes = common::save_to_vec(&db, combo.get_key());
-    let parsed = Database::open(&mut bytes.as_slice(), combo.get_key()).unwrap_or_else(|err| panic!("{}: reopen failed: {:?}", label, err));
+    let parsed = Database::open(&mut bytes.as_slice(), combo.get_key())
+        .unwrap_or_else(|err| panic!("{}: reopen failed: {:?}", label, err));
 
-    assert_eq!(total_attachments(&parsed), payloads.len(), "{}: total attachments count", label);
+    assert_eq!(
+        total_attachments(&parsed),
+        payloads.len(),
+        "{}: total attachments count",
+        label
+    );
 
-    let entry = entry_with_attachment(&parsed, "blob-0.bin").unwrap_or_else(|| panic!("{}: no entry under root", label));
+    let entry = entry_with_attachment(&parsed, "blob-0.bin")
+        .unwrap_or_else(|| panic!("{}: no entry under root", label));
 
     for (i, expected) in payloads.iter().enumerate() {
         let name = format!("blob-{i}.bin");
@@ -40,7 +47,13 @@ fn drive(label: &str, payloads: Vec<Vec<u8>>) {
                 .attachments
                 .get(&name)
                 .unwrap_or_else(|| panic!("{}: missing attachment {}", label, name));
-            assert_eq!(att.data.get().as_slice(), expected.as_slice(), "{}: payload {} differs", label, i);
+            assert_eq!(
+                att.data.get().as_slice(),
+                expected.as_slice(),
+                "{}: payload {} differs",
+                label,
+                i
+            );
         })
         .unwrap();
     }
@@ -48,7 +61,10 @@ fn drive(label: &str, payloads: Vec<Vec<u8>>) {
 
 #[test]
 fn binary_pool_sizes_zero_one_sixteen() {
-    drive("sizes-tiny", vec![Vec::new(), vec![0x00], (0u8..16).collect()]);
+    drive(
+        "sizes-tiny",
+        vec![Vec::new(), vec![0x00], (0u8..16).collect()],
+    );
 }
 
 #[test]
@@ -74,8 +90,8 @@ fn binary_pool_byte_patterns() {
             vec![0xFFu8; 256],
             (0..=255u8).collect(),
             vec![
-                0xC3, 0x28, 0xA0, 0xA1, 0xE2, 0x28, 0xA1, 0xE2, 0x82, 0x28, 0xF0, 0x28, 0x8C, 0xBC, 0xF0, 0x90, 0x28, 0xBC, 0xF0, 0x28,
-                0x8C, 0x28,
+                0xC3, 0x28, 0xA0, 0xA1, 0xE2, 0x28, 0xA1, 0xE2, 0x82, 0x28, 0xF0, 0x28, 0x8C, 0xBC,
+                0xF0, 0x90, 0x28, 0xBC, 0xF0, 0x28, 0x8C, 0x28,
             ],
         ],
     );

@@ -59,7 +59,9 @@ impl<T: Zeroize + Clone> Clone for Value<T> {
     fn clone(&self) -> Self {
         match self {
             Value::Unprotected(data) => Value::Unprotected(data.clone()),
-            Value::Protected(data) => Value::Protected(SecretBox::new(Box::new(data.expose_secret().clone()))),
+            Value::Protected(data) => {
+                Value::Protected(SecretBox::new(Box::new(data.expose_secret().clone())))
+            }
         }
     }
 }

@@ -56,7 +56,8 @@ fn parse_outer_header(data: &[u8]) -> Result<KDBX3Header, Kdbx3OuterHeaderError>
             .get(pos)
             .ok_or(Kdbx3OuterHeaderError::IncompleteOuterHeader("Header field"))
             .and_then(|field_id| {
-                KDBXHeaderFieldID::try_from(field_id).map_err(|_| Kdbx3OuterHeaderError::InvalidOuterHeaderEntry(*field_id))
+                KDBXHeaderFieldID::try_from(field_id)
+                    .map_err(|_| Kdbx3OuterHeaderError::InvalidOuterHeaderEntry(*field_id))
             })?;
 
         let field_length = data
@@ -87,7 +88,9 @@ fn parse_outer_header(data: &[u8]) -> Result<KDBX3Header, Kdbx3OuterHeaderError>
 
             // COMPRESSIONFLAGS - first byte determines compression of payload
             KDBXHeaderFieldID::CompressionFlags => {
-                compression = Some(CompressionConfig::try_from(LittleEndian::read_u32(field_buffer))?);
+                compression = Some(CompressionConfig::try_from(LittleEndian::read_u32(
+                    field_buffer,
+                ))?);
             }
 
             // MASTERSEED - Master seed for deriving the master key
@@ -97,13 +100,17 @@ fn parse_outer_header(data: &[u8]) -> Result<KDBX3Header, Kdbx3OuterHeaderError>
             KDBXHeaderFieldID::TransformSeed => transform_seed = Some(field_buffer.to_vec()),
 
             // TRANSFORMROUNDS - Number of rounds used in derivation of transformed key
-            KDBXHeaderFieldID::TransformRounds => transform_rounds = Some(LittleEndian::read_u64(field_buffer)),
+            KDBXHeaderFieldID::TransformRounds => {
+                transform_rounds = Some(LittleEndian::read_u64(field_buffer))
+            }
 
             // ENCRYPTIONIV - Initialization Vector for decrypting the payload
             KDBXHeaderFieldID::EncryptionIV => encryption_iv = Some(field_buffer.to_vec()),
 
             // PROTECTEDSTREAMKEY - Key for decrypting the inner protected values
-            KDBXHeaderFieldID::InnerRandomStreamKey => inner_random_stream_key = Some(field_buffer.to_vec()),
+            KDBXHeaderFieldID::InnerRandomStreamKey => {
+                inner_random_stream_key = Some(field_buffer.to_vec())
+            }
 
             // STREAMSTARTBYTES - First bytes of decrypted payload (to check correct decryption)
             KDBXHeaderFieldID::StreamStartBytes => stream_start = Some(field_buffer.to_vec()),
@@ -111,11 +118,15 @@ fn parse_outer_header(data: &[u8]) -> Result<KDBX3Header, Kdbx3OuterHeaderError>
             // INNERRANDOMSTREAMID - specifies which cipher suite
             //                       to use for decrypting the inner protected values
             KDBXHeaderFieldID::InnerRandomStreamID => {
-                inner_random_stream_id = Some(InnerCipherConfig::try_from(LittleEndian::read_u32(field_buffer))?);
+                inner_random_stream_id = Some(InnerCipherConfig::try_from(
+                    LittleEndian::read_u32(field_buffer),
+                )?);
             }
 
             _ => {
-                return Err(Kdbx3OuterHeaderError::InvalidOuterHeaderEntry(field_id.into()));
+                return Err(Kdbx3OuterHeaderError::InvalidOuterHeaderEntry(
+                    field_id.into(),
+                ));
             }
         };
     }
@@ -138,7 +149,9 @@ fn parse_outer_header(data: &[u8]) -> Result<KDBX3Header, Kdbx3OuterHeaderError>
     let inner_random_stream_id = get_or_err(inner_random_stream_id, "Inner cipher ID")?;
 
     // KDF type is always AES for KDBX3
-    let kdf_config = KdfConfig::Aes { rounds: transform_rounds };
+    let kdf_config = KdfConfig::Aes {
+        rounds: transform_rounds,
+    };
 
     Ok(KDBX3Header {
         outer_cipher,
@@ -173,7 +186,10 @@ pub enum Kdbx3OuterHeaderError {
 }
 
 /// Open, decrypt and parse a `KeePass` database from a source and a password
-pub(crate) fn parse_kdbx3(data: &[u8], db_key: &DatabaseKey) -> Result<Database, DatabaseOpenError> {
+pub(crate) fn parse_kdbx3(
+    data: &[u8],
+    db_key: &DatabaseKey,
+) -> Result<Database, DatabaseOpenError> {
     let (config, mut inner_decryptor, xml) = decrypt_kdbx3(data, db_key)?;
 
     // Parse XML data blocks
@@ -188,13 +204,18 @@ pub(crate) fn parse_kdbx3(data: &[u8], db_key: &DatabaseKey) -> Result<Database,
 
 /// Open and decrypt a `KeePass` KDBX3 database from a source and a password
 #[allow(clippy::type_complexity)]
-pub(crate) fn decrypt_kdbx3(data: &[u8], db_key: &DatabaseKey) -> Result<(DatabaseConfig, Box<dyn Cipher>, Vec<u8>), DatabaseOpenError> {
+pub(crate) fn decrypt_kdbx3(
+    data: &[u8],
+    db_key: &DatabaseKey,
+) -> Result<(DatabaseConfig, Box<dyn Cipher>, Vec<u8>), DatabaseOpenError> {
     let version = DatabaseVersion::parse(data)?;
     let header = parse_outer_header(data)
         .map_err(Kdbx3OpenError::from)
         .map_err(DatabaseIntegrityError::from)?;
 
-    let inner_decryptor = header.inner_random_stream_id.get_cipher(&header.protected_stream_key)?;
+    let inner_decryptor = header
+        .inner_random_stream_id
+        .get_cipher(&header.protected_stream_key)?;
 
     let config = DatabaseConfig {
         version,
@@ -211,9 +232,11 @@ pub(crate) fn decrypt_kdbx3(data: &[u8], db_key: &DatabaseKey) -> Result<(Databa
     let compression = config.compression_config.get_compression();
 
     // Rest of file after header is payload
-    let payload_encrypted = data.get(pos..).ok_or_else(|| DatabaseIntegrityError::IncompleteOuterHeader {
-        missing_field: "Payload".into(),
-    })?;
+    let payload_encrypted =
+        data.get(pos..)
+            .ok_or_else(|| DatabaseIntegrityError::IncompleteOuterHeader {
+                missing_field: "Payload".into(),
+            })?;
 
     // derive master key from composite key, transform_seed, transform_rounds and master_seed
     let key_elements = db_key.get_key_elements()?;
@@ -235,7 +258,9 @@ pub(crate) fn decrypt_kdbx3(data: &[u8], db_key: &DatabaseKey) -> Result<(Databa
         .decrypt(payload_encrypted)?;
 
     // Check if we decrypted correctly
-    let stream_start = payload.get(0..header.stream_start.len()).ok_or(DatabaseKeyError::IncorrectKey)?;
+    let stream_start = payload
+        .get(0..header.stream_start.len())
+        .ok_or(DatabaseKeyError::IncorrectKey)?;
     if stream_start != header.stream_start.as_slice() {
         return Err(DatabaseKeyError::IncorrectKey.into());
     }
@@ -270,7 +295,9 @@ pub(crate) fn decrypt_kdbx3(data: &[u8], db_key: &DatabaseKey) -> Result<(Databa
         // Test block hash
         let block_hash_check = calculate_sha256(&[block_buffer_compressed]);
         if block_hash != block_hash_check.as_slice() {
-            return Err(DatabaseIntegrityError::from(Kdbx3OpenError::BlockHashMismatch(block_index)).into());
+            return Err(
+                DatabaseIntegrityError::from(Kdbx3OpenError::BlockHashMismatch(block_index)).into(),
+            );
         }
 
         // Decompress block_buffer_compressed

@@ -1,6 +1,8 @@
 //! Error types that this crate can return
 
-pub use crate::config::{CompressionConfigError, InnerCipherConfigError, KdfConfigError, OuterCipherConfigError};
+pub use crate::config::{
+    CompressionConfigError, InnerCipherConfigError, KdfConfigError, OuterCipherConfigError,
+};
 pub use crate::crypt::CryptographyError;
 #[cfg(feature = "save_kdbx4")]
 pub use crate::db::DatabaseSaveError;
@@ -102,8 +104,9 @@ pub type BoxError = Box<dyn std::error::Error + Send + Sync + 'static>;
 // move error type conversions to a module and exclude them from coverage counting.
 mod conversions {
     use super::{
-        BlockStreamError, CompressionConfigError, CryptographyError, DatabaseIntegrityError, DatabaseOpenError, InnerCipherConfigError,
-        KdfConfigError, OuterCipherConfigError, VariantDictionaryError, XmlParseError,
+        BlockStreamError, CompressionConfigError, CryptographyError, DatabaseIntegrityError,
+        DatabaseOpenError, InnerCipherConfigError, KdfConfigError, OuterCipherConfigError,
+        VariantDictionaryError, XmlParseError,
     };
 
     impl From<CryptographyError> for DatabaseOpenError {

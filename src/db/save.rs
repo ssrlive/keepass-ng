@@ -22,7 +22,11 @@ pub enum DatabaseSaveError {
 impl Database {
     /// Save a database to a `std::io::Write`
     #[cfg(feature = "save_kdbx4")]
-    pub fn save(&self, destination: &mut dyn std::io::Write, key: DatabaseKey) -> Result<(), DatabaseSaveError> {
+    pub fn save(
+        &self,
+        destination: &mut dyn std::io::Write,
+        key: DatabaseKey,
+    ) -> Result<(), DatabaseSaveError> {
         use crate::format::kdbx4::dump_kdbx4;
 
         match self.config.version {

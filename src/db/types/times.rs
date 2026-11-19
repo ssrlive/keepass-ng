@@ -99,7 +99,9 @@ impl Times {
     // the last leap second.
     pub fn now() -> NaiveDateTime {
         let now = now_timestamp();
-        chrono::DateTime::from_timestamp(now, 0).unwrap().naive_utc()
+        chrono::DateTime::from_timestamp(now, 0)
+            .unwrap()
+            .naive_utc()
     }
 
     pub fn epoch() -> NaiveDateTime {

@@ -17,7 +17,9 @@ pub mod cs_base64 {
         D: Deserializer<'de>,
     {
         let s = String::deserialize(deserializer)?;
-        base64_engine::STANDARD.decode(s).map_err(serde::de::Error::custom)
+        base64_engine::STANDARD
+            .decode(s)
+            .map_err(serde::de::Error::custom)
     }
 }
 
@@ -40,7 +42,9 @@ pub mod cs_bool {
         match s.to_lowercase().as_str() {
             "true" | "1" => Ok(true),
             "false" | "0" => Ok(false),
-            _ => Err(serde::de::Error::custom(format!("invalid boolean string: {s}"))),
+            _ => Err(serde::de::Error::custom(format!(
+                "invalid boolean string: {s}"
+            ))),
         }
     }
 }
@@ -74,7 +78,9 @@ pub mod cs_opt_bool {
                 match s.to_lowercase().as_str() {
                     "true" | "1" => Ok(Some(true)),
                     "false" | "0" => Ok(Some(false)),
-                    _ => Err(serde::de::Error::custom(format!("invalid boolean string: {s}"))),
+                    _ => Err(serde::de::Error::custom(format!(
+                        "invalid boolean string: {s}"
+                    ))),
                 }
             }
         }
@@ -148,9 +154,11 @@ pub mod cs_opt_string {
                 if s.trim().is_empty() {
                     Ok(None)
                 } else {
-                    T::deserialize(serde::de::IntoDeserializer::<D::Error>::into_deserializer(s))
-                        .map(Some)
-                        .map_err(serde::de::Error::custom)
+                    T::deserialize(serde::de::IntoDeserializer::<D::Error>::into_deserializer(
+                        s,
+                    ))
+                    .map(Some)
+                    .map_err(serde::de::Error::custom)
                 }
             }
         }

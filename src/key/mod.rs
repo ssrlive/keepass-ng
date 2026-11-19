@@ -129,14 +129,22 @@ impl DatabaseKey {
     }
 
     #[cfg(feature = "utilities")]
-    pub fn with_password_from_prompt(mut self, prompt_message: &str) -> Result<Self, std::io::Error> {
+    pub fn with_password_from_prompt(
+        mut self,
+        prompt_message: &str,
+    ) -> Result<Self, std::io::Error> {
         self.password = Some(rpassword::prompt_password(prompt_message)?);
         Ok(self)
     }
 
     #[cfg(all(feature = "challenge_response", feature = "utilities"))]
-    pub fn with_hmac_sha1_secret_from_prompt(mut self, prompt_message: &str) -> Result<Self, std::io::Error> {
-        self.challenge_response_key = Some(ChallengeResponseKey::LocalChallenge(rpassword::prompt_password(prompt_message)?));
+    pub fn with_hmac_sha1_secret_from_prompt(
+        mut self,
+        prompt_message: &str,
+    ) -> Result<Self, std::io::Error> {
+        self.challenge_response_key = Some(ChallengeResponseKey::LocalChallenge(
+            rpassword::prompt_password(prompt_message)?,
+        ));
         Ok(self)
     }
 
@@ -155,7 +163,10 @@ impl DatabaseKey {
     }
 
     #[cfg(feature = "challenge_response")]
-    pub fn with_challenge_response_key(mut self, challenge_response_key: ChallengeResponseKey) -> Self {
+    pub fn with_challenge_response_key(
+        mut self,
+        challenge_response_key: ChallengeResponseKey,
+    ) -> Self {
         self.challenge_response_key = Some(challenge_response_key);
         self
     }
@@ -193,7 +204,9 @@ impl DatabaseKey {
         if let Some(result) = &self.challenge_response_result {
             out.push(calculate_sha256(&[result]).as_slice().to_vec());
         } else if self.challenge_response_key.is_some() {
-            return Err(DatabaseKeyError::ChallengeResponse(ChallengeResponseKeyError::NotPerformed));
+            return Err(DatabaseKeyError::ChallengeResponse(
+                ChallengeResponseKeyError::NotPerformed,
+            ));
         }
 
         Ok(out)
@@ -201,14 +214,12 @@ impl DatabaseKey {
 
     /// Returns true if the database key is not associated with any key component.
     pub fn is_empty(&self) -> bool {
-        if self.password.is_some() || self.keyfile.is_some() {
-            return false;
-        }
+        let mut has_component = self.password.is_some() || self.keyfile.is_some();
         #[cfg(feature = "challenge_response")]
-        if self.challenge_response_key.is_some() {
-            return false;
+        {
+            has_component = has_component || self.challenge_response_key.is_some();
         }
-        true
+        !has_component
     }
 }
 
@@ -221,7 +232,9 @@ mod key_tests {
 
     #[test]
     fn test_key() -> Result<(), DatabaseKeyError> {
-        let ke = DatabaseKey::new().with_password("asdf").get_key_elements()?;
+        let ke = DatabaseKey::new()
+            .with_password("asdf")
+            .get_key_elements()?;
         assert_eq!(ke.len(), 1);
 
         let ke = DatabaseKey::new()
@@ -241,7 +254,10 @@ mod key_tests {
         assert_eq!(ke.len(), 2);
 
         let ke = DatabaseKey::new()
-            .with_keyfile(&mut "<KeyFile><Key><Data>0!23456789ABCDEF0123456789ABCDEF</Data></Key></KeyFile>".as_bytes())?
+            .with_keyfile(
+                &mut "<KeyFile><Key><Data>0!23456789ABCDEF0123456789ABCDEF</Data></Key></KeyFile>"
+                    .as_bytes(),
+            )?
             .get_key_elements()?;
         assert_eq!(ke.len(), 1);
 

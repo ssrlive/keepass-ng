@@ -2,8 +2,9 @@ use crate::db::types::Database;
 use crate::{
     DatabaseKey,
     error::{
-        BlockStreamError, CompressionConfigError, CryptographyError, DatabaseKeyError, InnerCipherConfigError, KdfConfigError,
-        OuterCipherConfigError, VariantDictionaryError, XmlParseError,
+        BlockStreamError, CompressionConfigError, CryptographyError, DatabaseKeyError,
+        InnerCipherConfigError, KdfConfigError, OuterCipherConfigError, VariantDictionaryError,
+        XmlParseError,
     },
     format::{
         DatabaseVersion, DatabaseVersionParseError,
@@ -51,7 +52,12 @@ pub enum DatabaseIntegrityError {
     #[error("Invalid KDBX identifier")]
     InvalidKDBXIdentifier,
 
-    #[error("Invalid KDBX version: {}.{}.{}", version, file_major_version, file_minor_version)]
+    #[error(
+        "Invalid KDBX version: {}.{}.{}",
+        version,
+        file_major_version,
+        file_minor_version
+    )]
     InvalidKDBXVersion {
         version: u32,
         file_major_version: u32,
@@ -61,7 +67,12 @@ pub enum DatabaseIntegrityError {
     #[error("Invalid header size: {}", size)]
     InvalidFixedHeader { size: usize },
 
-    #[error("Invalid field length for type {}: {} (expected {})", field_type, field_size, expected_field_size)]
+    #[error(
+        "Invalid field length for type {}: {} (expected {})",
+        field_type,
+        field_size,
+        expected_field_size
+    )]
     InvalidKDBFieldLength {
         field_type: u16,
         field_size: u32,
@@ -72,8 +83,15 @@ pub enum DatabaseIntegrityError {
     MissingKDBGroupLevel,
     #[error("Invalid KDBX header field ID: {}", field_id)]
     InvalidKDBXHeaderFieldID { field_id: u8 },
-    #[error("Invalid group level {} (current level {})", group_level, current_level)]
-    InvalidKDBGroupLevel { group_level: u16, current_level: u16 },
+    #[error(
+        "Invalid group level {} (current level {})",
+        group_level,
+        current_level
+    )]
+    InvalidKDBGroupLevel {
+        group_level: u16,
+        current_level: u16,
+    },
     #[error("Missing group ID")]
     MissingKDBGroupId,
     #[error("Invalid group ID {}", group_id)]
@@ -121,7 +139,10 @@ pub enum DatabaseIntegrityError {
 
 impl Database {
     /// Parse a database from a `std::io::Read`
-    pub fn open(source: &mut dyn std::io::Read, key: DatabaseKey) -> Result<Database, DatabaseOpenError> {
+    pub fn open(
+        source: &mut dyn std::io::Read,
+        key: DatabaseKey,
+    ) -> Result<Database, DatabaseOpenError> {
         let mut data = Vec::new();
         source.read_to_end(&mut data)?;
 
@@ -140,7 +161,10 @@ impl Database {
     }
 
     /// Helper function to load a database into its internal XML chunks
-    pub fn get_xml(source: &mut dyn std::io::Read, key: DatabaseKey) -> Result<Vec<u8>, DatabaseOpenError> {
+    pub fn get_xml(
+        source: &mut dyn std::io::Read,
+        key: DatabaseKey,
+    ) -> Result<Vec<u8>, DatabaseOpenError> {
         let mut data = Vec::new();
         source.read_to_end(&mut data)?;
 
@@ -157,7 +181,9 @@ impl Database {
     }
 
     /// Get the version of a database without decrypting it
-    pub fn get_version(source: &mut dyn std::io::Read) -> Result<DatabaseVersion, DatabaseIntegrityError> {
+    pub fn get_version(
+        source: &mut dyn std::io::Read,
+    ) -> Result<DatabaseVersion, DatabaseIntegrityError> {
         let mut data = vec![0; DatabaseVersion::get_version_header_size()];
         _ = source.read(&mut data)?;
         Ok(DatabaseVersion::parse(data.as_ref())?)

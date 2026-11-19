@@ -45,7 +45,9 @@ impl From<NodePtr> for SerializableNodePtr {
 
 impl From<&NodePtr> for SerializableNodePtr {
     fn from(node: &NodePtr) -> Self {
-        SerializableNodePtr { node_ptr: node.clone() }
+        SerializableNodePtr {
+            node_ptr: node.clone(),
+        }
     }
 }
 
@@ -178,17 +180,27 @@ pub fn group_remove_node_by_uuid(root: &NodePtr, uuid: Uuid) -> crate::Result<No
 }
 
 pub fn node_is_equals_to(node: &NodePtr, other: &NodePtr) -> bool {
-    if with_node::<Entry, _, _>(node, |e1| with_node::<Entry, _, _>(other, |e2| e1 == e2).unwrap_or(false)).unwrap_or(false) {
+    if with_node::<Entry, _, _>(node, |e1| {
+        with_node::<Entry, _, _>(other, |e2| e1 == e2).unwrap_or(false)
+    })
+    .unwrap_or(false)
+    {
         return true;
     }
-    with_node::<Group, _, _>(node, |g1| with_node::<Group, _, _>(other, |g2| g1 == g2).unwrap_or(false)).unwrap_or(false)
+    with_node::<Group, _, _>(node, |g1| {
+        with_node::<Group, _, _>(other, |g2| g1 == g2).unwrap_or(false)
+    })
+    .unwrap_or(false)
 }
 
 pub fn search_node_by_uuid(root: &NodePtr, uuid: Uuid) -> Option<NodePtr> {
     NodeIterator::new(root).find(|n| n.borrow().get_uuid() == uuid)
 }
 
-pub fn search_node_by_uuid_with_specific_type<'a, T>(root: &'a NodePtr, uuid: Uuid) -> Option<NodePtr>
+pub fn search_node_by_uuid_with_specific_type<'a, T>(
+    root: &'a NodePtr,
+    uuid: Uuid,
+) -> Option<NodePtr>
 where
     T: 'a + 'static,
 {

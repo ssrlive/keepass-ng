@@ -10,8 +10,9 @@ use crate::{
         DatabaseVersion, hmac_block_stream,
         io::WriteLengthTaggedExt,
         kdbx4::{
-            HEADER_COMPRESSION_ID, HEADER_ENCRYPTION_IV, HEADER_END, HEADER_KDF_PARAMS, HEADER_MASTER_SEED, HEADER_MASTER_SEED_SIZE,
-            HEADER_OUTER_ENCRYPTION_ID, INNER_HEADER_BINARY_ATTACHMENTS, INNER_HEADER_END, INNER_HEADER_RANDOM_STREAM_ID,
+            HEADER_COMPRESSION_ID, HEADER_ENCRYPTION_IV, HEADER_END, HEADER_KDF_PARAMS,
+            HEADER_MASTER_SEED, HEADER_MASTER_SEED_SIZE, HEADER_OUTER_ENCRYPTION_ID,
+            INNER_HEADER_BINARY_ATTACHMENTS, INNER_HEADER_END, INNER_HEADER_RANDOM_STREAM_ID,
             INNER_HEADER_RANDOM_STREAM_KEY, KDBX4InnerHeader, KDBX4OuterHeader,
         },
         variant_dictionary::VariantDictionary,
@@ -23,7 +24,11 @@ use super::HEADER_PUBLIC_CUSTOM_DATA;
 
 /// Dump a `KeePass` database using the key elements
 #[allow(dead_code)]
-pub fn dump_kdbx4(db: &Database, db_key: &DatabaseKey, writer: &mut dyn Write) -> Result<(), DatabaseSaveError> {
+pub fn dump_kdbx4(
+    db: &Database,
+    db_key: &DatabaseKey,
+    writer: &mut dyn Write,
+) -> Result<(), DatabaseSaveError> {
     if !matches!(db.config.version, DatabaseVersion::KDB4(1)) {
         return Err(DatabaseSaveError::UnsupportedVersion);
     }
@@ -73,18 +78,26 @@ pub fn dump_kdbx4(db: &Database, db_key: &DatabaseKey, writer: &mut dyn Write) -
     let master_key = crypt::calculate_sha256(&[&master_seed, transformed_key.as_slice()]);
 
     // verify credentials
-    let hmac_key = crypt::calculate_sha512(&[&master_seed, transformed_key.as_slice(), &hmac_block_stream::HMAC_KEY_END]);
+    let hmac_key = crypt::calculate_sha512(&[
+        &master_seed,
+        transformed_key.as_slice(),
+        &hmac_block_stream::HMAC_KEY_END,
+    ]);
     let header_hmac_key = hmac_block_stream::get_hmac_block_key(u64::MAX, &hmac_key);
     let header_hmac = crypt::calculate_hmac(&[&header_data], header_hmac_key.as_slice())?;
 
     _ = writer.write(header_hmac.as_slice())?;
 
     // Initialize inner encryptor from inner header params
-    let mut inner_cipher = db.config.inner_cipher_config.get_cipher(&inner_random_stream_key)?;
+    let mut inner_cipher = db
+        .config
+        .inner_cipher_config
+        .get_cipher(&inner_random_stream_key)?;
 
     // dump inner header into buffer
     let mut payload = Vec::new();
-    let (attachments, xml) = crate::format::xml_db::to_xml_bytes(db, &mut *inner_cipher).map_err(std::io::Error::other)?;
+    let (attachments, xml) = crate::format::xml_db::to_xml_bytes(db, &mut *inner_cipher)
+        .map_err(std::io::Error::other)?;
     KDBX4InnerHeader {
         inner_random_stream: db.config.inner_cipher_config.clone(),
         inner_random_stream_key,
@@ -94,7 +107,11 @@ pub fn dump_kdbx4(db: &Database, db_key: &DatabaseKey, writer: &mut dyn Write) -
     // after inner header is one XML document
     payload.extend_from_slice(&xml);
 
-    let payload_compressed = db.config.compression_config.get_compression().compress(&payload)?;
+    let payload_compressed = db
+        .config
+        .compression_config
+        .get_compression()
+        .compress(&payload)?;
 
     let payload_encrypted = db
         .config
@@ -152,7 +169,11 @@ impl KDBX4OuterHeader {
 }
 
 impl KDBX4InnerHeader {
-    fn dump(&self, header_attachments: &[Attachment], writer: &mut dyn Write) -> Result<(), DatabaseSaveError> {
+    fn dump(
+        &self,
+        header_attachments: &[Attachment],
+        writer: &mut dyn Write,
+    ) -> Result<(), DatabaseSaveError> {
         _ = writer.write(&[INNER_HEADER_RANDOM_STREAM_ID])?;
         writer.write_u32::<LittleEndian>(4)?;
         writer.write_u32::<LittleEndian>(self.inner_random_stream.dump())?;

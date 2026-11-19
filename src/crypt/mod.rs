@@ -30,7 +30,10 @@ pub enum CryptographyError {
 pub(crate) mod ciphers;
 pub(crate) mod kdf;
 
-pub(crate) fn calculate_hmac(elements: &[&[u8]], key: &[u8]) -> Result<Array<u8, U32>, CryptographyError> {
+pub(crate) fn calculate_hmac(
+    elements: &[&[u8]],
+    key: &[u8],
+) -> Result<Array<u8, U32>, CryptographyError> {
     type HmacSha256 = Hmac<Sha256>;
     let mut mac = HmacSha256::new_from_slice(key)?;
 
@@ -43,7 +46,10 @@ pub(crate) fn calculate_hmac(elements: &[&[u8]], key: &[u8]) -> Result<Array<u8,
 }
 
 #[cfg(feature = "challenge_response")]
-pub(crate) fn calculate_hmac_sha1(elements: &[&[u8]], key: &[u8]) -> Result<Array<u8, U20>, CryptographyError> {
+pub(crate) fn calculate_hmac_sha1(
+    elements: &[&[u8]],
+    key: &[u8],
+) -> Result<Array<u8, U20>, CryptographyError> {
     type HmacSha1 = Hmac<Sha1>;
     let mut mac = HmacSha1::new_from_slice(key)?;
 

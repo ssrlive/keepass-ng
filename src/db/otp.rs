@@ -129,7 +129,8 @@ impl std::str::FromStr for TOTP {
 
         let secret = secret.ok_or(TOTPError::MissingField("secret"))?;
 
-        let secret = base32::decode(base32::Alphabet::Rfc4648 { padding: true }, &secret).ok_or(TOTPError::Base32)?;
+        let secret = base32::decode(base32::Alphabet::Rfc4648 { padding: true }, &secret)
+            .ok_or(TOTPError::Base32)?;
 
         Ok(TOTP {
             label,
@@ -161,9 +162,15 @@ impl TOTP {
     /// Get the one-time code for a specific unix timestamp
     pub fn value_at(&self, time: u64) -> OTPCode {
         let code = match self.algorithm {
-            TOTPAlgorithm::Sha1 => totp_custom::<Sha1>(self.period, self.digits, &self.secret, time),
-            TOTPAlgorithm::Sha256 => totp_custom::<Sha256>(self.period, self.digits, &self.secret, time),
-            TOTPAlgorithm::Sha512 => totp_custom::<Sha512>(self.period, self.digits, &self.secret, time),
+            TOTPAlgorithm::Sha1 => {
+                totp_custom::<Sha1>(self.period, self.digits, &self.secret, time)
+            }
+            TOTPAlgorithm::Sha256 => {
+                totp_custom::<Sha256>(self.period, self.digits, &self.secret, time)
+            }
+            TOTPAlgorithm::Sha512 => {
+                totp_custom::<Sha512>(self.period, self.digits, &self.secret, time)
+            }
         };
 
         let valid_for = Duration::from_secs(self.period - (time % self.period));
@@ -299,7 +306,10 @@ mod kdbx4_otp_tests {
 
     #[test]
     fn totp_bad() {
-        assert!(matches!("not a totp string".parse::<TOTP>(), Err(TOTPError::UrlFormat(_))));
+        assert!(matches!(
+            "not a totp string".parse::<TOTP>(),
+            Err(TOTPError::UrlFormat(_))
+        ));
 
         assert!(matches!(
             "http://totp/sha512%20totp:none?secret=GEZDGNBVGY%3D%3D%3D%3D%3D%3D&period=30&digits=6&issuer=sha512%20totp&algorithm=SHA512"

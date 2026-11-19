@@ -24,7 +24,9 @@ mod entry_tests {
             assert_eq!(e.get("URL"), Some("http://keepass.info/"));
             assert!(!e.get_times().get_expires());
 
-            let et = chrono::NaiveDateTime::parse_from_str("2016-01-06 09:43:01", "%Y-%m-%d %H:%M:%S").unwrap();
+            let et =
+                chrono::NaiveDateTime::parse_from_str("2016-01-06 09:43:01", "%Y-%m-%d %H:%M:%S")
+                    .unwrap();
             assert_eq!(e.get_times().get_expiry_time(), Some(et));
 
             if let Some(at) = e.get_autotype() {
@@ -71,7 +73,10 @@ mod entry_tests {
             assert_eq!(e.get_username(), Some("ghj"));
             assert_eq!(e.get_password(), Some("klmno"));
             assert_eq!(e.get_url(), Some("https://example.com"));
-            assert_eq!(e.get_tags(), &vec!["keepass-rs".to_string(), "test".to_string()]);
+            assert_eq!(
+                e.get_tags(),
+                &vec!["keepass-rs".to_string(), "test".to_string()]
+            );
             assert!(e.get_times().get_expires());
             if let Some(t) = e.get_times().get_expiry_time() {
                 assert_eq!(format!("{t}"), "2021-04-10 16:53:18");
@@ -86,7 +91,10 @@ mod entry_tests {
     #[test]
     fn kdbx3_with_chacha20_protected_fields() -> Result<(), DatabaseOpenError> {
         let path = Path::new("tests/resources/test_db_kdbx3_with_chacha20_protected_fields.kdbx");
-        let db = Database::open(&mut File::open(path)?, DatabaseKey::new().with_password("password"))?;
+        let db = Database::open(
+            &mut File::open(path)?,
+            DatabaseKey::new().with_password("password"),
+        )?;
         for node in NodeIterator::new(&db.root) {
             with_node::<Entry, _, _>(&node, |entry| {
                 assert_eq!(entry.get_password(), Some("admin"));

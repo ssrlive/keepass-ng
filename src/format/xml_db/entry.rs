@@ -22,7 +22,12 @@ pub(crate) struct EntryXml {
     #[serde(rename = "UUID")]
     pub uuid: UuidBase64,
 
-    #[serde(default, rename = "IconID", with = "cs_opt_fromstr", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        rename = "IconID",
+        with = "cs_opt_fromstr",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub icon_id: Option<usize>,
 
     #[serde(
@@ -33,16 +38,33 @@ pub(crate) struct EntryXml {
     )]
     pub custom_icon_uuid: Option<UuidBase64>,
 
-    #[serde(default, with = "cs_opt_string", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        with = "cs_opt_string",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub foreground_color: Option<Color>,
 
-    #[serde(default, with = "cs_opt_string", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        with = "cs_opt_string",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub background_color: Option<Color>,
 
-    #[serde(default, rename = "OverrideURL", with = "cs_opt_string", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        rename = "OverrideURL",
+        with = "cs_opt_string",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub override_url: Option<String>,
 
-    #[serde(default, with = "cs_opt_string", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        with = "cs_opt_string",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub tags: Option<String>,
 
     #[serde(default, with = "cs_opt_bool", skip_serializing_if = "Option::is_none")]
@@ -80,7 +102,10 @@ impl EntryXml {
         target.icon = self
             .custom_icon_uuid
             .map(|uuid| crate::db::Icon::Custom(uuid.0))
-            .or_else(|| self.icon_id.and_then(|id| id.try_into().ok().map(crate::db::Icon::BuiltIn)))
+            .or_else(|| {
+                self.icon_id
+                    .and_then(|id| id.try_into().ok().map(crate::db::Icon::BuiltIn))
+            })
             .unwrap_or(crate::db::Icon::BuiltIn(crate::db::IconId::KEY));
 
         target.foreground_color = self.foreground_color;
@@ -95,8 +120,12 @@ impl EntryXml {
         for field in self.string_fields {
             let fval = field.value.value.unwrap_or_default();
             let value = if field.value.protected {
-                let fval = base64_engine::STANDARD.decode(fval).map_err(std::io::Error::other)?;
-                let fval = inner_decryptor.decrypt(&fval).map_err(std::io::Error::other)?;
+                let fval = base64_engine::STANDARD
+                    .decode(fval)
+                    .map_err(std::io::Error::other)?;
+                let fval = inner_decryptor
+                    .decrypt(&fval)
+                    .map_err(std::io::Error::other)?;
                 let fval = String::from_utf8_lossy(&fval).to_string();
 
                 crate::db::Value::protected(fval)
@@ -108,7 +137,9 @@ impl EntryXml {
 
         for field in self.binary_fields {
             if let Some(attachment) = header_attachments.get(field.value.value_ref) {
-                target.attachments.insert(field.key.clone(), attachment.clone());
+                target
+                    .attachments
+                    .insert(field.key.clone(), attachment.clone());
             }
         }
 
@@ -168,7 +199,10 @@ impl EntryXml {
                 }
             };
 
-            string_fields.push(StringFieldXml { key: k.clone(), value });
+            string_fields.push(StringFieldXml {
+                key: k.clone(),
+                value,
+            });
         }
 
         let mut binary_fields = Vec::with_capacity(db.attachments.len());
@@ -232,7 +266,12 @@ pub(crate) struct StringValueXml {
     #[serde(default, rename = "@Protected", with = "cs_bool")]
     protected: bool,
 
-    #[serde(default, rename = "$value", with = "cs_opt_string", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        rename = "$value",
+        with = "cs_opt_string",
+        skip_serializing_if = "Option::is_none"
+    )]
     value: Option<String>,
 }
 
@@ -285,10 +324,18 @@ pub(crate) struct AutoTypeXml {
     #[serde(default, with = "cs_bool")]
     pub enabled: bool,
 
-    #[serde(default, with = "cs_opt_fromstr", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        with = "cs_opt_fromstr",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub data_transfer_obfuscation: Option<usize>,
 
-    #[serde(default, with = "cs_opt_string", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        with = "cs_opt_string",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub default_sequence: Option<String>,
 
     #[serde(rename = "Association", default)]
@@ -300,7 +347,10 @@ impl From<AutoTypeXml> for crate::db::AutoType {
         crate::db::AutoType {
             enabled: value.enabled,
             default_sequence: value.default_sequence,
-            data_transfer_obfuscation: value.data_transfer_obfuscation.map(|d| d.into()).unwrap_or_default(),
+            data_transfer_obfuscation: value
+                .data_transfer_obfuscation
+                .map(|d| d.into())
+                .unwrap_or_default(),
             associations: value.associations.into_iter().map(|a| a.into()).collect(),
         }
     }
@@ -396,9 +446,13 @@ mod tests {
             <Value Protected="True">cGFzc3dvcmQ=</Value>
         </String>"#;
 
-        let deserialized_protected: Test<StringFieldXml> = quick_xml::de::from_str(xml_protected).unwrap();
+        let deserialized_protected: Test<StringFieldXml> =
+            quick_xml::de::from_str(xml_protected).unwrap();
         assert_eq!(deserialized_protected.0.key, "Password");
-        assert_eq!(deserialized_protected.0.value.value.unwrap(), "cGFzc3dvcmQ=");
+        assert_eq!(
+            deserialized_protected.0.value.value.unwrap(),
+            "cGFzc3dvcmQ="
+        );
         assert!(deserialized_protected.0.value.protected);
     }
 
@@ -413,7 +467,10 @@ mod tests {
         };
 
         let serialized = quick_xml::se::to_string(&Test(string_field)).unwrap();
-        assert_eq!(serialized, r#"<Test><Key>Username</Key><Value>user123</Value></Test>"#);
+        assert_eq!(
+            serialized,
+            r#"<Test><Key>Username</Key><Value>user123</Value></Test>"#
+        );
 
         let string_field_protected = StringFieldXml {
             key: "Password".to_string(),
@@ -449,7 +506,10 @@ mod tests {
             value: BinaryValueXml { value_ref: 1 },
         };
         let serialized = quick_xml::se::to_string(&Test(binary_field)).unwrap();
-        assert_eq!(serialized, r#"<Test><Key>Attachment</Key><Value Ref="1"/></Test>"#);
+        assert_eq!(
+            serialized,
+            r#"<Test><Key>Attachment</Key><Value Ref="1"/></Test>"#
+        );
     }
 
     #[test]
@@ -464,7 +524,10 @@ mod tests {
         let deserialized: Test<AutoTypeXml> = quick_xml::de::from_str(xml).unwrap();
         assert!(deserialized.0.enabled);
         assert_eq!(deserialized.0.data_transfer_obfuscation, Some(0));
-        assert_eq!(deserialized.0.default_sequence.unwrap(), "{USERNAME}{TAB}{PASSWORD}{ENTER}");
+        assert_eq!(
+            deserialized.0.default_sequence.unwrap(),
+            "{USERNAME}{TAB}{PASSWORD}{ENTER}"
+        );
     }
 
     #[test]
@@ -524,17 +587,31 @@ mod tests {
         assert_eq!(
             deserialized.0.uuid.0.as_bytes(),
             &[
-                0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f
+                0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d,
+                0x0e, 0x0f
             ]
         );
         assert_eq!(deserialized.0.icon_id.unwrap(), 1);
-        assert_eq!(deserialized.0.foreground_color.unwrap().to_string(), "#FF0000");
-        assert_eq!(deserialized.0.background_color.unwrap().to_string(), "#00FF00");
+        assert_eq!(
+            deserialized.0.foreground_color.unwrap().to_string(),
+            "#FF0000"
+        );
+        assert_eq!(
+            deserialized.0.background_color.unwrap().to_string(),
+            "#00FF00"
+        );
         assert_eq!(deserialized.0.override_url.unwrap(), "https://example.com");
         assert_eq!(deserialized.0.tags.unwrap(), "tag1;tag2");
         assert_eq!(deserialized.0.string_fields.len(), 1);
         assert_eq!(deserialized.0.string_fields[0].key, "Title");
-        assert_eq!(deserialized.0.string_fields[0].value.value.as_ref().unwrap(), "Example Title");
+        assert_eq!(
+            deserialized.0.string_fields[0]
+                .value
+                .value
+                .as_ref()
+                .unwrap(),
+            "Example Title"
+        );
         assert_eq!(deserialized.0.binary_fields.len(), 1);
         assert_eq!(deserialized.0.binary_fields[0].key, "Attachment");
         assert_eq!(deserialized.0.binary_fields[0].value.value_ref, 1);
@@ -542,7 +619,10 @@ mod tests {
         let autotype = deserialized.0.auto_type.unwrap();
         assert!(autotype.enabled);
         assert_eq!(autotype.data_transfer_obfuscation, Some(0));
-        assert_eq!(autotype.default_sequence.unwrap(), "{USERNAME}{TAB}{PASSWORD}{ENTER}");
+        assert_eq!(
+            autotype.default_sequence.unwrap(),
+            "{USERNAME}{TAB}{PASSWORD}{ENTER}"
+        );
 
         assert!(deserialized.0.history.is_none());
     }

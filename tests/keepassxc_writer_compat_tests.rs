@@ -26,14 +26,18 @@ const FIXTURE_PASSWORD: &str = "demopass";
 
 fn load_and_resave_xml() -> String {
     let mut f = std::fs::File::open(FIXTURE_PATH).expect("open fixture");
-    let db = Database::open(&mut f, DatabaseKey::new().with_password(FIXTURE_PASSWORD)).expect("parse fixture");
+    let db = Database::open(&mut f, DatabaseKey::new().with_password(FIXTURE_PASSWORD))
+        .expect("parse fixture");
 
     let mut buf = Vec::new();
     db.save(&mut buf, DatabaseKey::new().with_password(FIXTURE_PASSWORD))
         .expect("save fixture");
 
-    let xml =
-        Database::get_xml(&mut std::io::Cursor::new(&buf), DatabaseKey::new().with_password(FIXTURE_PASSWORD)).expect("decrypt re-save");
+    let xml = Database::get_xml(
+        &mut std::io::Cursor::new(&buf),
+        DatabaseKey::new().with_password(FIXTURE_PASSWORD),
+    )
+    .expect("decrypt re-save");
     String::from_utf8(xml).expect("xml is utf-8")
 }
 

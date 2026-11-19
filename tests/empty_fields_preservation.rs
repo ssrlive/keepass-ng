@@ -22,7 +22,8 @@ fn empty_entry_fields_should_survive_round_trip() -> Result<(), Box<dyn std::err
     let actual = save_then_open(&db, key)?;
 
     // Empty standard and custom fields should be present after parsing
-    let entry = Group::get(&actual.root, &[ENTRY_TITLE]).ok_or("entry should be present in database")?;
+    let entry =
+        Group::get(&actual.root, &[ENTRY_TITLE]).ok_or("entry should be present in database")?;
 
     with_node::<Entry, _, _>(&entry, |entry| {
         assert_eq!(entry.get_username(), Some(""));
@@ -34,7 +35,8 @@ fn empty_entry_fields_should_survive_round_trip() -> Result<(), Box<dyn std::err
 }
 
 #[test]
-fn empty_default_fields_should_not_be_added_after_round_trip() -> Result<(), Box<dyn std::error::Error>> {
+fn empty_default_fields_should_not_be_added_after_round_trip()
+-> Result<(), Box<dyn std::error::Error>> {
     let db = create_database_without_empty_fields();
     let key = DatabaseKey::new().with_password(DEMO_PASSWORD);
 
@@ -42,7 +44,8 @@ fn empty_default_fields_should_not_be_added_after_round_trip() -> Result<(), Box
     let actual = save_then_open(&db, key)?;
 
     // Entry should not have empty default fields
-    let entry = Group::get(&actual.root, &[ENTRY_TITLE]).ok_or("entry should be present in database")?;
+    let entry =
+        Group::get(&actual.root, &[ENTRY_TITLE]).ok_or("entry should be present in database")?;
 
     with_node::<Entry, _, _>(&entry, |entry| {
         assert_eq!(entry.get_username(), None);
@@ -64,7 +67,9 @@ fn create_database_with_empty_fields() -> Database {
     with_node_mut::<Entry, _, _>(&entry, |entry| {
         entry.set_title(Some(ENTRY_TITLE));
         entry.set_username(Some(""));
-        entry.set_additional_attribute("CustomField", Some("")).expect("set custom field");
+        entry
+            .set_additional_attribute("CustomField", Some(""))
+            .expect("set custom field");
     })
     .expect("configure entry");
 
