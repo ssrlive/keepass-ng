@@ -214,12 +214,11 @@ impl DatabaseKey {
 
     /// Returns true if the database key is not associated with any key component.
     pub fn is_empty(&self) -> bool {
-        let mut has_component = self.password.is_some() || self.keyfile.is_some();
         #[cfg(feature = "challenge_response")]
-        {
-            has_component = has_component || self.challenge_response_key.is_some();
+        if self.challenge_response_key.is_some() {
+            return false;
         }
-        !has_component
+        self.password.is_none() && self.keyfile.is_none()
     }
 }
 
