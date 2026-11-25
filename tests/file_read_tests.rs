@@ -420,7 +420,7 @@ mod file_read_tests {
 
     #[test]
     #[ignore]
-    #[cfg(feature = "challenge_response")]
+    #[cfg(feature = "challenge_response_usb")]
     fn open_kdbx4_with_yubikey_challenge_response_key() -> Result<(), DatabaseOpenError> {
         let path = Path::new("tests/resources/test_db_with_challenge_response_key.kdbx");
         let yubikey = ChallengeResponseKey::get_yubikey(None)?;

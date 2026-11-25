@@ -83,11 +83,11 @@ fn group_and_entry_order_should_survive_round_trip_after_deletion() -> Result<()
 }
 
 fn generate_entry_titles() -> Vec<String> {
-    (0..20).into_iter().map(|index| format!("Entry_{index}")).collect()
+    (0..20).map(|index| format!("Entry_{index}")).collect()
 }
 
 fn generate_group_titles() -> Vec<String> {
-    (0..20).into_iter().map(|index| format!("Group_{index}")).collect()
+    (0..20).map(|index| format!("Group_{index}")).collect()
 }
 
 fn setup_database() -> Database {
