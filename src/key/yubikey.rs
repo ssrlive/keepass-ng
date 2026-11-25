@@ -34,8 +34,7 @@ fn parse_yubikey_slot(slot_number: &str) -> Result<Slot, ChallengeResponseKeyErr
 /// seed). It may block while the answer is obtained — a hardware key
 /// blocks on a touch in the same place. The secret itself never passes
 /// through this crate.
-pub type ChallengeResponder =
-    Arc<dyn Fn(&[u8]) -> Result<KeyElement, ChallengeResponseKeyError> + Send + Sync>;
+pub type ChallengeResponder = Arc<dyn Fn(&[u8]) -> Result<KeyElement, ChallengeResponseKeyError> + Send + Sync>;
 
 #[derive(Clone)]
 pub enum ChallengeResponseKey {
@@ -53,15 +52,9 @@ pub enum ChallengeResponseKey {
 impl fmt::Debug for ChallengeResponseKey {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            ChallengeResponseKey::LocalChallenge(secret) => {
-                f.debug_tuple("LocalChallenge").field(secret).finish()
-            }
+            ChallengeResponseKey::LocalChallenge(secret) => f.debug_tuple("LocalChallenge").field(secret).finish(),
             #[cfg(feature = "challenge_response_usb")]
-            ChallengeResponseKey::YubikeyChallenge(yubikey, slot) => f
-                .debug_tuple("YubikeyChallenge")
-                .field(yubikey)
-                .field(slot)
-                .finish(),
+            ChallengeResponseKey::YubikeyChallenge(yubikey, slot) => f.debug_tuple("YubikeyChallenge").field(yubikey).field(slot).finish(),
             ChallengeResponseKey::External(_) => f.write_str("External(<responder>)"),
         }
     }
@@ -70,17 +63,12 @@ impl fmt::Debug for ChallengeResponseKey {
 impl PartialEq for ChallengeResponseKey {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
-            (ChallengeResponseKey::LocalChallenge(a), ChallengeResponseKey::LocalChallenge(b)) => {
-                a == b
-            }
+            (ChallengeResponseKey::LocalChallenge(a), ChallengeResponseKey::LocalChallenge(b)) => a == b,
             #[cfg(feature = "challenge_response_usb")]
-            (
-                ChallengeResponseKey::YubikeyChallenge(a, a_slot),
-                ChallengeResponseKey::YubikeyChallenge(b, b_slot),
-            ) => a == b && a_slot == b_slot,
-            (ChallengeResponseKey::External(a), ChallengeResponseKey::External(b)) => {
-                Arc::ptr_eq(a, b)
+            (ChallengeResponseKey::YubikeyChallenge(a, a_slot), ChallengeResponseKey::YubikeyChallenge(b, b_slot)) => {
+                a == b && a_slot == b_slot
             }
+            (ChallengeResponseKey::External(a), ChallengeResponseKey::External(b)) => Arc::ptr_eq(a, b),
             _ => false,
         }
     }
@@ -251,10 +239,7 @@ mod external_tests {
         fn key(self) -> ChallengeResponseKey {
             ChallengeResponseKey::External(Arc::new(move |challenge| {
                 self.seen.lock().unwrap().push(challenge.to_vec());
-                Ok(
-                    crate::crypt::calculate_hmac_sha1(&[challenge], b"remote-only secret")?
-                        .to_vec(),
-                )
+                Ok(crate::crypt::calculate_hmac_sha1(&[challenge], b"remote-only secret")?.to_vec())
             }))
         }
     }
@@ -290,19 +275,13 @@ mod external_tests {
 
     #[test]
     fn a_declining_responder_fails_the_save_and_the_open() {
-        let declining = || {
-            ChallengeResponseKey::External(Arc::new(|_| {
-                Err(ChallengeResponseKeyError::External("declined".into()))
-            }))
-        };
+        let declining = || ChallengeResponseKey::External(Arc::new(|_| Err(ChallengeResponseKeyError::External("declined".into()))));
 
         let mut file = Vec::new();
         let err = sample_database()
             .save(
                 &mut file,
-                DatabaseKey::new()
-                    .with_password("pw")
-                    .with_challenge_response_key(declining()),
+                DatabaseKey::new().with_password("pw").with_challenge_response_key(declining()),
             )
             .unwrap_err();
         assert!(
@@ -326,9 +305,7 @@ mod external_tests {
             .unwrap();
         let err = Database::parse(
             &enrolled,
-            DatabaseKey::new()
-                .with_password("pw")
-                .with_challenge_response_key(declining()),
+            DatabaseKey::new().with_password("pw").with_challenge_response_key(declining()),
         )
         .unwrap_err();
         assert!(err.to_string().contains("declined"), "{err}");
