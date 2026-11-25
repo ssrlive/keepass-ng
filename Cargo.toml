@@ -81,7 +81,7 @@ challenge_response_usb = [
 ]
 merge = []
 
-# default = ["utilities", "save_kdbx4", "challenge_response", "merge"]
+# default = ["utilities", "save_kdbx4", "challenge_response_usb", "merge"]
 
 [dependencies]
 aes = "0.9.4"

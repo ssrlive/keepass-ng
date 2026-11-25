@@ -31,7 +31,7 @@ pub enum DatabaseKeyError {
 mod yubikey;
 
 #[cfg(feature = "challenge_response")]
-pub use yubikey::{ChallengeResponseKey, ChallengeResponseKeyError};
+pub use yubikey::{ChallengeResponder, ChallengeResponseKey, ChallengeResponseKeyError};
 
 fn parse_xml_keyfile(xml: &[u8]) -> Result<KeyElement, DatabaseKeyError> {
     #[derive(Deserialize)]

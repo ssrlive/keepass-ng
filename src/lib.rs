@@ -12,7 +12,7 @@ mod key;
 #[cfg(feature = "challenge_response")]
 pub use self::error::ChallengeResponseKeyError;
 #[cfg(feature = "challenge_response")]
-pub use self::key::ChallengeResponseKey;
+pub use self::key::{ChallengeResponder, ChallengeResponseKey};
 pub use self::{
     config::{CompressionConfig, DatabaseConfig, InnerCipherConfig, KdfConfig, OuterCipherConfig},
     error::{
