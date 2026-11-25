@@ -6,7 +6,7 @@ edition = "2024"
 repository = "https://github.com/ssrlive/keepass-ng"
 documentation = "https://docs.rs/keepass-ng"
 
-version = "0.11.13"
+version = "0.12.0"
 authors = [
   "Stefan Seemayer <stefan@seemayer.de>",
   "ssrlive",
@@ -81,7 +81,7 @@ challenge_response_usb = [
 ]
 merge = []
 
-# default = ["utilities", "save_kdbx4", "challenge_response", "merge"]
+# default = ["utilities", "save_kdbx4", "challenge_response_usb", "merge"]
 
 [dependencies]
 aes = "0.9.4"
